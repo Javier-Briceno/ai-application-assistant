@@ -1,0 +1,187 @@
+.content-body {
+  color: var(--text);
+}
+
+.content-body h2 {
+  font-family: var(--serif);
+  font-size: 20px;
+  font-style: italic;
+  font-weight: 400;
+  color: var(--text);
+  margin: 36px 0 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.copy-btn {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.copy-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.copy-btn--copied {
+  color: var(--pass);
+  border-color: var(--pass);
+}
+
+.content-body h3 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+  margin: 24px 0 10px;
+}
+
+.content-body p {
+  margin-bottom: 12px;
+  color: var(--text);
+  line-height: 1.75;
+}
+
+.content-body strong {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.content-body ul,
+.content-body ol {
+  margin: 8px 0 16px 0;
+  padding-left: 0;
+  list-style: none;
+}
+
+.content-body li {
+  padding: 6px 0 6px 16px;
+  position: relative;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  line-height: 1.6;
+}
+
+.content-body li:last-child { border-bottom: none; }
+
+.content-body li::before {
+  content: '—';
+  position: absolute;
+  left: 0;
+  color: var(--muted);
+}
+
+.content-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 12px;
+}
+
+.content-body th {
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.content-body td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+
+.content-body tr:last-child td { border-bottom: none; }
+
+.content-body hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 28px 0;
+}
+
+.content-body code {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.content-body pre {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px;
+  overflow-x: auto;
+  margin: 12px 0;
+}
+
+.content-body pre code {
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+/* Cover letter */
+.anschreiben-wrapper {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 32px 36px;
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.85;
+}
+
+.anschreiben-wrapper p {
+  margin-bottom: 16px;
+}
+
+.anschreiben-wrapper p:last-child {
+  margin-bottom: 0;
+}
+
+/* CV diff */
+.cv-diff {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px;
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-x: auto;
+  margin-top: 8px;
+}
+
+.cv-diff__line {
+  display: block;
+  padding: 1px 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.cv-diff__line--added {
+  color: var(--pass);
+}
+
+.cv-diff__line--removed {
+  color: var(--fail);
+  opacity: 0.6;
+}

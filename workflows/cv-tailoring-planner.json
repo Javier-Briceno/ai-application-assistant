@@ -1,0 +1,536 @@
+{
+  "name": "CV Tailoring Planner",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Role: {{ $('Start').first().json.role_title }}\nCompany: {{ $('Start').first().json.company }}\n\nMust-criteria from job posting:\n{{ $('Start').first().json.muss_kriterien.map(r => '- ' + r).join('\\n') }}\n\nCandidate strengths already identified (treat as DIREKT evidence):\n{{ $('Start').first().json.highlights.map(h => '- ' + h).join('\\n') }}\n\nKnown gaps (candidate lacks these):\n{{ $('Start').first().json.gaps.map(g => '- ' + g).join('\\n') }}\n\nJob posting:\n{{ $('Start').first().json.job_posting_wrapped }}\n\nClassify every segment now.",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=You are a CV relevance classifier. Your sole task is to analyze every  segment of a candidate's CV against a target job posting and classify  each segment. You do NOT rewrite any text. You do NOT generate instructions. You only classify and decide actions.\n\nCANDIDATE CV: \n<cv> \n{{ $('Start').first().json.cv_text_final }} \n</cv>\n\nCLASSIFICATION DEFINITIONS:  \n\nDIREKT — Content that explicitly evidences a requirement, responsibility,  or core signal stated in the job posting. Direct match by function or  capability, not necessarily by exact name.\n\nTRANSFERABEL — Content that does not match the role 1:1 but demonstrates  skills or mindsets useful for it: structured problem-solving, ownership,  measurable impact, automation, tooling, process improvement,  infrastructure management, testing discipline, API design.\n\nDISTRAKTOR — Content with zero direct or transferable relevance to this  specific role, OR redundant detail that pulls attention from stronger evidence.\n\nACTION RULES — apply these without exception: \n\n- DISTRAKTOR → action must be REMOVE. No exceptions. \n- TRANSFERABEL → action must be KEEP or SHORTEN. NEVER REMOVE. \n- DIREKT → action must be KEEP or REPLACE (to sharpen language only). \n- A skills subcategory where EVERY term is a DISTRAKTOR → REMOVE the entire subcategory. \n- A skills subcategory where ANY term is DIREKT or TRANSFERABEL → KEEP or SHORTEN, never REMOVE. \n\nSEGMENTS TO CLASSIFY: Enumerate and classify EVERY segment listed below. Do not skip any. \n- Profile Summary (one block) \n- Every bullet of every project \n- Every skills subcategory Do NOT classify: Education, Certifications, Languages — these are protected.  \n\nOUTPUT: Populate the schema exactly. reasoning field: max 12 words."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        2144,
+        768
+      ],
+      "id": "e98b676e-e139-42bc-9cd3-abd61bb2055e",
+      "name": "Classifier"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "claude-haiku-4-5-20251001",
+          "mode": "list",
+          "cachedResultName": "Claude Haiku 4.5"
+        },
+        "options": {
+          "maxTokensToSample": 5000,
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        2160,
+        992
+      ],
+      "id": "d289b172-4f9d-4104-be38-94549fe1baee",
+      "name": "Anthropic Chat Model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "bmJJVz53sEeLUr3G",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"role_signal\": {\n      \"type\": \"string\",\n      \"description\": \"One sentence: what this role most needs from a candidate CV.\"\n    },\n    \"project_order\": {\n      \"type\": \"array\",\n      \"items\": { \"type\": \"string\" },\n      \"description\": \"All project titles from CV ordered by relevance to this role, most relevant first. Use exact titles as they appear in the CV.\"\n    },\n    \"segments\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"id\": {\n            \"type\": \"string\",\n            \"description\": \"Unique slug. Examples: profile_summary, seace_bullet_1, pdf_bullet_2, skills_data_engineering, skills_frontend\"\n          },\n          \"segment_type\": {\n            \"type\": \"string\",\n            \"enum\": [\"profile_summary\", \"bullet\", \"skills_subcategory\"]\n          },\n          \"original\": {\n            \"type\": \"string\",\n            \"description\": \"Exact verbatim text of this segment as it appears in the CV. Must be copy-pasteable.\"\n          },\n          \"classification\": {\n            \"type\": \"string\",\n            \"enum\": [\"DIREKT\", \"TRANSFERABEL\", \"DISTRAKTOR\"]\n          },\n          \"action\": {\n            \"type\": \"string\",\n            \"enum\": [\"KEEP\", \"REPLACE\", \"SHORTEN\", \"REMOVE\"]\n          },\n          \"reasoning\": {\n            \"type\": \"string\",\n            \"description\": \"Max 12 words explaining the classification.\"\n          }\n        },\n        \"required\": [\"id\", \"segment_type\", \"original\", \"classification\", \"action\", \"reasoning\"]\n      }\n    }\n  },\n  \"required\": [\"role_signal\", \"project_order\", \"segments\"]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        2288,
+        992
+      ],
+      "id": "5136c671-fdfd-43ae-bda6-4008add2f6dd",
+      "name": "Structured Output Parser3"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('Classifier').first().json.output;\nconst segments = data.segments;\nconst projectOrder = data.project_order;\nconst roleSignal = data.role_signal;\n\n// Enforce action rules deterministically\nconst enforced = segments.map(seg => {\n  let finalAction = seg.action;\n\n  // Rule 1: DISTRAKTOR → always REMOVE\n  if (seg.classification === 'DISTRAKTOR') {\n    finalAction = 'REMOVE';\n  }\n\n  // Rule 2: TRANSFERABEL → never REMOVE, downgrade to SHORTEN\n  if (seg.classification === 'TRANSFERABEL' && seg.action === 'REMOVE') {\n    finalAction = 'SHORTEN';\n  }\n\n  // Rule 3: KEEP with no change needed → mark as skip\n  if (finalAction === 'KEEP') {\n    finalAction = 'SKIP';\n  }\n\n  return { ...seg, finalAction };\n});\n\n// Separate segments that need instructions from those that don't\nconst toEdit = enforced.filter(s => s.finalAction !== 'SKIP');\nconst toSkip = enforced.filter(s => s.finalAction === 'SKIP');\n\n// Build the constraint block for the Generator\nconst constraintLines = toEdit.map(s => {\n  const preview = s.original.length > 80 \n    ? s.original.substring(0, 80) + '...' \n    : s.original;\n  return `[${s.finalAction}] ${s.id} (${s.classification})\\nOriginal: \"${preview}\"\\nReason: ${s.reasoning}`;\n}).join('\\n\\n');\n\n// Build project reorder instructions\nconst reorderInstructions = projectOrder\n  .map((title, i) => `${i + 1}. ${title}`)\n  .join('\\n');\n\nreturn [{\n  json: {\n    role_signal: roleSignal,\n    project_order: projectOrder,\n    reorder_instructions: reorderInstructions,\n    segments_to_edit: toEdit,\n    segments_to_skip: toSkip,\n    constraint_block: constraintLines,\n    edit_count: toEdit.length\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2496,
+        768
+      ],
+      "id": "52342ccb-6b24-422d-b2cb-f4dbff9f9484",
+      "name": "Enforcer"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "claude-sonnet-4-6",
+          "mode": "list",
+          "cachedResultName": "Claude Sonnet 4.6"
+        },
+        "options": {
+          "maxTokensToSample": 4500,
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        2736,
+        992
+      ],
+      "id": "cc601e8f-2a91-4f69-bef0-33fdc9384b35",
+      "name": "Anthropic Chat Model1",
+      "credentials": {
+        "anthropicApi": {
+          "id": "bmJJVz53sEeLUr3G",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"cv_anpassungen\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"bereich\":  { \"type\": \"string\" },\n          \"aktion\":   { \"type\": \"string\", \"enum\": [\"ERSETZEN\",\"HINZUFÜGEN\",\"ENTFERNEN\",\"VORNE STELLEN\",\"KÜRZEN\"] },\n          \"original\": { \"type\": \"string\" },\n          \"neu\":      { \"type\": \"string\" }\n        },\n        \"required\": [\"bereich\",\"aktion\",\"original\",\"neu\"]\n      }\n    }\n  },\n  \"required\": [\"cv_anpassungen\"]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        2864,
+        992
+      ],
+      "id": "2b81850c-3ee7-4ce1-ad27-ca276fe75e6d",
+      "name": "Structured Output Parser4"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $('Generator').first().json.output.cv_anpassungen;\nconst classifiedSegments = $('Enforcer').first().json.segments_to_edit;\n\n// Build lookup: original text → classification\nconst classMap = {};\nfor (const seg of classifiedSegments) {\n  classMap[seg.original.trim()] = {\n    classification: seg.classification,\n    finalAction: seg.finalAction\n  };\n}\n\nconst valid = [];\nconst flagged = [];\n\nfor (const item of items) {\n  // 1. No-op detection: ERSETZEN/KÜRZEN with identical text\n  if (\n    (item.aktion === 'ERSETZEN' || item.aktion === 'KÜRZEN') &&\n    item.original.trim() === item.neu.trim()\n  ) {\n    // Drop silently — no instruction needed\n    continue;\n  }\n\n  // 2. ENTFERNEN on TRANSFERABEL segment → flag for correction\n  const lookup = classMap[item.original.trim()];\n  if (\n    item.aktion === 'ENTFERNEN' &&\n    lookup &&\n    lookup.classification === 'TRANSFERABEL'\n  ) {\n    flagged.push({\n      ...item,\n      error: 'ENTFERNEN on TRANSFERABEL segment',\n      corrected_action: 'KÜRZEN'\n    });\n    continue;\n  }\n\n  // 3. ERSETZEN on DISTRAKTOR (should be ENTFERNEN) → correct silently\n  if (\n    item.aktion === 'ERSETZEN' &&\n    lookup &&\n    lookup.classification === 'DISTRAKTOR' &&\n    item.neu !== ''\n  ) {\n    valid.push({ ...item, aktion: 'ENTFERNEN', neu: '' });\n    continue;\n  }\n\n  valid.push(item);\n}\n\nconst hasErrors = flagged.length > 0;\n\nreturn [{\n  json: {\n    output: { cv_anpassungen: valid },\n    flagged,\n    has_errors: hasErrors,\n    valid_count: valid.length,\n    flagged_count: flagged.length\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3072,
+        768
+      ],
+      "id": "843469ca-51d7-4c4c-ab1b-0d413c0347f6",
+      "name": "Validator"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=The following instructions used ENTFERNEN on segments that contain transferable evidence. Replace each with KÜRZEN.\n\nFor each segment below:\n- Keep \"original\" field verbatim (exact copy from CV)\n- Generate a meaningful shortened version in \"neu\"\n- Use action KÜRZEN\n\nSegments to correct:\n{{ $('Validator').first().json.flagged.map(f => \n  '---\\nSegment: \"' + f.original + '\"\\nReason rejected: ' + f.error\n).join('\\n') }}\n\nGenerate ONLY the corrected instructions for these segments.\nNo other instructions.",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=You are a CV text editor making targeted corrections. You receive a list of rejected instructions and must fix each one. Output language: {{ $('Start').first().json.job_post_language }}  TRUTHFULNESS: Every word in \"neu\" must be verifiable in the original CV. Do NOT add technologies or claims not in the CV.  CANDIDATE CV: <cv> {{ $('Start').first().json.cv_text_final }} </cv>"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        3520,
+        512
+      ],
+      "id": "8ee88bc8-e439-4694-aecf-22635725d19e",
+      "name": "Retry LLM"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "claude-sonnet-4-6",
+          "mode": "list",
+          "cachedResultName": "Claude Sonnet 4.6"
+        },
+        "options": {
+          "maxTokensToSample": 1500,
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        3536,
+        736
+      ],
+      "id": "dacbc499-c3d0-4959-8d5d-f646a2c3655d",
+      "name": "Anthropic Chat Model2",
+      "credentials": {
+        "anthropicApi": {
+          "id": "bmJJVz53sEeLUr3G",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Role signal: {{ $('Enforcer').first().json.role_signal }}\n\nRequired project order (generate VORNE STELLEN instructions for \nthe top 2 most relevant projects):\n{{ $('Enforcer').first().json.reorder_instructions }}\n\nCLASSIFICATION DECISIONS — FINAL, DO NOT OVERRIDE:\n{{ $('Enforcer').first().json.constraint_block }}\n\nJob context:\nRole: {{ $('Start').first().json.role_title }}\nMust-criteria: \n{{ $('Start').first().json.muss_kriterien.map(r => '- ' + r).join('\\n') }}\nHighlights (use as primary evidence anchors in rewritten text):\n{{ $('Start').first().json.highlights.map(h => '- ' + h).join('\\n') }}\nGaps (do not invent experience to cover these):\n{{ $('Start').first().json.gaps.map(g => '- ' + g).join('\\n') }}\n\nGenerate cv_anpassungen now. Include:\n1. VORNE STELLEN instructions for the top 2 projects in required order\n2. One instruction per segment listed in CLASSIFICATION DECISIONS\n   matching exactly its assigned action\n3. No instructions for segments not listed above",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=You are a CV text editor. A classification system has already analyzed  every segment of this CV and made final decisions. Your ONLY job is to  generate the rewritten text for segments that need changes. You do NOT make classification decisions. You do NOT override actions. The actions below are FINAL. Treat them as machine-generated facts.  \n\nCANDIDATE CV: \n<cv> \n{{ $('Start').first().json.cv_text_final }} \n</cv>  \n\nTRUTHFULNESS — absolute constraint: \nEvery word in a \"neu\" field must be verifiable in the original CV. \nDo NOT add technologies, tools, skills, or claims not explicitly stated. \nDo NOT upgrade task-level work to strategy-level framing. \nDo NOT add soft-skill claims without specific project evidence. \nEvery sentence in the profile summary must cite a specific project,  metric, or technology from the CV.  \n\nOUTPUT RULES: \n- For REPLACE action: generate improved text. \"neu\" ≠ \"original\". \n- For SHORTEN action: generate condensed text. \"neu\" ≠ \"original\". \n- For REMOVE action: \"neu\" must be exactly \"\" (empty string). \n- For VORNE STELLEN action: \"neu\" must be identical to \"original\". \n- Never produce an instruction where \"neu\" equals \"original\"    for REPLACE or SHORTEN actions. That is a no-op and is forbidden. \n- \"original\" field must be copied verbatim from the CV —    exact string match required for downstream processing. \n- Output language: {{ $('Start').first().json.job_post_language }}"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        2720,
+        768
+      ],
+      "id": "1d9ff5b8-d43d-4b34-8419-59bf61117110",
+      "name": "Generator"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"cv_anpassungen\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"bereich\":  { \"type\": \"string\" },\n          \"aktion\":   { \"type\": \"string\", \"enum\": [\"ERSETZEN\",\"HINZUFÜGEN\",\"ENTFERNEN\",\"VORNE STELLEN\",\"KÜRZEN\"] },\n          \"original\": { \"type\": \"string\" },\n          \"neu\":      { \"type\": \"string\" }\n        },\n        \"required\": [\"bereich\",\"aktion\",\"original\",\"neu\"]\n      }\n    }\n  },\n  \"required\": [\"cv_anpassungen\"]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        3664,
+        736
+      ],
+      "id": "43b7b249-c935-4b57-8a2a-b8e803419ea7",
+      "name": "Structured Output Parser5"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "9712c917-a6cd-49f0-bdf8-bf3be067cc02",
+              "leftValue": "={{ $('Validator').first().json.has_errors }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3296,
+        768
+      ],
+      "id": "8809d1c0-66dc-4504-abcf-6eb9f0143387",
+      "name": "Validator detected Errors?"
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "job_posting_wrapped"
+            },
+            {
+              "name": "muss_kriterien",
+              "type": "array"
+            },
+            {
+              "name": "highlights",
+              "type": "array"
+            },
+            {
+              "name": "role_title"
+            },
+            {
+              "name": "gaps",
+              "type": "array"
+            },
+            {
+              "name": "company"
+            },
+            {
+              "name": "cv_text_final"
+            },
+            {
+              "name": "job_post_language"
+            }
+          ]
+        }
+      },
+      "id": "1d5a8655-8a91-42c9-920c-2f8b3ce004a6",
+      "typeVersion": 1.1,
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        1920,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d777abd0-8352-43cd-a16a-3a63a3dc05c6",
+              "name": "output",
+              "value": "={{ $json.output }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3584,
+        912
+      ],
+      "id": "1df116dd-38ce-444a-992c-cc1c1f796f83",
+      "name": "Result"
+    },
+    {
+      "parameters": {
+        "jsCode": "let validItems = [];\nlet retryCorrected = [];\n\ntry {\n  validItems = $('Validator').first().json.output.cv_anpassungen || [];\n} catch(e) {}\n\ntry {\n  retryCorrected = $('Retry LLM').first().json.output.cv_anpassungen || [];\n} catch(e) {}\n\n// Merge: valid items + corrected items\nconst final = [...validItems, ...retryCorrected];\n\nreturn [{\n  json: {\n    output: {\n      cv_anpassungen: final\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3872,
+        624
+      ],
+      "id": "a466b9a9-8ff6-437d-9b1a-e796fd259fe9",
+      "name": "Corrected + Valid Items"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d777abd0-8352-43cd-a16a-3a63a3dc05c6",
+              "name": "output",
+              "value": "={{ $json.output }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4096,
+        624
+      ],
+      "id": "ffa01834-34d6-4992-859b-fbd9ff1e0de7",
+      "name": "Result1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Classifier": {
+      "main": [
+        [
+          {
+            "node": "Enforcer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Classifier",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser3": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Classifier",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enforcer": {
+      "main": [
+        [
+          {
+            "node": "Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generator",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser4": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Generator",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validator": {
+      "main": [
+        [
+          {
+            "node": "Validator detected Errors?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Retry LLM",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generator": {
+      "main": [
+        [
+          {
+            "node": "Validator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser5": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Retry LLM",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry LLM": {
+      "main": [
+        [
+          {
+            "node": "Corrected + Valid Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validator detected Errors?": {
+      "main": [
+        [
+          {
+            "node": "Retry LLM",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Corrected + Valid Items": {
+      "main": [
+        [
+          {
+            "node": "Result1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "6cf79137-412c-430e-b306-633f296347a5",
+  "meta": {
+    "instanceId": "19b5c45878e0c37a2dfdebb10fe6ad07185f82630e5b3f64f267192bd053cf0b"
+  },
+  "id": "mY6liCjsJiLvF1MQ",
+  "tags": []
+}

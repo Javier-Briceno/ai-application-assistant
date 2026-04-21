@@ -1,0 +1,50 @@
+.state-panel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 60px;
+  gap: 12px;
+}
+
+.empty-state__glyph {
+  font-family: var(--serif);
+  font-size: 64px;
+  font-style: italic;
+  color: #222;
+  line-height: 1;
+}
+
+.empty-state__text {
+  font-size: 12px;
+  color: var(--muted);
+  max-width: 280px;
+  line-height: 1.8;
+}
+
+.state-panel--loading .empty-state__glyph {
+  color: #2a2a2a;
+  animation: glyph-pulse 1.5s ease-in-out infinite;
+}
+
+.state-panel--error .empty-state__glyph {
+  color: var(--fail);
+  font-style: normal;
+  font-size: 48px;
+}
+
+.state-panel--error .empty-state__text {
+  color: var(--fail);
+}
+
+@keyframes glyph-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
