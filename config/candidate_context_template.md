@@ -2,16 +2,16 @@
 
 This document reflects the keys used by the current exported workflows.
 
-The `candidate_context` table now serves three roles:
+The `candidate_context` table is now profile-scoped and serves three roles:
 
-1. manual source-of-truth storage
+1. source-of-truth storage for profile inputs
 2. generated candidate-profile storage
 3. runtime CV-translation caching
 
 ## Key Groups
 
-### Manual source keys
-Maintained in `Set Up Workflow Context` inside `utility-extract-profile.json`.
+### Source keys
+Written through `POST /profile-setup` in `utility-extract-profile.json`.
 
 - `cv_text`
 - `guide_text_de`
@@ -20,7 +20,7 @@ Maintained in `Set Up Workflow Context` inside `utility-extract-profile.json`.
 - `career_target`
 
 ### Utility-generated keys
-Created or refreshed when the utility workflow runs.
+Created or refreshed by `utility-extract-profile.json`.
 
 - `candidate_profile`
 - `role_type_scores`
@@ -33,7 +33,7 @@ Created by `cv-translation-cache.json` only when a cross-language run happens.
 - `translated_cv_text_<language>`
 - `translated_cv_text_<language>_source_hash`
 
-## Manual Source Keys
+## Source Keys
 
 ### `cv_text`
 Base CV stored as plain text.
@@ -135,7 +135,7 @@ The `cv_hash` value that was current when the translation was created.
 Runtime resolution rule:
 
 1. if CV language matches posting language, use `cv_text`
-2. otherwise read translation cache state
+2. otherwise read translation cache state for the current `profile_id`
 3. reuse cached translation only if:
    - translated text exists, and
    - its `_source_hash` matches current `cv_hash`
@@ -143,7 +143,7 @@ Runtime resolution rule:
 
 ## Minimal Healthy State
 
-After running the utility workflow, `candidate_context` should contain at least:
+After running `POST /profile-setup`, `candidate_context` should contain at least:
 
 - `candidate_profile`
 - `career_target`
@@ -162,27 +162,28 @@ Later, translation cache keys may appear automatically.
 Show all keys:
 
 ```sql
-SELECT key, updated_at
-FROM candidate_context
-ORDER BY key;
+SELECT profile_id, key, updated_at
+FROM job_application_assistant.candidate_context
+ORDER BY profile_id, key;
 ```
 
-Show fixed bootstrap keys:
+Show fixed keys for one profile:
 
 ```sql
 SELECT key, updated_at
-FROM candidate_context
-WHERE key IN (
-  'candidate_profile',
-  'career_target',
-  'cv_hash',
-  'cv_language',
-  'cv_text',
-  'guide_text_de',
-  'guide_text_en',
-  'market_research',
-  'role_type_scores'
-)
+FROM job_application_assistant.candidate_context
+WHERE profile_id = 1
+  AND key IN (
+    'candidate_profile',
+    'career_target',
+    'cv_hash',
+    'cv_language',
+    'cv_text',
+    'guide_text_de',
+    'guide_text_en',
+    'market_research',
+    'role_type_scores'
+  )
 ORDER BY key;
 ```
 
@@ -190,8 +191,9 @@ Show translation cache state:
 
 ```sql
 SELECT key, updated_at
-FROM candidate_context
-WHERE key LIKE 'translated_cv_text_%'
+FROM job_application_assistant.candidate_context
+WHERE profile_id = 1
+  AND key LIKE 'translated_cv_text_%'
 ORDER BY updated_at DESC;
 ```
 
@@ -199,15 +201,15 @@ ORDER BY updated_at DESC;
 
 After changing `cv_text`:
 
-- re-run the utility workflow
-- old translations become stale automatically because `cv_hash` changes
+- call `POST /profile-setup` with `profile_id`
+- old translations for `de` and `en` are deleted if the hash changed
 
 After changing `guide_text_de` or `guide_text_en`:
 
-- re-run the utility workflow
+- call `POST /profile-setup` with `profile_id`
 
 After changing `market_research` or `career_target`:
 
-- re-run the utility workflow so `candidate_profile` and `role_type_scores` stay aligned
+- call `POST /profile-setup` with `profile_id` so `candidate_profile` and `role_type_scores` stay aligned
 
 Avoid manually editing generated keys unless you are intentionally debugging the pipeline.

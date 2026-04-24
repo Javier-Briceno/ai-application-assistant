@@ -17,7 +17,7 @@
       "typeVersion": 1.3,
       "position": [
         288,
-        1248
+        1344
       ],
       "id": "bd76efba-f8d4-40e6-8516-2fad7e1f002a",
       "name": "Haiku 4.5",
@@ -30,13 +30,13 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $('Fetch Config').all();\nconst config = {}\n\nrows.forEach(row => {\n  config[row.json.key] = row.json.value;\n});\n\ntry {\n  config.candidate_profile = JSON.parse(config.candidate_profile);\n} catch(e) {\n  config.candidate_profile = {};\n}\n\ntry {\n  config.cv_language = JSON.parse(config.cv_language);\n} catch(e) {\n  config.cv_language = {};\n}\n\ntry {\n  config.role_type_scores = JSON.parse(config.role_type_scores);\n} catch(e) {\n  config.role_type_scores = {};\n}\n\nreturn [{ json: config }]"
+        "jsCode": "const rows = $('Fetch Config').all();\nconst config = {}\n\nrows.forEach(row => {\n  config[row.json.key] = row.json.value;\n});\n\ntry {\n  config.candidate_profile = JSON.parse(config.candidate_profile);\n} catch(e) {\n  config.candidate_profile = {};\n}\n\nconfig.cv_language = config.cv_language || 'de';\n\ntry {\n  config.role_type_scores = JSON.parse(config.role_type_scores);\n} catch(e) {\n  config.role_type_scores = {};\n}\n\nreturn [{ json: config }]"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        784,
-        1024
+        1232,
+        992
       ],
       "id": "981be676-1d1c-4aa5-9cd4-2dd4b64b4b99",
       "name": "Load Config"
@@ -44,14 +44,16 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT key, value\nFROM candidate_context\nWHERE key IN ('candidate_profile', 'role_type_scores', 'cv_text', 'cv_language', 'guide_text_de', 'guide_text_en');",
-        "options": {}
+        "query": "SELECT key, value\nFROM job_application_assistant.candidate_context\nWHERE profile_id = $1\n  AND key IN ('candidate_profile', 'role_type_scores', 'cv_text', 'cv_language', 'guide_text_de', 'guide_text_en');",
+        "options": {
+          "queryReplacement": "={{ [$('Webhook').first().json.body.profile_id] }}"
+        }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        560,
-        1024
+        1008,
+        992
       ],
       "id": "636aba4e-fbd5-47e4-969a-ca65d61c9fae",
       "name": "Fetch Config",
@@ -69,8 +71,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        784,
-        784
+        1232,
+        704
       ],
       "id": "77a9d728-e1fb-4a0e-a259-52a24e6d7d45",
       "name": "Input Wrapper"
@@ -102,8 +104,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        1904,
-        880
+        2352,
+        784
       ],
       "id": "8c295563-1c60-448d-9577-084aa07b005f",
       "name": "Passed Threshold?"
@@ -124,7 +126,7 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        3056,
+        3728,
         1152
       ],
       "id": "d525100b-9f4f-483c-bc15-4092adc2b3fb",
@@ -146,7 +148,7 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
       "typeVersion": 1.3,
       "position": [
-        3136,
+        3808,
         1376
       ],
       "id": "3f68f2b9-b3d2-471e-94d8-8ee62c011c6e",
@@ -161,16 +163,16 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": " INSERT INTO job_applications\n   (company, role_title, job_posting, score, threshold, location_type, gaps, highlights, cv_diff, anschreiben)\nVALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);",
+        "query": " INSERT INTO job_application_assistant.job_applications\n   (profile_id, company, role_title, job_posting, score, threshold, location_type, gaps, highlights, cv_diff, anschreiben)\nVALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);",
         "options": {
-          "queryReplacement": "={{ [\n  $('Call Analysis Scoring').first().json.company_firstItem,\n  $('Call Analysis Scoring').first().json.role_title_firstItem,\n  $('Input Wrapper').first().json.job_posting_wrapped || '',\n  $('Call Analysis Scoring').first().json.score_firstItem,\n  $('Call Analysis Scoring').first().json.threshold_firstItem,\n  $('Call Analysis Scoring').first().json.location_type_firstItem,\n  ($('Call Analysis Scoring').first().json.gaps_firstItem || []).join('; '),\n  ($('Call Analysis Scoring').first().json.highlights_firstItem || []).join('; '),\n  $('Format + Respond').first().json.cv_diff || '',\n  $('Format + Respond').first().json.body_text || ''\n] }}"
+          "queryReplacement": "={{ [\n$('Webhook').first().json.body.profile_id,\n$('Call Analysis Scoring').first().json.company_firstItem,\n  $('Call Analysis Scoring').first().json.role_title_firstItem,\n  $('Input Wrapper').first().json.job_posting_wrapped || '',\n  $('Call Analysis Scoring').first().json.score_firstItem,\n  $('Call Analysis Scoring').first().json.threshold_firstItem,\n  $('Call Analysis Scoring').first().json.location_type_firstItem,\n  ($('Call Analysis Scoring').first().json.gaps_firstItem || []).join('; '),\n  ($('Call Analysis Scoring').first().json.highlights_firstItem || []).join('; '),\n  $('Format + Respond').first().json.cv_diff || '',\n  $('Format + Respond').first().json.body_text || ''\n] }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        3840,
-        784
+        4304,
+        704
       ],
       "id": "9e0d11f2-4608-4e87-b971-92c4d5ff0baa",
       "name": "INSERT Job Application in DB",
@@ -189,8 +191,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3616,
-        880
+        4080,
+        784
       ],
       "id": "32ff7a78-109e-4f42-941d-2d31c3e13bb3",
       "name": "Format + Respond"
@@ -206,7 +208,7 @@
       "typeVersion": 2.1,
       "position": [
         -16,
-        1024
+        1120
       ],
       "id": "efc6d31a-1550-4d97-beb5-be668d8b8315",
       "name": "Webhook",
@@ -230,35 +232,11 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        3840,
-        976
+        4304,
+        896
       ],
       "id": "4069ebff-3c74-49e2-a129-4fbe6eef521e",
       "name": "Respond to Webhook"
-    },
-    {
-      "parameters": {
-        "respondWith": "text",
-        "responseBody": "=I'm sorry, the text contains patterns that I can't process. \nPlease paste only the text of the job posting.",
-        "options": {
-          "responseHeaders": {
-            "entries": [
-              {
-                "name": "Content-Type",
-                "value": "text/plain; charset=utf-8"
-              }
-            ]
-          }
-        }
-      },
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.5,
-      "position": [
-        560,
-        1216
-      ],
-      "id": "035be50a-d014-47ac-9896-0608bc4af85a",
-      "name": "Respond to Webhook1"
     },
     {
       "parameters": {
@@ -277,7 +255,7 @@
       "typeVersion": 2,
       "position": [
         208,
-        1024
+        1120
       ],
       "id": "2cbbb5e6-0121-4b27-b554-6a7996357293",
       "name": "Guardrails"
@@ -298,7 +276,7 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        2560,
+        3024,
         576
       ],
       "id": "f924b88f-9110-432b-b1fd-667a5dfbb56f",
@@ -320,7 +298,7 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
       "typeVersion": 1.3,
       "position": [
-        2640,
+        3104,
         800
       ],
       "id": "2ec27408-ed2d-44c2-962f-74b0bdb132bf",
@@ -348,7 +326,7 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
       "typeVersion": 1.3,
       "position": [
-        2784,
+        3456,
         1104
       ],
       "id": "ed8a8155-c20f-4f5d-ad56-2bbd5ab0e6fe",
@@ -367,7 +345,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2976,
+        3440,
         576
       ],
       "id": "f3c13493-9f31-4d12-8750-89ee94531b54",
@@ -381,8 +359,8 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        3328,
-        736
+        3792,
+        704
       ],
       "id": "856f82e4-19a3-4f3a-bb7a-af4d88a0a6b1",
       "name": "Merge"
@@ -395,8 +373,8 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        1008,
-        976
+        1456,
+        896
       ],
       "id": "27c4b37c-05a1-4e9b-b675-3f53cc2aaf34",
       "name": "Merge1"
@@ -409,8 +387,8 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        1456,
-        880
+        1904,
+        784
       ],
       "id": "27faebfe-1e49-406d-b384-671a0f7d5736",
       "name": "Merge2"
@@ -464,8 +442,8 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        1232,
-        736
+        1680,
+        704
       ],
       "name": "Call Company Research",
       "id": "b6913b7b-a3a8-4153-8763-aea1fd0af4fc"
@@ -486,7 +464,8 @@
             "guide_text_en": "={{ $('Load Config').item.json.guide_text_en }}",
             "guide_text_de": "={{ $('Load Config').item.json.guide_text_de }}",
             "cv_text": "={{ $('Load Config').item.json.cv_text }}",
-            "cv_language": "={{ $('Load Config').item.json.cv_language.language }}"
+            "cv_language": "={{ $('Load Config').item.json.cv_language.language }}",
+            "profile_id": "={{ $('Webhook').first().json.body.profile_id }}"
           },
           "matchingColumns": [
             "job_post_language_language_firstItem",
@@ -545,6 +524,16 @@
               "canBeUsedToMatch": true,
               "type": "string",
               "removed": false
+            },
+            {
+              "id": "profile_id",
+              "displayName": "profile_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number",
+              "removed": false
             }
           ],
           "attemptToConvertTypes": false,
@@ -555,8 +544,8 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        1232,
-        976
+        1680,
+        896
       ],
       "name": "Call CV Translation Cache",
       "id": "a75dab90-195c-470b-82c5-b81342e88d36"
@@ -677,8 +666,8 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        1680,
-        880
+        2128,
+        784
       ],
       "name": "Call Analysis Scoring",
       "id": "efae0c46-ce11-497f-8657-ab31a5adcac2"
@@ -804,8 +793,8 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        2128,
-        736
+        2576,
+        704
       ],
       "name": "Call CV Tailoring Planner",
       "id": "240f7afe-e39d-456e-84aa-5ddb01c347ac"
@@ -817,8 +806,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2336,
-        656
+        2800,
+        576
       ],
       "id": "0ebf9207-69b9-4019-84fa-89c279828611",
       "name": "CV Deterministic Editor"
@@ -839,11 +828,106 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        2912,
+        3376,
         880
       ],
       "id": "a2d0a826-c6f1-465e-ad2e-1c2dbe571a1b",
       "name": "Anschreiben"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $(\"Webhook\").first().json.body;\nconst profileId = Number(body.profile_id);\n\nif (!body.profile_id || !Number.isInteger(profileId) || profileId <= 0) {\n  return [{ json: { valid: false, error: 'profile_id is required and must be a positive integer' } }];\n}\n\nreturn [{ json: { valid: true, profile_id: profileId } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        1024
+      ],
+      "id": "66366def-1fec-4d35-b259-948088656a7d",
+      "name": "Validate Profile ID"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "1d2361f5-7cc8-4da5-b868-833cffdb56fb",
+              "leftValue": "={{ $('Validate Profile ID').first().json.valid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        784,
+        1024
+      ],
+      "id": "1fe2c5e5-e4da-4d90-8255-d8557232e2af",
+      "name": "If valid"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "=I'm sorry, the text contains patterns that I can't process. \nPlease paste only the text of the job posting.",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/plain; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        560,
+        1216
+      ],
+      "id": "035be50a-d014-47ac-9896-0608bc4af85a",
+      "name": "Respond: Error"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $('Validate Profile ID').first().json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1008,
+        1184
+      ],
+      "id": "0039a21a-3abe-4064-88c0-df19d00a31d7",
+      "name": "Respond: Error1"
     }
   ],
   "pinData": {},
@@ -973,19 +1057,14 @@
       "main": [
         [
           {
-            "node": "Fetch Config",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Input Wrapper",
+            "node": "Validate Profile ID",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Respond to Webhook1",
+            "node": "Respond: Error",
             "type": "main",
             "index": 0
           }
@@ -1139,6 +1218,40 @@
           }
         ]
       ]
+    },
+    "Validate Profile ID": {
+      "main": [
+        [
+          {
+            "node": "If valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If valid": {
+      "main": [
+        [
+          {
+            "node": "Fetch Config",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Input Wrapper",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond: Error1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
@@ -1146,7 +1259,7 @@
     "executionOrder": "v1",
     "availableInMCP": false
   },
-  "versionId": "d00f1414-ca6c-48cc-82a0-e901541ab2ef",
+  "versionId": "7e347d51-e098-47b9-a219-76588622b029",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "19b5c45878e0c37a2dfdebb10fe6ad07185f82630e5b3f64f267192bd053cf0b"

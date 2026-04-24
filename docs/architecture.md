@@ -2,44 +2,56 @@
 
 ## Overview
 
-The current system is a deterministic multi-workflow n8n pipeline.
+The current system is a deterministic multi-workflow n8n pipeline built around profile-scoped candidate data.
 
 The exported setup is split into:
 
 1. `utility-extract-profile.json`
-2. `main-workflow.json`
-3. `company-research.json`
-4. `cv-translation-cache.json`
-5. `analysis-scoring.json`
-6. `cv-tailoring-planner.json`
+2. `utility-get-profiles.json`
+3. `main-workflow.json`
+4. `company-research.json`
+5. `cv-translation-cache.json`
+6. `analysis-scoring.json`
+7. `cv-tailoring-planner.json`
 
 `main-workflow.json` is the runtime orchestrator. The other runtime JSONs are called through `Execute Workflow` nodes.
 
 Core design properties:
 
-- tool use is deterministic
+- profile data is stored per `profile_id`
 - scoring arithmetic is computed in code
 - CV translation is cached and invalidated with `cv_hash`
 - CV tailoring is separated into classify, enforce, generate, validate, and rewrite stages
-- both pass/caution and fail branches converge into one formatter
+- pass/caution and fail branches converge into one formatter
 
 ## High-Level Flow
 
 ```text
 utility-extract-profile.json
-  manual trigger
-    -> Set Up Workflow Context
-    -> Crypto (cv_hash)
-    -> Detect CV Language
-    -> market-research extraction + core-skill extraction
-    -> Dynamic Filter
-    -> Extract Candidate Profile
-    -> Array to String
-    -> UPSERT into candidate_context
+  POST /profile-setup
+    -> CREATE TABLES
+    -> Validate Inputs
+    -> Hash CV + Detect CV Language
+    -> create or update profiles row
+    -> UPSERT source keys into candidate_context
+    -> if cv changed: delete translation cache keys
+    -> if source fields require refresh:
+       Fetch Full Context
+       -> market-research extraction + core-skill extraction
+       -> Dynamic Filter
+       -> Extract Candidate Profile
+       -> UPSERT candidate_profile + role_type_scores
+    -> success response
+
+utility-get-profiles.json
+  GET /profiles
+    -> SELECT * FROM profiles
+    -> Respond to Webhook
 
 main-workflow.json
   POST /job-application
     -> Guardrails
+    -> Validate Profile ID
     -> Fetch Config + Load Config
     -> Input Wrapper
     -> Call Company Research
@@ -59,15 +71,17 @@ main-workflow.json
 
 - `Webhook` exposes `POST /job-application`
 - `Guardrails` checks `body.chatInput`
-- rejected input goes to `Respond to Webhook1`
+- `Validate Profile ID` requires a positive integer in `body.profile_id`
+- rejected prompt-injection input goes to `Respond: Error`
+- invalid profile IDs go to `Respond: Error1`
 
-The rejection branch returns plain text:
+The guardrails rejection branch returns plain text:
 
 `I'm sorry, the text contains patterns that I can't process. Please paste only the text of the job posting.`
 
 ### Config loading
 
-`Fetch Config` loads these fixed keys from PostgreSQL:
+`Fetch Config` loads these fixed keys from PostgreSQL for the requested `profile_id`:
 
 - `candidate_profile`
 - `role_type_scores`
@@ -116,7 +130,7 @@ That sub-workflow:
 That sub-workflow:
 
 - compares `cv_language` with posting language
-- fetches:
+- fetches profile-scoped cache keys:
   - `translated_cv_text_<language>`
   - `cv_hash`
   - `translated_cv_text_<language>_source_hash`
@@ -166,6 +180,7 @@ If threshold is not `fail`, the main workflow calls `cv-tailoring-planner.json`.
 
 That sub-workflow:
 
+- computes a target CV budget of 500 words
 - classifies CV segments as `DIREKT`, `TRANSFERABEL`, or `DISTRAKTOR`
 - enforces deterministic action rules
 - generates `cv_anpassungen`
@@ -210,6 +225,7 @@ Back in `main-workflow.json`:
 
 `INSERT Job Application in DB` writes:
 
+- `profile_id`
 - `company`
 - `role_title`
 - `job_posting`
@@ -223,13 +239,18 @@ Back in `main-workflow.json`:
 
 It uses `continueErrorOutput`, so logging failure does not necessarily block the webhook response.
 
-## Utility Workflow
+## Utility Workflows
 
-`utility-extract-profile.json` is the source-of-truth refresh workflow.
+### `utility-extract-profile.json`
 
-### Manual inputs
+This is the profile provisioning and refresh workflow exposed at `POST /profile-setup`.
 
-`Set Up Workflow Context` stores:
+It supports two modes:
+
+- create mode: requires profile metadata plus the five core context fields
+- update mode: requires `profile_id`, then updates only provided fields
+
+Stored source keys:
 
 - `cv_text`
 - `guide_text_de`
@@ -237,45 +258,51 @@ It uses `continueErrorOutput`, so logging failure does not necessarily block the
 - `market_research`
 - `career_target`
 
-### Derived data
+Derived keys:
 
-The workflow additionally computes:
-
-- `cv_hash` via `Crypto`
-- `cv_language` via `Detect CV Language`
-- `candidate_profile`
-- `role_type_scores`
-
-Important extractor rules reflected in the current workflow:
-
-- `candidate_profile.skill_gaps` uses tightly constrained qualifier text
-- `role_type_scores` is a JSON object
-- exactly one role must get score `12`
-- role labels are normalized by stripping contract-type words
-- the workflow always appends:
-  - `Other adjacent IT`
-  - `Unrelated (sales, legal, manual, etc.)`
-
-### Final persistence
-
-`UPSERT in DB (1)` writes these nine keys:
-
-- `cv_text`
-- `guide_text_de`
-- `market_research`
-- `career_target`
-- `candidate_profile`
-- `role_type_scores`
-- `cv_language`
-- `guide_text_en`
 - `cv_hash`
+- `cv_language`
+- `candidate_profile`
+- `role_type_scores`
+
+Important behavior reflected in the current workflow:
+
+- `profiles` rows are created or updated before context writes
+- all `candidate_context` writes are scoped by `profile_id`
+- when `cv_text` changes, cached translations for `en` and `de` are deleted
+- LLM extraction only reruns when a refresh is needed; simple profile metadata updates can return success without recomputing derived keys
+- `role_type_scores` is stored as a JSON string and must contain exactly one role with score `12`
+
+### `utility-get-profiles.json`
+
+This helper workflow exposes `GET /profiles` and returns ordered rows from `job_application_assistant.profiles`.
 
 ## Data Model
+
+All tables live in the `job_application_assistant` schema.
+
+### `profiles`
+
+Columns:
+
+- `id`
+- `full_name`
+- `email`
+- `phone`
+- `location`
+- `linkedin_url`
+- `github_url`
+- `website_url`
+- `avatar_url`
+- `notes`
+- `created_at`
+- `updated_at`
 
 ### `candidate_context`
 
 Columns:
 
+- `profile_id`
 - `key`
 - `value`
 - `updated_at`
@@ -291,6 +318,7 @@ It contains:
 Columns:
 
 - `id`
+- `profile_id`
 - `company`
 - `role_title`
 - `job_posting`

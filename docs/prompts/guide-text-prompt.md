@@ -176,14 +176,15 @@ Close with:
 
 ## After you receive the output
 
-Copy the complete output and paste it into the correct guide field inside `Set Up Workflow Context` in the utility workflow:
+Send the guide back through `POST /profile-setup` in `utility-extract-profile.json`:
 
 - use `guide_text_de` for the German-language guide
 - use `guide_text_en` for the English-language guide
+- include `profile_id` when updating an existing profile
 
-Then re-run the utility workflow so the updated guide is written back to `candidate_context`.
+Then run the profile setup workflow so the updated guide is written back to `candidate_context`.
 
-Updating the guide does not regenerate `candidate_profile` or `role_type_scores`; it refreshes the guide text stored for runtime use by the Generator node. Changes take effect on the next job posting after the utility workflow is re-run.
+Updating the guide does not regenerate `candidate_profile` or `role_type_scores` unless other source fields also require recomputation; it refreshes the guide text stored for runtime use by the Generator node. Changes take effect on the next job posting after the profile update runs.
 
 See `config/candidate_context_template.md` for the `guide_text_de` and `guide_text_en` sections for details on what the Generator expects from these documents.
 

@@ -84,11 +84,13 @@ Structured prose with clear section headers. Include specific numbers with sourc
 
 ## After you receive the output
 
-Copy the complete output including all sections and paste it into the `market_research` field inside `Set Up Workflow Context` in `utility-extract-profile.json`.
+Send the complete output including all sections through `POST /profile-setup` in `utility-extract-profile.json` using the `market_research` field.
 
-Then run the utility workflow to regenerate `candidate_profile` and `role_type_scores` and persist the updated source text back to `candidate_context`.
+Include `profile_id` when updating an existing profile.
 
-Do not update the `candidate_context` table manually for this normal refresh flow. The utility workflow treats `Set Up Workflow Context` as the manual source of truth and will overwrite the stored `market_research` value on the next run.
+Then run the workflow to regenerate `candidate_profile` and `role_type_scores` and persist the updated source text back to `candidate_context`.
+
+Do not update the `candidate_context` table manually for this normal refresh flow. The utility workflow treats the webhook payload as the source of truth and will overwrite the stored `market_research` value on the next run.
 
 See `config/candidate_context_template.md` for the `market_research` key details.
 

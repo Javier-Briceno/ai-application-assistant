@@ -1,10 +1,14 @@
 import { API_ENDPOINTS, REQUEST_TIMEOUT_MS } from '../../../config/env.js';
 
-export async function analyzePosting(postingText) {
+export async function analyzePosting(postingText, profileId) {
   const posting = typeof postingText === 'string' ? postingText.trim() : '';
 
   if (!posting) {
     throw createApiError('EMPTY_POSTING', 'Job posting is empty.');
+  }
+
+  if (!profileId || typeof profileId !== 'number') {
+    throw createApiError('NO_PROFILE', 'No active profile selected.');
   }
 
   const controller = new AbortController();
@@ -19,6 +23,7 @@ export async function analyzePosting(postingText) {
       },
       body: JSON.stringify({
         chatInput: posting,
+        profile_id: profileId,
       }),
       signal: controller.signal,
     });
