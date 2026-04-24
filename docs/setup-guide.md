@@ -3,6 +3,7 @@
 This guide matches the current exported workflows:
 
 - `utility-extract-profile.json`
+- `utility-get-profiles.json`
 - `main-workflow.json`
 - `company-research.json`
 - `cv-translation-cache.json`
@@ -26,22 +27,18 @@ Before importing anything, make sure you have:
 Import these files into n8n:
 
 1. `utility-extract-profile.json`
-2. `company-research.json`
-3. `cv-translation-cache.json`
-4. `analysis-scoring.json`
-5. `cv-tailoring-planner.json`
-6. `main-workflow.json`
+2. `utility-get-profiles.json`
+3. `company-research.json`
+4. `cv-translation-cache.json`
+5. `analysis-scoring.json`
+6. `cv-tailoring-planner.json`
+7. `main-workflow.json`
 
 Recommended order:
 
-- utility first
-- sub-workflows second
+- utility workflows first
+- runtime sub-workflows second
 - main last
-
-Reason:
-
-- the utility workflow creates the tables and seeds `candidate_context`
-- the main workflow references the runtime sub-workflows by `Execute Workflow`
 
 After import, re-map credentials where needed.
 
@@ -57,28 +54,46 @@ Verify all required nodes show valid credentials before execution.
 
 ## Step 3: Create Database Tables
 
-Open `utility-extract-profile.json` and run:
+Open `utility-extract-profile.json` and execute the workflow once through `POST /profile-setup`.
 
-- `CREATE TABLES`
+The workflow runs `CREATE TABLES` automatically and creates:
 
-This creates:
-
+- schema `job_application_assistant`
+- `profiles`
 - `candidate_context`
 - `job_applications`
 
-The query uses `CREATE TABLE IF NOT EXISTS`, so re-running is safe.
+The SQL uses `CREATE ... IF NOT EXISTS`, so re-running is safe.
 
 Current schema:
 
+`profiles`
+
+- `id SERIAL PRIMARY KEY`
+- `full_name TEXT NOT NULL`
+- `email TEXT`
+- `phone TEXT`
+- `location TEXT`
+- `linkedin_url TEXT`
+- `github_url TEXT`
+- `website_url TEXT`
+- `avatar_url TEXT`
+- `notes TEXT`
+- `created_at TIMESTAMP DEFAULT NOW()`
+- `updated_at TIMESTAMP DEFAULT NOW()`
+
 `candidate_context`
 
-- `key VARCHAR(100) PRIMARY KEY`
+- `profile_id INTEGER NOT NULL REFERENCES job_application_assistant.profiles(id) ON DELETE CASCADE`
+- `key VARCHAR(100) NOT NULL`
 - `value TEXT NOT NULL`
 - `updated_at TIMESTAMP DEFAULT NOW()`
+- `PRIMARY KEY (profile_id, key)`
 
 `job_applications`
 
 - `id SERIAL PRIMARY KEY`
+- `profile_id INTEGER REFERENCES job_application_assistant.profiles(id) ON DELETE SET NULL`
 - `company VARCHAR(200)`
 - `role_title VARCHAR(200)`
 - `job_posting TEXT`
@@ -93,43 +108,70 @@ Current schema:
 - `status VARCHAR(50) DEFAULT 'applied'`
 - `notes TEXT`
 
-## Step 4: Fill `Set Up Workflow Context`
+## Step 4: Create a Profile with `POST /profile-setup`
 
-Open `utility-extract-profile.json` and edit `Set Up Workflow Context`.
+`utility-extract-profile.json` is now webhook-driven. For a new profile, send a request to:
 
-The workflow expects these five manual inputs:
+- `POST /profile-setup`
 
+Required fields in create mode:
+
+- `full_name`
 - `cv_text`
 - `guide_text_de`
 - `guide_text_en`
 - `market_research`
 - `career_target`
 
-What they do:
+Optional profile metadata fields:
 
-- `cv_text`: base CV in plain text
-- `guide_text_de`: German cover-letter guide
-- `guide_text_en`: English cover-letter guide
-- `market_research`: market context for profile and role derivation
-- `career_target`: target-role strategy and constraints
+- `email`
+- `phone`
+- `location`
+- `linkedin_url`
+- `github_url`
+- `website_url`
+- `avatar_url`
+- `notes`
 
-## Step 5: Execute the Utility Workflow
+Example request:
 
-Run the workflow from:
+```bash
+curl -X POST "http://YOUR_N8N_HOST/webhook/profile-setup" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "full_name": "Candidate Name",
+    "cv_text": "Plain-text CV",
+    "guide_text_de": "German guide",
+    "guide_text_en": "English guide",
+    "market_research": "Structured market research",
+    "career_target": "Target role strategy"
+  }'
+```
 
-- `When clicking 'Execute workflow'`
+## Step 5: Verify the Profile Was Created
 
-It will:
+Successful create or update responses look like:
 
-1. compute `cv_hash`
-2. detect the base CV language
-3. extract `candidate_profile`
-4. extract `role_type_scores`
-5. upsert everything into `candidate_context`
+```json
+{
+  "success": true,
+  "profile_id": "1",
+  "action": "created"
+}
+```
 
-## Step 6: Verify Stored Keys
+Verify the row exists:
 
-After the utility workflow finishes, verify that `candidate_context` contains at least:
+```sql
+SELECT id, full_name, updated_at
+FROM job_application_assistant.profiles
+ORDER BY id DESC;
+```
+
+## Step 6: Verify Stored Context Keys
+
+After profile setup finishes, verify that `candidate_context` contains at least these keys for the new `profile_id`:
 
 - `candidate_profile`
 - `career_target`
@@ -145,7 +187,8 @@ Example query:
 
 ```sql
 SELECT key, updated_at
-FROM candidate_context
+FROM job_application_assistant.candidate_context
+WHERE profile_id = 1
 ORDER BY key;
 ```
 
@@ -162,22 +205,33 @@ Open `main-workflow.json` and confirm the `Execute Workflow` nodes point to the 
 
 If your n8n instance assigned different workflow IDs on import, reconnect them before activation.
 
-## Step 8: Activate the Main Workflow
+## Step 8: Activate the Runtime Workflows
 
-Activate `main-workflow.json` after:
+Activate:
 
-- credentials are valid
-- sub-workflow references are correct
-- `candidate_context` has been populated
-- the database is reachable
+- `main-workflow.json`
+- `utility-get-profiles.json`
 
-## Step 9: Send a Test Request
+Activate `utility-extract-profile.json` too if you want to create or update profiles through the webhook instead of manual execution in the editor.
+
+## Step 9: Test `GET /profiles`
+
+The profile-list helper endpoint is:
+
+- `GET /profiles`
+
+It returns all rows from `job_application_assistant.profiles` ordered by `full_name`.
+
+## Step 10: Send a Test Runtime Request
 
 The main runtime entry point is:
 
 - `POST /job-application`
 
-It expects the job posting in `body.chatInput`.
+It expects:
+
+- `profile_id`
+- `chatInput`
 
 Example request:
 
@@ -185,11 +239,12 @@ Example request:
 curl -X POST "http://YOUR_N8N_HOST/webhook/job-application" \
   -H "Content-Type: application/json" \
   -d '{
+    "profile_id": 1,
     "chatInput": "Paste the full job posting text here"
   }'
 ```
 
-## Step 10: Validate the Response
+## Step 11: Validate the Response
 
 A successful response is JSON with:
 
@@ -203,7 +258,7 @@ Expected behavior by threshold:
 - `caution` (`45-54`): application package with caution framing
 - `fail` (`< 45`): gap analysis, usually with empty CV artifacts
 
-## Step 11: Verify Translation Cache
+## Step 12: Verify Translation Cache
 
 Run one test where:
 
@@ -217,8 +272,9 @@ After a cross-language run, check cache state:
 
 ```sql
 SELECT key, updated_at
-FROM candidate_context
-WHERE key LIKE 'translated_cv_text_%'
+FROM job_application_assistant.candidate_context
+WHERE profile_id = 1
+  AND key LIKE 'translated_cv_text_%'
 ORDER BY updated_at DESC;
 ```
 
@@ -229,13 +285,13 @@ You should see paired keys such as:
 
 The workflow only reuses the cached translation when the stored source hash matches current `cv_hash`.
 
-## Step 12: Verify Application Logging
+## Step 13: Verify Application Logging
 
 After a successful runtime request, check:
 
 ```sql
-SELECT company, role_title, score, threshold, date_applied, status
-FROM job_applications
+SELECT profile_id, company, role_title, score, threshold, date_applied, status
+FROM job_application_assistant.job_applications
 ORDER BY date_applied DESC;
 ```
 
@@ -244,7 +300,37 @@ Remember:
 - the webhook response can still succeed if logging fails
 - the insert node is configured to continue on error
 
+## Updating an Existing Profile
+
+To update an existing profile, call `POST /profile-setup` with `profile_id` and only the fields you want to change.
+
+Example:
+
+```bash
+curl -X POST "http://YOUR_N8N_HOST/webhook/profile-setup" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "profile_id": 1,
+    "cv_text": "Updated plain-text CV"
+  }'
+```
+
+Important behavior:
+
+- updating only profile metadata may skip LLM recomputation
+- updating `cv_text` recomputes `cv_hash` and `cv_language`
+- if `cv_text` changed, cached translated CV entries for `de` and `en` are deleted
+- updating source fields like `market_research` or `career_target` triggers derived key refresh
+
 ## Troubleshooting
+
+### `profile_id` errors on runtime requests
+
+Check that:
+
+- `profile_id` is present in the request body
+- it is a positive integer
+- the profile exists in `job_application_assistant.profiles`
 
 ### Response works but nothing is stored in `job_applications`
 
@@ -264,22 +350,12 @@ Check the `Guardrails` branch and retest with:
 
 ### Cached translations are not reused
 
-Check whether both of these exist and match:
+Check whether both of these exist and match for the same `profile_id`:
 
 - `translated_cv_text_<language>`
 - `translated_cv_text_<language>_source_hash`
 
 Also verify `cv_hash` changed or did not change as expected.
-
-### Wrong guide language is used
-
-Guide selection is based on the job-posting language, not CV language.
-
-Check:
-
-- `job_post_language.language`
-- `guide_text_de`
-- `guide_text_en`
 
 ### Main workflow errors after import
 
@@ -289,31 +365,28 @@ Most often this means one or more `Execute Workflow` nodes still point to missin
 
 Update CV:
 
-- edit `cv_text`
-- re-run the utility workflow
+- call `POST /profile-setup` with `profile_id` and new `cv_text`
 
 Update guides:
 
-- edit `guide_text_de` and/or `guide_text_en`
-- re-run the utility workflow
+- call `POST /profile-setup` with `profile_id` and updated `guide_text_de` and/or `guide_text_en`
 
 Update market assumptions or role strategy:
 
-- edit `market_research` or `career_target`
-- re-run the utility workflow
+- call `POST /profile-setup` with `profile_id` and updated `market_research` or `career_target`
 
 Inspect candidate context:
 
 ```sql
-SELECT key, updated_at
-FROM candidate_context
-ORDER BY key;
+SELECT profile_id, key, updated_at
+FROM job_application_assistant.candidate_context
+ORDER BY profile_id, key;
 ```
 
 Inspect logged applications:
 
 ```sql
-SELECT company, role_title, score, threshold, date_applied, status
-FROM job_applications
+SELECT profile_id, company, role_title, score, threshold, date_applied, status
+FROM job_application_assistant.job_applications
 ORDER BY date_applied DESC;
 ```

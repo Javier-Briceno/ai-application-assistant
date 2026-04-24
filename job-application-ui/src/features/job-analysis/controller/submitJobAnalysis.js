@@ -58,6 +58,25 @@ export function createSubmitJobAnalysis({
       return;
     }
 
+    if (!app.state.activeProfileId) {
+      const errorState = createUiError('NO_PROFILE', UI_TEXT.errors.noProfile);
+
+      app.state.view = 'error';
+      app.state.error = errorState;
+      app.state.result = null;
+
+      syncStatus(app.state, {
+        statusBar,
+        statusText,
+        text: UI_TEXT.status.error,
+        active: false,
+      });
+
+      renderError?.(errorState, app.state);
+      onFailure?.(errorState, app.state);
+      return;
+    }
+
     app.state.posting = posting;
     app.state.isSubmitting = true;
     app.state.error = null;
@@ -76,7 +95,7 @@ export function createSubmitJobAnalysis({
     renderLoading?.(app.state);
 
     try {
-      const payload = await analyzePosting(posting);
+      const payload = await analyzePosting(posting, app.state.activeProfileId);
       const result = parseWorkflowResponse(payload);
 
       app.state.result = result;
@@ -136,6 +155,8 @@ function mapErrorToUiMessage(error) {
   switch (error?.code) {
     case 'EMPTY_POSTING':
       return UI_TEXT.errors.emptyPosting;
+    case 'NO_PROFILE':
+      return UI_TEXT.errors.noProfile;
     case 'TIMEOUT':
       return UI_TEXT.errors.timeout;
     case 'NETWORK_ERROR':

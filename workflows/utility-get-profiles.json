@@ -1,0 +1,93 @@
+{
+  "name": "Utility: Get Profiles",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "profiles",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "b1d2ed64-d529-4903-ab9e-932987761127",
+      "name": "Webhook",
+      "webhookId": "d7338420-aeb0-48eb-99d6-433988612a16"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * \nFROM job_application_assistant.profiles\nORDER BY full_name",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        224,
+        0
+      ],
+      "id": "08b91ae3-eeea-4224-9759-622087162fa7",
+      "name": "Get Profiles",
+      "credentials": {
+        "postgres": {
+          "id": "FXEG0dQzOuAcjlhc",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        448,
+        0
+      ],
+      "id": "f42e0792-1794-45d1-ad2f-231740eb0b6d",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Profiles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Profiles": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "7703fab5-0ce6-4bea-8121-8f8dba3436e6",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "19b5c45878e0c37a2dfdebb10fe6ad07185f82630e5b3f64f267192bd053cf0b"
+  },
+  "id": "ipJF-W2sj8ryTYRH2b-sf",
+  "tags": []
+}

@@ -8,7 +8,7 @@
         "messages": {
           "messageValues": [
             {
-              "message": "=You are a professional CV translator. Translate the CV below into {{ $('Start').first().json.job_post_language_language_firstItem }}.   Rules: - Preserve all formatting, structure, and section order exactly - Translate all content including bullet points, section headers, and descriptions - Keep proper nouns (company names, university names, tool names) untranslated - Keep dates, numbers, and metrics exactly as they appear - Use professional career vocabulary native to the target language - Do not add, remove, or paraphrase content — only translate  Return only the translated CV text, nothing else."
+              "message": "=You are a professional CV translator. Translate the CV below into {{ $('Start').first().json.job_post_language }}.   Rules: - Preserve all formatting, structure, and section order exactly - Translate all content including bullet points, section headers, and descriptions - Keep proper nouns (company names, university names, tool names) untranslated - Keep dates, numbers, and metrics exactly as they appear - Use professional career vocabulary native to the target language - Do not add, remove, or paraphrase content — only translate  Return only the translated CV text, nothing else."
             }
           ]
         },
@@ -101,9 +101,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO candidate_context (key, value, updated_at) VALUES\n($1, $2, NOW()),\n($3, $4, NOW())\nON CONFLICT (key) DO UPDATE SET\n  value      = EXCLUDED.value,\n  updated_at = EXCLUDED.updated_at;\n",
+        "query": "INSERT INTO job_application_assistant.candidate_context (profile_id, key, value) VALUES\n($1, $2, $3),\n($1, $4, $5)\nON CONFLICT (profile_id, key) \nDO UPDATE SET value = EXCLUDED.value, updated_at = NOW();\n",
         "options": {
-          "queryReplacement": "={{ [\n'translated_cv_text_' + $('Start').first().json.job_post_language,\n$('CV Translator').first().json.text,\n'translated_cv_text_' + $('Start').first().json.job_post_language + '_source_hash',\n$('Pivot CV Cache Rows').item.json.cv_hash\n] }}"
+          "queryReplacement": "={{ [\n$('Start').first().json.profile_id,\n'translated_cv_text_' + $('Start').first().json.job_post_language,\n$('CV Translator').first().json.text,\n'translated_cv_text_' + $('Start').first().json.job_post_language + '_source_hash',\n$('Pivot CV Cache Rows').item.json.cv_hash\n] }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -169,9 +169,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT key, value\nFROM candidate_context\nWHERE key in ($1, $2, $3);",
+        "query": "SELECT key, value\nFROM job_application_assistant.candidate_context\nWHERE profile_id = $1\n  AND key in ($2, $3, $4);",
         "options": {
-          "queryReplacement": "={{[\n'translated_cv_text_' + $('Start').first().json.job_post_language,\n'cv_hash',\n'translated_cv_text_' + $('Start').first().json.job_post_language + '_source_hash'\n]}}"
+          "queryReplacement": "={{[\n$('Start').first().json.profile_id,\n'translated_cv_text_' + $('Start').first().json.job_post_language,\n'cv_hash',\n'translated_cv_text_' + $('Start').first().json.job_post_language + '_source_hash'\n]}}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -238,6 +238,10 @@
             },
             {
               "name": "cv_language"
+            },
+            {
+              "name": "profile_id",
+              "type": "number"
             }
           ]
         }
@@ -402,7 +406,7 @@
     "executionOrder": "v1",
     "availableInMCP": false
   },
-  "versionId": "9f1e68f6-5e17-485c-8d1c-edb24d5175f4",
+  "versionId": "edb3f05d-ce7a-4218-8daf-39262276e6c5",
   "meta": {
     "instanceId": "19b5c45878e0c37a2dfdebb10fe6ad07185f82630e5b3f64f267192bd053cf0b"
   },

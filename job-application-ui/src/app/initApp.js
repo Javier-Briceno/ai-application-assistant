@@ -56,11 +56,15 @@ function createInitialState() {
         posting: '',
         isSubmitting: false,
         status: {
-        text: UI_TEXT.status.ready,
-        active: false,
+            text: UI_TEXT.status.ready,
+            active: false,
         },
         view: 'empty', // empty | loading | result | error
         result: null,
         error: null,
+        activeProfileId: null,   // number | null
+        profiles: [],            // array of { id, full_name, ... }
+        profilesLoaded: false,   // true once initial load finished
+        profilesError: null,     // string | null
     };
 }
