@@ -6,17 +6,21 @@ Open Claude.ai with Deep Research activated. Before sending, replace every place
 
 - `[TARGET COUNTRY]` — the target country (e.g. Germany, Switzerland, Austria)
 - `[DOCUMENT NAME]` — the document type (e.g. Anschreiben, cover letter, letter of motivation)
+- `[JOB POSTING LANGUAGE]` — the language of the vacancy being answered (e.g. Deutsch, English)
 - `[DOCUMENT LANGUAGE]` — the language in which the document itself should be written and in which all document examples must appear (e.g. Deutsch, English)
+- `[CAREER TARGET]` — the user's target role, seniority, sector, and contract type in the target country
 - `[OUTPUT LANGUAGE]` — the language of the guide itself (e.g. English, Español)
 
 Important notes before sending:
 - The guide must reflect the real recruiting standards of `[TARGET COUNTRY]`, not generic UK/US or international advice.
-- If the job is in a non-English-speaking country but the application is written in English, the research must explain how recruiters in `[TARGET COUNTRY]` typically evaluate an English-language `[DOCUMENT NAME]` in their own local hiring context.
+- If the job posting is in English for a non-English-speaking country, and the application is written in English, the research must explain how recruiters in `[TARGET COUNTRY]` typically evaluate an English-language `[DOCUMENT NAME]` in their own local hiring context.
 - The output must clearly distinguish whether expectations follow:
   1. local recruiting norms,
   2. international corporate conventions,
   3. or a hybrid of both.
 - `[DOCUMENT LANGUAGE]` is the language of all templates, model sentences, and document examples.
+- `[JOB POSTING LANGUAGE]` is the language of the vacancy that the applicant is responding to.
+- `[CAREER TARGET]` should shape examples, priorities, tone, and special cases without making the guide too narrow for future postings.
 - The guide itself must be written in `[OUTPUT LANGUAGE]`.
 
 **For Germany / Anschreiben:** the guide is already included in this workflow. Only run this prompt if you are changing country, document type, or document language. The existing guide already covers DACH recruiting standards for 2025–2026.
@@ -31,15 +35,18 @@ Act as a senior recruiter and application-documents coach with expertise in the 
 
 Your task is to conduct thorough, practical, and up-to-date research on:
 
-"How to write an excellent [DOCUMENT NAME: e.g. cover letter / Anschreiben / letter of motivation] for jobs in [TARGET COUNTRY], according to real and current recruiting standards in that market."
+"How to write an excellent [DOCUMENT NAME: e.g. cover letter / Anschreiben / letter of motivation] for [CAREER TARGET] jobs in [TARGET COUNTRY], according to real and current recruiting standards in that market."
 
 ## Final objective
 Provide me with an actionable, concrete, and up-to-date guide to writing an excellent [DOCUMENT NAME] for applications in [TARGET COUNTRY], based on actual hiring practices in that country.
 
 ## Important context
 - The guide must reflect the recruiting reality of [TARGET COUNTRY], not generic UK/US or international advice.
-- The job may be advertised in [DOCUMENT LANGUAGE], including English.
+- The job posting may be written in [JOB POSTING LANGUAGE].
+- The application document must be written in [DOCUMENT LANGUAGE].
+- The career target is: [CAREER TARGET].
 - If the application language is English but the job is located in a non-English-speaking country, explain how recruiters in [TARGET COUNTRY] typically evaluate an English-language [DOCUMENT NAME] in their own hiring context.
+- If the posting is in English for a role in [TARGET COUNTRY], explain whether the [DOCUMENT NAME] should follow local conventions, international English conventions, or a hybrid.
 - Explicitly distinguish whether expectations follow:
   1. local recruiting norms,
   2. international corporate conventions,
@@ -56,11 +63,13 @@ Provide me with an actionable, concrete, and up-to-date guide to writing an exce
 - Clearly distinguish between:
   - common recruiting practice in [TARGET COUNTRY],
   - preferences for international or English-speaking roles if relevant,
+  - expectations for [CAREER TARGET],
   - sector-specific differences,
   - contextual recommendations,
   - formal or legal requirements if they truly exist.
 - Do not invent rules.
 - If something depends on industry, seniority, company type, language of the application, or whether the employer is local vs international, state it explicitly.
+- Tailor examples, tone, structure, and special cases to [CAREER TARGET], while keeping the guide reusable across real job postings in that target area.
 - If the practice is changing, explain that clearly.
 - Cite the sources supporting the most important claims.
 - Avoid vague advice such as "show motivation" or "highlight your skills" unless you explain concretely how this is done in practice.
