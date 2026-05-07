@@ -20,7 +20,10 @@ export function parseWorkflowResponse(payload) {
   const body = stripHeader(rawOutput);
   const language = detectLanguage(rawOutput);
 
-  const bodySections = extractSections(body, { language });
+  const bodySections = extractSections(body, {
+    language,
+    threshold: header.threshold,
+  });
   const cvDiffSection = createCvDiffSection(cvDiff, { language, cvMarkdown });
 
   const sections = cvDiffSection

@@ -3,6 +3,7 @@ import { createSectionId } from '../../../shared/utils/ids.js';
 export function extractSections(body, options = {}) {
   const normalizedBody = normalizeText(body);
   const language = normalizeLanguage(options.language);
+  const threshold = normalizeThreshold(options.threshold);
 
   if (!normalizedBody) {
     return [];
@@ -11,11 +12,13 @@ export function extractSections(body, options = {}) {
   const headingMatches = [...normalizedBody.matchAll(/^##\s+(.+)$/gm)];
 
   if (headingMatches.length === 0) {
+    const fallbackSection = getFallbackSectionMeta({ language, threshold });
+
     return [
       createSection({
-        key: 'body',
-        title: language === 'en' ? 'Cover Letter' : 'Anschreiben',
-        kind: 'markdown',
+        key: fallbackSection.key,
+        title: fallbackSection.title,
+        kind: fallbackSection.kind,
         markdown: normalizedBody,
         text: normalizedBody,
       }),
@@ -118,6 +121,26 @@ function stripMarkdownHeading(block) {
 
 function normalizeLanguage(value) {
   return String(value || 'de').toLowerCase() === 'en' ? 'en' : 'de';
+}
+
+function normalizeThreshold(value) {
+  return ['pass', 'caution', 'fail'].includes(value) ? value : 'fail';
+}
+
+function getFallbackSectionMeta({ language, threshold }) {
+  if (threshold === 'fail') {
+    return {
+      key: 'gap_analysis',
+      title: language === 'en' ? 'Gap Analysis' : 'Gap-Analyse',
+      kind: 'markdown',
+    };
+  }
+
+  return {
+    key: 'cover_letter',
+    title: language === 'en' ? 'Cover Letter' : 'Anschreiben',
+    kind: 'letter',
+  };
 }
 
 function normalizeText(value) {
