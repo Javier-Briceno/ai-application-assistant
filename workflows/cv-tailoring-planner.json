@@ -9,7 +9,7 @@
         "messages": {
           "messageValues": [
             {
-              "message": "=You are a CV relevance classifier. Your sole task is to analyze every  segment of a candidate's CV against a target job posting and classify  each segment. You do NOT rewrite any text. You do NOT generate instructions. You only classify and decide actions.\n\nCANDIDATE CV: \n<cv> \n{{ $('Start').first().json.cv_text_final }} \n</cv>\n\nCLASSIFICATION DEFINITIONS:  \n\nDIREKT — Content that explicitly evidences a requirement, responsibility,  or core signal stated in the job posting. Direct match by function or  capability, not necessarily by exact name.\n\nTRANSFERABEL — Content that does not match the role 1:1 but demonstrates  skills or mindsets useful for it: structured problem-solving, ownership,  measurable impact, automation, tooling, process improvement,  infrastructure management, testing discipline, API design.\n\nDISTRAKTOR — Content with zero direct or transferable relevance to this  specific role, OR redundant detail that pulls attention from stronger evidence.\n\nACTION RULES — apply these without exception: \n\n- DISTRAKTOR → action must be REMOVE. No exceptions. \n- TRANSFERABEL → action must be KEEP or SHORTEN. NEVER REMOVE. \n- DIREKT → action must be KEEP or REPLACE (to sharpen language only). \n- A skills subcategory where EVERY term is a DISTRAKTOR → REMOVE the entire subcategory. \n- A skills subcategory where ANY term is DIREKT or TRANSFERABEL → KEEP or SHORTEN, never REMOVE. \n\nSEGMENTS TO CLASSIFY: Enumerate and classify EVERY segment listed below. Do not skip any. \n- Profile Summary (one block) \n- Every bullet of every project \n- Every skills subcategory Do NOT classify: Education, Certifications, Languages — these are protected.  \n\nRANKING: Before assigning any label, rank ALL segments from most to least \nrelevant to this role. Reflect this ranking in the priority_rank field \n(1 = most relevant). Assign priority_score 0.0–1.0 accordingly.\n\nWORD BUDGET: The current CV has {{ $('Compute Word Budget').first().json.cv_word_count }} words.\nTarget: {{ $('Compute Word Budget').first().json.target_words }} words (±10%).\nWords to cut: {{ $('Compute Word Budget').first().json.words_to_cut }}.\nBudget tight: {{ $('Compute Word Budget').first().json.budget_tight }}.\n\nFor each non-REMOVE segment, assign output_word_budget (target words after editing) \nand output_word_max (hard ceiling = output_word_budget × 1.2).\nREMOVE and SKIP segments get output_word_budget: 0, output_word_max: 0.\n\nCompression ratios by action: KEEP=1.0, REPLACE≤0.9, SHORTEN≤0.5, REMOVE=0.\nWhen budget_tight is true: bias aggressively toward REMOVE on low-priority segments.\n\nLENGTH IS A HARD CONSTRAINT. Prefer cutting lower-priority content over \nexceeding the word budget. reasoning field: max 12 words.\n"
+              "message": "=You are a CV relevance classifier. Your sole task is to analyze every  segment of a candidate's CV against a target job posting and classify  each segment. You do NOT rewrite any text. You do NOT generate instructions. You only classify and decide actions.\n\nCANDIDATE CV: \n<cv> \n{{ $('Start').first().json.cv_text_final }} \n</cv>\n\nCLASSIFICATION DEFINITIONS:  \n\nDIREKT — Content that explicitly evidences a requirement, responsibility,  or core signal stated in the job posting. Direct match by function or  capability, not necessarily by exact name.\n\nTRANSFERABEL — Content that does not match the role 1:1 but demonstrates  skills or mindsets useful for it: structured problem-solving, ownership,  measurable impact, automation, tooling, process improvement,  infrastructure management, testing discipline, API design.\n\nDISTRAKTOR — Content with zero direct or transferable relevance to this  specific role, OR redundant detail that pulls attention from stronger evidence.\n\nACTION RULES — apply these without exception: \n\n- DISTRAKTOR → action must be REMOVE. No exceptions. \n- TRANSFERABEL → action must be SHORTEN if ANY of the following conditions hold:\\n  (a) the segment is ≥25 words, OR\\n  (b) budget_tight is true, OR\\n  (c) the segment lists 3 or more named domain-specific terms (tools, frameworks, standards, algorithms, methods) that do not appear in the job posting.\\n  Otherwise action may be KEEP. NEVER REMOVE a TRANSFERABEL segment.\n- DIREKT → action must be KEEP or REPLACE (to sharpen language only). DIREKT segments ≥35 words MUST use REPLACE, not KEEP.\n- A skills subcategory where EVERY term is a DISTRAKTOR → REMOVE the entire subcategory. \n- A skills subcategory where ANY term is DIREKT or TRANSFERABEL → KEEP or SHORTEN, never REMOVE. \n\nSEGMENTS TO CLASSIFY: Enumerate and classify EVERY segment listed below. Do not skip any. \n- Profile Summary (one block) \n- Every bullet of every project \n- Every skills subcategory \n- Every bullet of every practical experience or work experience entry\nDo NOT classify: Education section header and dates, Certifications, Languages — these are protected. \n\nRANKING: Before assigning any label, rank ALL segments from most to least \nrelevant to this role. Reflect this ranking in the priority_rank field \n(1 = most relevant). Assign priority_score 0.0–1.0 accordingly.\n\nWORD BUDGET: The current CV has {{ $('Compute Word Budget').first().json.cv_word_count }} words.\nTarget: {{ $('Compute Word Budget').first().json.target_words }} words (±10%).\nWords to cut: {{ $('Compute Word Budget').first().json.words_to_cut }}.\nBudget tight: {{ $('Compute Word Budget').first().json.budget_tight }}.\n\nFor each non-REMOVE segment, assign output_word_budget (target words after editing) \nand output_word_max (hard ceiling = output_word_budget × 1.2).\nREMOVE segments get output_word_budget: 0, output_word_max: 0.\\nKEEP segments: set output_word_budget to the current word count of the original text.\n\nCompression ratios by action: KEEP=1.0, REPLACE≤0.9, SHORTEN≤0.5, REMOVE=0.\nWhen budget_tight is true: bias aggressively toward REMOVE on low-priority segments.\n\nLENGTH IS A HARD CONSTRAINT. Prefer cutting lower-priority content over \nexceeding the word budget. reasoning field: max 12 words.\n"
             }
           ]
         },
@@ -18,39 +18,11 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        2368,
-        764
+        4256,
+        2384
       ],
-      "id": "e98b676e-e139-42bc-9cd3-abd61bb2055e",
+      "id": "bb5d1a03-2432-408b-b59c-174f1a98478b",
       "name": "Classifier"
-    },
-    {
-      "parameters": {
-        "model": {
-          "__rl": true,
-          "value": "claude-haiku-4-5-20251001",
-          "mode": "list",
-          "cachedResultName": "Claude Haiku 4.5"
-        },
-        "options": {
-          "maxTokensToSample": 8192,
-          "temperature": 0.1
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
-      "typeVersion": 1.3,
-      "position": [
-        2376,
-        988
-      ],
-      "id": "d289b172-4f9d-4104-be38-94549fe1baee",
-      "name": "Anthropic Chat Model",
-      "credentials": {
-        "anthropicApi": {
-          "id": "bmJJVz53sEeLUr3G",
-          "name": "Anthropic account"
-        }
-      }
     },
     {
       "parameters": {
@@ -60,78 +32,36 @@
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
       "position": [
-        2504,
-        988
+        4400,
+        2608
       ],
-      "id": "5136c671-fdfd-43ae-bda6-4008add2f6dd",
+      "id": "d764a9c0-8cc2-4d06-9319-ebf3f4f044f2",
       "name": "Structured Output Parser3"
     },
     {
       "parameters": {
-        "jsCode": "const data = $('Classifier').first().json.output;\nconst segments = data.segments;\nconst projectOrder = data.project_order;\nconst roleSignal = data.role_signal;\n\n// Enforce action rules deterministically\nconst enforced = segments.map(seg => {\n  let finalAction = seg.action;\n\n  // Rule 1: DISTRAKTOR -> always REMOVE\n  if (seg.classification === 'DISTRAKTOR') {\n    finalAction = 'REMOVE';\n  }\n\n  // Rule 2: TRANSFERABEL -> never REMOVE, downgrade to SHORTEN\n  if (seg.classification === 'TRANSFERABEL' && seg.action === 'REMOVE') {\n    finalAction = 'SHORTEN';\n  }\n\n  // Rule 3: KEEP with no change needed -> mark as skip\n  if (finalAction === 'KEEP') {\n    finalAction = 'SKIP';\n  }\n\n  return { ...seg, finalAction };\n});\n\n// Separate segments that need instructions from those that don't\nconst toEdit = enforced.filter(s => s.finalAction !== 'SKIP');\nconst toSkip = enforced.filter(s => s.finalAction === 'SKIP');\n\n// Build the constraint block for the Generator\nconst constraintLines = toEdit.map(s => {\n  const preview = s.original.length > 80 \n    ? s.original.substring(0, 80) + '...' \n    : s.original;\n  return `[${s.finalAction}] ${s.id} (${s.classification}) — REWRITE to ≤${s.output_word_max} words\\nOriginal (${s.output_word_budget > 0 ? s.input_words || '?' : 0} words): \"${preview}\"\\nReason: ${s.reasoning}`;\n}).join('\\n\\n');\n\n// Build project reorder instructions\nconst reorderInstructions = projectOrder\n  .map((title, i) => `${i + 1}. ${title}`)\n  .join('\\n');\n\n// Budget validation\nconst target = $('Compute Word Budget').first().json.target_words;\nconst TOLERANCE = 0.10;\n\nconst totalBudgeted = enforced.reduce((sum, seg) => {\n  if (seg.finalAction === 'REMOVE' || seg.finalAction === 'SKIP' && seg.output_word_budget === 0) {\n    return sum + (seg.finalAction === 'SKIP' ? (seg.output_word_budget || seg.input_words || 0) : 0);\n  }\n  return sum + (seg.output_word_budget || 0);\n}, 0);\n\nconst withinTolerance = totalBudgeted >= target * (1 - TOLERANCE) && totalBudgeted <= target * (1 + TOLERANCE);\n\nreturn [{\n  json: {\n    role_signal: roleSignal,\n    project_order: projectOrder,\n    reorder_instructions: reorderInstructions,\n    segments_to_edit: toEdit,\n    segments_to_skip: toSkip,\n    constraint_block: constraintLines,\n    edit_count: toEdit.length,\n    budget_validation: {\n      total_budgeted_words: totalBudgeted,\n      target_words: target,\n      within_tolerance: withinTolerance,\n      delta: totalBudgeted - target\n    }\n  }\n}];"
+        "jsCode": "const data = $('Classifier').first().json.output;\nconst segments = data.segments;\nconst projectOrder = data.project_order;\nconst roleSignal = data.role_signal;\n\n// Enforce action rules deterministically\nconst enforced = segments.map(seg => {\n  let finalAction = seg.action;\n\n  // Rule 1: DISTRAKTOR -> always REMOVE\n  if (seg.classification === 'DISTRAKTOR') {\n    finalAction = 'REMOVE';\n  }\n\n  // Rule 2: TRANSFERABEL -> never REMOVE, downgrade to SHORTEN\n  if (seg.classification === 'TRANSFERABEL' && seg.action === 'REMOVE') {\n    finalAction = 'SHORTEN';\n    // Recompute budget — was 0 because Classifier intended REMOVE\n    const wc = (seg.original || '').trim().split(/\\s+/).filter(Boolean).length;\n    seg.output_word_budget = Math.max(10, Math.floor(wc * 0.50));\n    seg.output_word_max = Math.max(12, Math.floor(wc * 0.55));\n  }\n\n  // Rule 3: KEEP with no change needed -> mark as skip\n  if (finalAction === 'KEEP') {\n    finalAction = 'SKIP';\n  }\n\n  return { ...seg, finalAction };\n});\n\n// Deterministic override: TRANSFERABEL segments ≥25 words that survived as SKIP must be SHORTEN.\n// Haiku may not reliably apply the word-count rule; this guarantees compression.\nfor (const seg of enforced) {\n  if (seg.classification === 'TRANSFERABEL' && seg.finalAction === 'SKIP') {\n    const wordCount = (seg.original || '').trim().split(/\\s+/).filter(Boolean).length;\n    if (wordCount >= 25) {\n      seg.finalAction = 'SHORTEN';\n      seg.output_word_budget = Math.max(20, Math.floor(wordCount * 0.50));\n      seg.output_word_max = Math.max(25, Math.floor(wordCount * 0.55));\n      seg.reasoning = 'Segment over word-count threshold. Compress to core transferable evidence only. Remove enumerated lists of named tools, frameworks, or algorithms not present in the job posting.';\n    }\n  }\n  if (seg.classification === 'DIREKT' && seg.finalAction === 'SKIP') {\n    const wordCount = (seg.original || '').trim().split(/\\s+/).filter(Boolean).length;\n    if (wordCount >= 40) {\n      seg.finalAction = 'SHORTEN';\n      seg.output_word_budget = Math.max(25, Math.floor(wordCount * 0.55));\n      seg.output_word_max = Math.max(30, Math.floor(wordCount * 0.60));\n      seg.reasoning = 'DIREKT segment over word-count threshold. Preserve core evidence; remove enumerated lists of specific named items not essential for role match.';\n    }\n  }\n}\n\n// Separate segments that need instructions from those that don't\nconst toEdit = enforced.filter(s => s.finalAction !== 'SKIP');\nconst toSkip = enforced.filter(s => s.finalAction === 'SKIP');\n\n// Build the constraint block for the Generator\nconst constraintLines = toEdit.map(s => {\n  const preview = s.original.length > 80 \n    ? s.original.substring(0, 80) + '...' \n    : s.original;\n  const actualWordCount = s.output_word_budget > 0\n    ? (s.original || '').trim().split(/\\s+/).filter(Boolean).length\n    : 0;\n  return `[${s.finalAction}] ${s.id} (${s.classification}) — REWRITE to ≤${s.output_word_max} words\\nOriginal (${actualWordCount} words): \"${preview}\"\\nReason: ${s.reasoning}`;\n}).join('\\n\\n');\n\n// Build project reorder instructions\nconst reorderInstructions = projectOrder\n  .map((title, i) => `${i + 1}. ${title}`)\n  .join('\\n');\n\n// Budget validation\nconst target = $('Compute Word Budget').first().json.target_words;\nconst TOLERANCE = 0.10;\n\nconst totalBudgeted = enforced.reduce((sum, seg) => {\n  if (seg.finalAction === 'REMOVE') {\n    return sum;\n  }\n  if (seg.finalAction === 'SKIP') {\n    return sum + (seg.output_word_budget || (seg.original || '').trim().split(/\\s+/).filter(Boolean).length);\n  }\n  return sum + (seg.output_word_budget || 0);\n}, 0);\n\nconst withinTolerance = totalBudgeted >= target * (1 - TOLERANCE) && totalBudgeted <= target * (1 + TOLERANCE);\n\nreturn [{\n  json: {\n    role_signal: roleSignal,\n    project_order: projectOrder,\n    reorder_instructions: reorderInstructions,\n    segments_to_edit: toEdit,\n    segments_to_skip: toSkip,\n    constraint_block: constraintLines,\n    edit_count: toEdit.length,\n    budget_validation: {\n      total_budgeted_words: totalBudgeted,\n      target_words: target,\n      within_tolerance: withinTolerance,\n      delta: totalBudgeted - target\n    }\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2720,
-        764
+        4608,
+        2384
       ],
-      "id": "52342ccb-6b24-422d-b2cb-f4dbff9f9484",
+      "id": "fbe7270d-e359-4ab3-8583-69ef95da3a75",
       "name": "Enforcer"
     },
     {
       "parameters": {
-        "model": {
-          "__rl": true,
-          "value": "claude-sonnet-4-6",
-          "mode": "list",
-          "cachedResultName": "Claude Sonnet 4.6"
-        },
-        "options": {
-          "maxTokensToSample": 8192,
-          "temperature": 0.1
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
-      "typeVersion": 1.3,
-      "position": [
-        2952,
-        988
-      ],
-      "id": "cc601e8f-2a91-4f69-bef0-33fdc9384b35",
-      "name": "Anthropic Chat Model1",
-      "credentials": {
-        "anthropicApi": {
-          "id": "bmJJVz53sEeLUr3G",
-          "name": "Anthropic account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "schemaType": "manual",
-        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"cv_anpassungen\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"bereich\":  { \"type\": \"string\" },\n          \"aktion\":   { \"type\": \"string\", \"enum\": [\"ERSETZEN\",\"HINZUFÜGEN\",\"ENTFERNEN\",\"VORNE STELLEN\",\"KÜRZEN\"] },\n          \"original\": { \"type\": \"string\" },\n          \"neu\":      { \"type\": \"string\" }\n        },\n        \"required\": [\"bereich\",\"aktion\",\"original\",\"neu\"]\n      }\n    }\n  },\n  \"required\": [\"cv_anpassungen\"]\n}"
-      },
-      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
-      "typeVersion": 1.3,
-      "position": [
-        3080,
-        988
-      ],
-      "id": "2b81850c-3ee7-4ce1-ad27-ca276fe75e6d",
-      "name": "Structured Output Parser4"
-    },
-    {
-      "parameters": {
-        "jsCode": "const items = $('Generator').first().json.output.cv_anpassungen;\nconst classifiedSegments = $('Enforcer').first().json.segments_to_edit;\n\n// Build lookup: original text → classification\nconst classMap = {};\nfor (const seg of classifiedSegments) {\n  classMap[seg.original.trim()] = {\n    classification: seg.classification,\n    finalAction: seg.finalAction\n  };\n}\n\nconst valid = [];\nconst flagged = [];\n\nfor (const item of items) {\n  // drop \"// X -> Y words\"\n  if (item.neu) {\n    item.neu = item.neu.replace(/^\\/\\/[^\\n]*\\n?/, '').trim();\n  }\n\n  // KÜRZEN with no neu field\n  if (item.aktion === 'KÜRZEN' && (!item.neu || item.neu.trim() === '')) {\n    continue;\n  }\n  \n  // 1. No-op detection: ERSETZEN/KÜRZEN with identical text\n  if (\n    (item.aktion === 'ERSETZEN' || item.aktion === 'KÜRZEN') &&\n    item.original.trim() === item.neu.trim()\n  ) {\n    // Drop silently — no instruction needed\n    continue;\n  }\n\n  // 2. ENTFERNEN on TRANSFERABEL segment → flag for correction\n  const lookup = classMap[item.original.trim()];\n  if (\n    item.aktion === 'ENTFERNEN' &&\n    lookup &&\n    lookup.classification === 'TRANSFERABEL'\n  ) {\n    flagged.push({\n      ...item,\n      error: 'ENTFERNEN on TRANSFERABEL segment',\n      corrected_action: 'KÜRZEN'\n    });\n    continue;\n  }\n\n  // 3. ERSETZEN on DISTRAKTOR (should be ENTFERNEN) → correct silently\n  if (\n    item.aktion === 'ERSETZEN' &&\n    lookup &&\n    lookup.classification === 'DISTRAKTOR' &&\n    item.neu !== ''\n  ) {\n    valid.push({ ...item, aktion: 'ENTFERNEN', neu: '' });\n    continue;\n  }\n\n  valid.push(item);\n}\n\nconst hasErrors = flagged.length > 0;\n\nreturn [{\n  json: {\n    output: { cv_anpassungen: valid },\n    flagged,\n    has_errors: hasErrors,\n    valid_count: valid.length,\n    flagged_count: flagged.length\n  }\n}];"
+        "jsCode": "const items = $('Cleanup Answer').first().json.output.cv_anpassungen;\nconst classifiedSegments = $('Enforcer').first().json.segments_to_edit;\n\n// Build lookup: original text → classification\nconst classMap = {};\nfor (const seg of classifiedSegments) {\n  classMap[seg.original.trim()] = {\n    classification: seg.classification,\n    finalAction: seg.finalAction\n  };\n}\n\n// Keyword preservation helpers.\n// Source: muss_kriterien (structured) + \"nice to have\" lines only.\n// Excludes responsibilities prose to prevent false positives on generic terms.\nconst STOP_WORDS = new Set([\n  'with','that','this','from','have','will','your','their','they','been',\n  'were','also','when','what','which','into','more','some','such','than',\n  'then','them','these','those','each','both','very','just','only','over',\n  'well','even','most','many','much','about','after','before','between',\n  'during','through','within','without','across','against','along','among',\n  'around','behind','below','beside','beyond','since','until','upon','while',\n  'where','there','here','like','make','made','work','team','role','good',\n  'able','need','want','take','give','know','find','look','come','back',\n  'used','using','uses','our','its','for','the','and','not','are','all',\n  'can','has','had','was','been','may','new','own','use','per','via',\n  'und','die','der','das','ist','mit','für','auf','ein','wie','was',\n  'hat','war','bei','aus','vom','den','dem','des','bin','wir','ihr',\n  'sie','ihm','ihn','uns','dir','ich','wer','man','nur','aber','auch',\n  'noch','sich','nach','über','mehr','zum','zur','beim','oder','nicht',\n  'sind','wird','eine','einen','einem','einer','alle','werden',\n  'kann','sein','haben','dass','dies','wenn','dann','ihre',\n  'ihren','ihrer','ihres','dieses','diese','dieser','diesen','diesem',\n  'solche','solch','solcher','keine','kein','keiner','keinem','keinen',\n  'jede','jeden','jeder','jedem','jedes','andere','anderen','anderer',\n  'anderem','viele','vielen','vieler','vielem','durch','ohne'\n]);\n\nfunction extractKeywords(text) {\n  return (text || '')\n    .split(/[\\s,;:.!?()[\\]{}\"\\'\\\\+\\-=<>|&]+/)\n    .map(t => t.trim())\n    .filter(t => t.length >= 3 && !STOP_WORDS.has(t.toLowerCase()))\n    .map(t => t.toLowerCase());\n}\n\nconst mussText = ($('Start').first().json.muss_kriterien || []).join(' ');\nconst wunschText = ($('Start').first().json.wunsch_kriterien || []).join(' ');\nconst jobKeywords = new Set(extractKeywords(mussText + ' ' + wunschText));\n\nfunction keywordViolations(original, neu) {\n  const origTokens = new Set(extractKeywords(original));\n  const neuTokens = new Set(extractKeywords(neu || ''));\n  const violations = [];\n  for (const kw of origTokens) {\n    if (jobKeywords.has(kw) && !neuTokens.has(kw)) {\n      violations.push(kw);\n    }\n  }\n  return violations;\n}\n\nconst valid = [];\nconst flagged = [];\n\nfor (const item of items) {\n  // drop \"// X -> Y words\"\n  if (item.neu) {\n    item.neu = item.neu.replace(/^\\/\\/[^\\n]*\\n?/, '').trim();\n  }\n\n  // KÜRZEN with no neu field\n  if (item.aktion === 'KÜRZEN' && (!item.neu || item.neu.trim() === '')) {\n    continue;\n  }\n  \n  // 1. No-op detection: ERSETZEN/KÜRZEN with identical text\n  if (\n    (item.aktion === 'ERSETZEN' || item.aktion === 'KÜRZEN') &&\n    item.original.trim() === item.neu.trim()\n  ) {\n    // Drop silently — no instruction needed\n    continue;\n  }\n\n  // 2. ENTFERNEN on TRANSFERABEL segment → flag for correction\n  const lookup = classMap[item.original.trim()];\n  if (\n    item.aktion === 'ENTFERNEN' &&\n    lookup &&\n    lookup.classification === 'TRANSFERABEL'\n  ) {\n    flagged.push({\n      ...item,\n      error: 'ENTFERNEN on TRANSFERABEL segment',\n      corrected_action: 'KÜRZEN'\n    });\n    continue;\n  }\n\n  // 3. ERSETZEN on DISTRAKTOR (should be ENTFERNEN) → correct silently\n  if (\n    item.aktion === 'ERSETZEN' &&\n    lookup &&\n    lookup.classification === 'DISTRAKTOR' &&\n    item.neu !== ''\n  ) {\n    valid.push({ ...item, aktion: 'ENTFERNEN', neu: '' });\n    continue;\n  }\n\n  // 4. Keyword preservation guard: KÜRZEN, ERSETZEN, and ENTFERNEN must not drop\n  //    keywords from muss_kriterien or nice-to-have section of the job posting.\n  //    For ENTFERNEN, neu is empty — any keyword in original is a violation.\n  if (\n    (item.aktion === 'KÜRZEN' || item.aktion === 'ERSETZEN' || item.aktion === 'ENTFERNEN') &&\n    item.original\n  ) {\n    const missing = keywordViolations(item.original, item.neu || '');\n    if (missing.length > 0) {\n      flagged.push({\n        ...item,\n        error: `Keyword preservation violation: job-posting keywords dropped: ${missing.join(', ')}`,\n        corrected_action: item.aktion\n      });\n      continue;\n    }\n  }\n\n  valid.push(item);\n}\n\n// Cluster guard: cap ENTFERNEN at 2 per bereich to prevent entire sections being removed.\nconst entfernenByBereich = {};\nconst validAfterCluster = [];\nfor (const item of valid) {\n  if (item.aktion === 'ENTFERNEN') {\n    const b = item.bereich || '_unset';\n    entfernenByBereich[b] = (entfernenByBereich[b] || 0) + 1;\n    if (entfernenByBereich[b] > 2) {\n      flagged.push({\n        ...item,\n        error: `Cluster guard: more than 2 ENTFERNEN in bereich \"${b}\" — converting to KÜRZEN`,\n        corrected_action: 'KÜRZEN'\n      });\n      continue;\n    }\n  }\n  validAfterCluster.push(item);\n}\n\nconst hasErrors = flagged.length > 0;\n\nreturn [{\n  json: {\n    output: { cv_anpassungen: validAfterCluster },\n    flagged,\n    has_errors: hasErrors,\n    valid_count: validAfterCluster.length,\n    flagged_count: flagged.length\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3296,
-        768
+        5408,
+        2384
       ],
-      "id": "843469ca-51d7-4c4c-ab1b-0d413c0347f6",
+      "id": "2836b484-4304-468c-a9ec-03da5b7e576e",
       "name": "Validator"
     },
     {
@@ -151,49 +81,20 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        3744,
-        512
+        5856,
+        2128
       ],
-      "id": "8ee88bc8-e439-4694-aecf-22635725d19e",
+      "id": "62a7cdda-5bb2-4721-ad5e-cb5623dea156",
       "name": "Retry LLM"
-    },
-    {
-      "parameters": {
-        "model": {
-          "__rl": true,
-          "value": "claude-sonnet-4-6",
-          "mode": "list",
-          "cachedResultName": "Claude Sonnet 4.6"
-        },
-        "options": {
-          "maxTokensToSample": 1500,
-          "temperature": 0.1
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
-      "typeVersion": 1.3,
-      "position": [
-        3752,
-        736
-      ],
-      "id": "dacbc499-c3d0-4959-8d5d-f646a2c3655d",
-      "name": "Anthropic Chat Model2",
-      "credentials": {
-        "anthropicApi": {
-          "id": "bmJJVz53sEeLUr3G",
-          "name": "Anthropic account"
-        }
-      }
     },
     {
       "parameters": {
         "promptType": "define",
         "text": "=Role signal: {{ $('Enforcer').first().json.role_signal }}\n\nRequired project order (generate VORNE STELLEN instructions for \nthe top 2 most relevant projects):\n{{ $('Enforcer').first().json.reorder_instructions }}\n\nCLASSIFICATION DECISIONS — FINAL, DO NOT OVERRIDE:\n{{ $('Enforcer').first().json.constraint_block }}\n\nJob context:\nRole: {{ $('Start').first().json.role_title }}\nMust-criteria: \n{{ $('Start').first().json.muss_kriterien.map(r => '- ' + r).join('\\n') }}\nHighlights (use as primary evidence anchors in rewritten text):\n{{ $('Start').first().json.highlights.map(h => '- ' + h).join('\\n') }}\nGaps (do not invent experience to cover these):\n{{ $('Start').first().json.gaps.map(g => '- ' + g).join('\\n') }}\n\nGenerate cv_anpassungen now. Include:\n1. VORNE STELLEN instructions for the top 2 projects in required order\n2. One instruction per segment listed in CLASSIFICATION DECISIONS\n   matching exactly its assigned action\n3. No instructions for segments not listed above",
-        "hasOutputParser": true,
         "messages": {
           "messageValues": [
             {
-              "message": "=You are a CV text editor. A classification system has already analyzed  every segment of this CV and made final decisions. Your ONLY job is to  generate the rewritten text for segments that need changes. You do NOT make classification decisions. You do NOT override actions. The actions below are FINAL. Treat them as machine-generated facts.  \n\nCANDIDATE CV: \n<cv> \n{{ $('Start').first().json.cv_text_final }} \n</cv>  \n\nTRUTHFULNESS — absolute constraint: \nEvery word in a \"neu\" field must be verifiable in the original CV. \nDo NOT add technologies, tools, skills, or claims not explicitly stated. \nDo NOT upgrade task-level work to strategy-level framing. \nDo NOT add soft-skill claims without specific project evidence. \nEvery sentence in the profile summary must cite a specific project,  metric, or technology from the CV.  \n\nOUTPUT RULES: \n- For REPLACE action: generate improved text. \"neu\" ≠ \"original\". \n- For SHORTEN action: generate condensed text. \"neu\" ≠ \"original\". \n- For REMOVE action: \"neu\" must be exactly \"\" (empty string). \n- For VORNE STELLEN action: \"neu\" must be identical to \"original\". \n- Never produce an instruction where \"neu\" equals \"original\"    for REPLACE or SHORTEN actions. That is a no-op and is forbidden. \n- \"original\" field must be copied verbatim from the CV —    exact string match required for downstream processing. \n- Output language: {{ $('Start').first().json.job_post_language }}\nWORD BUDGETS: Each segment above shows \"REWRITE to ≤N words\". \nThis is a HARD ceiling per segment. Before rewriting, state the word count reduction as a comment in this format: // X→Y words. Then write the rewrite on the next line.\nNo preamble. No hedging. No restatement. Under uncertainty, cut rather than add.\nDO NOT exceed the word budget per segment."
+              "message": "=You are a CV text editor. A classification system has already analyzed  every segment of this CV and made final decisions. Your ONLY job is to  generate the rewritten text for segments that need changes. You do NOT make classification decisions. You do NOT override actions. The actions below are FINAL. Treat them as machine-generated facts.  \n\nCANDIDATE CV: \n<cv> \n{{ $('Start').first().json.cv_text_final }} \n</cv>  \n\nTRUTHFULNESS — absolute constraint: \nEvery word in a \"neu\" field must be verifiable in the original CV. \nDo NOT add technologies, tools, skills, or claims not explicitly stated. \nDo NOT upgrade task-level work to strategy-level framing. \nDo NOT add soft-skill claims without specific project evidence. \nEvery sentence in the profile summary must cite a specific project,  metric, or technology from the CV.  \n\nOUTPUT RULES: \n- For REPLACE action: generate improved text. \"neu\" ≠ \"original\". \n- For SHORTEN action: generate condensed text. \"neu\" ≠ \"original\". \n- For REMOVE action: \"neu\" must be exactly \"\" (empty string). \n- For VORNE STELLEN action: \"neu\" must be identical to \"original\". \n- Never produce an instruction where \"neu\" equals \"original\"    for REPLACE or SHORTEN actions. That is a no-op and is forbidden. \n- \"original\" field must be copied verbatim from the CV —    exact string match required for downstream processing. \n- Output language: {{ $('Start').first().json.job_post_language }}\nWORD BUDGETS: Each segment above shows \"REWRITE to ≤N words\". \nThis is a HARD ceiling per segment. Before rewriting, state the word count reduction as a comment in this format: // X→Y words. Then write the rewrite on the next line.\nNo preamble. No hedging. No restatement. Under uncertainty, cut rather than add.\nDO NOT exceed the word budget per segment.\n\nIMPORTANT: Respond ONLY with a valid JSON object matching this exact schema.\nNo markdown. No code fences. No preamble. Raw JSON only.\n\n{\n  \"cv_anpassungen\": [\n    {\n      \"bereich\": \"string\",\n      \"aktion\": \"ERSETZEN|HINZUFÜGEN|ENTFERNEN|VORNE STELLEN|KÜRZEN\",\n      \"original\": \"string\",\n      \"neu\": \"string\"\n    }\n  ]\n}"
             }
           ]
         },
@@ -202,10 +103,10 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        2944,
-        764
+        4832,
+        2384
       ],
-      "id": "1d9ff5b8-d43d-4b34-8419-59bf61117110",
+      "id": "258d2873-19a8-43cc-9c72-60377d956a81",
       "name": "Generator"
     },
     {
@@ -216,10 +117,10 @@
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
       "position": [
-        3880,
-        736
+        6000,
+        2352
       ],
-      "id": "43b7b249-c935-4b57-8a2a-b8e803419ea7",
+      "id": "95ddda82-02cc-40c3-8429-b5bd6c1d3da0",
       "name": "Structured Output Parser5"
     },
     {
@@ -249,10 +150,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        3520,
-        764
+        5632,
+        2384
       ],
-      "id": "8809d1c0-66dc-4504-abcf-6eb9f0143387",
+      "id": "b4f04209-3cf0-4bfc-98ed-07f96057e134",
       "name": "Validator detected Errors?"
     },
     {
@@ -264,6 +165,10 @@
             },
             {
               "name": "muss_kriterien",
+              "type": "array"
+            },
+            {
+              "name": "wunsch_kriterien",
               "type": "array"
             },
             {
@@ -289,13 +194,13 @@
           ]
         }
       },
-      "id": "1d5a8655-8a91-42c9-920c-2f8b3ce004a6",
+      "id": "60635a1a-98de-4dba-ac7c-1de57f219b3f",
       "typeVersion": 1.1,
       "name": "Start",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "position": [
-        1920,
-        764
+        3808,
+        2384
       ]
     },
     {
@@ -315,10 +220,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        3808,
-        912
+        5920,
+        2528
       ],
-      "id": "1df116dd-38ce-444a-992c-cc1c1f796f83",
+      "id": "7a1e97f5-a55b-4f17-9fd3-24ca7db89d5e",
       "name": "Result"
     },
     {
@@ -328,10 +233,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4096,
-        616
+        6208,
+        2240
       ],
-      "id": "a466b9a9-8ff6-437d-9b1a-e796fd259fe9",
+      "id": "0b015443-111d-423d-8b46-ec254c1977cc",
       "name": "Corrected + Valid Items"
     },
     {
@@ -351,24 +256,121 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        4320,
-        616
+        6432,
+        2240
       ],
-      "id": "ffa01834-34d6-4992-859b-fbd9ff1e0de7",
+      "id": "90d668bf-f740-4f18-b66e-be9e47e48419",
       "name": "Result1"
     },
     {
       "parameters": {
-        "jsCode": "const cvText = $(\"Start\").first().json.cv_text_final;\nconst words = cvText.trim().split(/\\s+/).length;\nconst TARGET = 500;\n\nreturn [{\n  json: {\n    cv_word_count: words,\n    target_words: TARGET,\n    words_to_cut: Math.max(0, words - TARGET),\n    overage_pct: Math.round(((words - TARGET) / TARGET) * 100),\n    budget_tight: words > TARGET * 1.05\n  }\n}];"
+        "jsCode": "const cvText = $(\"Start\").first().json.cv_text_final;\n\n// Same cleanWordCount as in Deterministic Metrics\nfunction cleanWordCount(text) {\n  return text\n    .replace(/#+\\s/g, '')\n    .replace(/\\*\\*/g, '')\n    .replace(/\\[([^\\]]+)\\]\\([^)]+\\)/g, '$1')\n    .replace(/^[-·]\\s*/gm, '')\n    .trim()\n    .split(/\\s+/)\n    .filter(Boolean).length;\n}\n\nconst words = cleanWordCount(cvText);\n\n// If the CV is already below the desired minimum, there is nothing to cut.\n// Target = 80% of the current word count, but only if the CV exceeds 700 words.\n// For short CVs, the target IS the current word count (without compression).\nconst TARGET = words > 700\n  ? Math.min(Math.max(Math.floor(words * 0.80), 700), 950)\n  : words;\n\nreturn [{\n  json: {\n    cv_word_count: words,\n    target_words: TARGET,\n    words_to_cut: Math.max(0, words - TARGET),\n    overage_pct: Math.round(((words - TARGET) / TARGET) * 100),\n    budget_tight: words > TARGET * 1.05\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2144,
-        764
+        4032,
+        2384
       ],
-      "id": "2d123e8d-db83-4d97-81d3-5ec4bf727dd4",
+      "id": "ede4c5ec-cda2-4db5-9187-5145858050e9",
       "name": "Compute Word Budget"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "claude-haiku-4-5-20251001",
+          "mode": "list",
+          "cachedResultName": "Claude Haiku 4.5"
+        },
+        "options": {
+          "maxTokensToSample": 8192,
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        4272,
+        2608
+      ],
+      "id": "96c8ab3a-c45d-470a-9891-39dbb0a34703",
+      "name": "Haiku 4.5",
+      "credentials": {
+        "anthropicApi": {
+          "id": "bmJJVz53sEeLUr3G",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "claude-sonnet-4-6",
+          "mode": "list",
+          "cachedResultName": "Claude Sonnet 4.6"
+        },
+        "options": {
+          "maxTokensToSample": 8192,
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        4912,
+        2608
+      ],
+      "id": "201922cc-d8a4-438e-ade2-3a0da644623f",
+      "name": "Sonnet 4.6",
+      "credentials": {
+        "anthropicApi": {
+          "id": "bmJJVz53sEeLUr3G",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "claude-sonnet-4-6",
+          "mode": "list",
+          "cachedResultName": "Claude Sonnet 4.6"
+        },
+        "options": {
+          "maxTokensToSample": 8192,
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        5872,
+        2352
+      ],
+      "id": "c4068bdb-806b-4ffa-8b19-94cb6698e161",
+      "name": "Sonnet 4.6 (1)",
+      "credentials": {
+        "anthropicApi": {
+          "id": "bmJJVz53sEeLUr3G",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $('Generator').first().json.text || '';\n\n// Strip markdown code fences\nlet cleaned = raw\n  .replace(/^```json\\s*/i, '')\n  .replace(/^```\\s*/i, '')\n  .replace(/```\\s*$/i, '')\n  .trim();\n\n// Replace literal control characters inside JSON strings\n// Tab → \\t, carriage return → \\r, etc.\ncleaned = cleaned.replace(/[\\t]/g, '\\\\t');\ncleaned = cleaned.replace(/[\\r]/g, '\\\\r');\n// Literal newlines inside strings are also invalid — but we need\n// to preserve structural newlines between JSON fields, so only\n// replace newlines that appear inside quoted strings\ncleaned = cleaned.replace(/\"((?:[^\"\\\\]|\\\\.)*)\"/g, (match) => {\n  return match.replace(/\\n/g, '\\\\n');\n});\n\nlet parsed;\ntry {\n  parsed = JSON.parse(cleaned);\n} catch(e) {\n  throw new Error(`Generator JSON parse failed: ${e.message}\\n\\nRaw output:\\n${raw.substring(0, 500)}`);\n}\n\n// Validate expected structure\nif (!parsed.cv_anpassungen || !Array.isArray(parsed.cv_anpassungen)) {\n  throw new Error('Generator output missing cv_anpassungen array');\n}\n\nreturn [{ json: { output: parsed } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5184,
+        2384
+      ],
+      "id": "2a03ca13-7ed6-4d58-a3cd-953ae5bf2bd4",
+      "name": "Cleanup Answer"
     }
   ],
   "pinData": {},
@@ -379,17 +381,6 @@
           {
             "node": "Enforcer",
             "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Anthropic Chat Model": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Classifier",
-            "type": "ai_languageModel",
             "index": 0
           }
         ]
@@ -417,28 +408,6 @@
         ]
       ]
     },
-    "Anthropic Chat Model1": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Generator",
-            "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Structured Output Parser4": {
-      "ai_outputParser": [
-        [
-          {
-            "node": "Generator",
-            "type": "ai_outputParser",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Validator": {
       "main": [
         [
@@ -450,22 +419,11 @@
         ]
       ]
     },
-    "Anthropic Chat Model2": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Retry LLM",
-            "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Generator": {
       "main": [
         [
           {
-            "node": "Validator",
+            "node": "Cleanup Answer",
             "type": "main",
             "index": 0
           }
@@ -544,6 +502,50 @@
           }
         ]
       ]
+    },
+    "Haiku 4.5": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Classifier",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sonnet 4.6": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generator",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sonnet 4.6 (1)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Retry LLM",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cleanup Answer": {
+      "main": [
+        [
+          {
+            "node": "Validator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
@@ -551,7 +553,7 @@
     "executionOrder": "v1",
     "availableInMCP": false
   },
-  "versionId": "d2cc5260-83df-416b-94a6-2f040c53a55a",
+  "versionId": "e42d1ba5-32d3-4da8-b5fa-13fc69d873f4",
   "meta": {
     "instanceId": "19b5c45878e0c37a2dfdebb10fe6ad07185f82630e5b3f64f267192bd053cf0b"
   },
