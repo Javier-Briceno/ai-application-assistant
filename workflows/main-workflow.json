@@ -17,7 +17,7 @@
       "typeVersion": 1.3,
       "position": [
         288,
-        1344
+        1216
       ],
       "id": "bd76efba-f8d4-40e6-8516-2fad7e1f002a",
       "name": "Haiku 4.5",
@@ -36,7 +36,7 @@
       "typeVersion": 2,
       "position": [
         1232,
-        992
+        864
       ],
       "id": "981be676-1d1c-4aa5-9cd4-2dd4b64b4b99",
       "name": "Load Config"
@@ -53,7 +53,7 @@
       "typeVersion": 2.6,
       "position": [
         1008,
-        992
+        864
       ],
       "id": "636aba4e-fbd5-47e4-969a-ca65d61c9fae",
       "name": "Fetch Config",
@@ -72,7 +72,7 @@
       "typeVersion": 2,
       "position": [
         1232,
-        704
+        576
       ],
       "id": "77a9d728-e1fb-4a0e-a259-52a24e6d7d45",
       "name": "Input Wrapper"
@@ -105,7 +105,7 @@
       "typeVersion": 2.3,
       "position": [
         2352,
-        784
+        656
       ],
       "id": "8c295563-1c60-448d-9577-084aa07b005f",
       "name": "Passed Threshold?"
@@ -127,7 +127,7 @@
       "typeVersion": 1.9,
       "position": [
         3728,
-        1152
+        1024
       ],
       "id": "d525100b-9f4f-483c-bc15-4092adc2b3fb",
       "name": "Gap Analysis"
@@ -149,7 +149,7 @@
       "typeVersion": 1.3,
       "position": [
         3808,
-        1376
+        1248
       ],
       "id": "3f68f2b9-b3d2-471e-94d8-8ee62c011c6e",
       "name": "Sonnet 4.6 (3)",
@@ -163,16 +163,16 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": " INSERT INTO job_application_assistant.job_applications\n   (profile_id, company, role_title, job_posting, score, threshold, location_type, gaps, highlights, cv_diff, anschreiben)\nVALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);",
+        "query": " INSERT INTO job_application_assistant.job_applications\n   (profile_id, company, role_title, job_posting, score, threshold, location_type, gaps, highlights, cv_diff, anschreiben)\nVALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);",
         "options": {
-          "queryReplacement": "={{ [\n$('Webhook').first().json.body.profile_id,\n$('Call Analysis Scoring').first().json.company_firstItem,\n  $('Call Analysis Scoring').first().json.role_title_firstItem,\n  $('Input Wrapper').first().json.job_posting_wrapped || '',\n  $('Call Analysis Scoring').first().json.score_firstItem,\n  $('Call Analysis Scoring').first().json.threshold_firstItem,\n  $('Call Analysis Scoring').first().json.location_type_firstItem,\n  ($('Call Analysis Scoring').first().json.gaps_firstItem || []).join('; '),\n  ($('Call Analysis Scoring').first().json.highlights_firstItem || []).join('; '),\n  $('Format + Respond').first().json.cv_diff || '',\n  $('Format + Respond').first().json.body_text || ''\n] }}"
+          "queryReplacement": "={{ [\n$('Webhook').first().json.body.profile_id,\n$('Call Analysis Scoring').first().json.company,\n$('Call Analysis Scoring').first().json.role_title,\n$('Input Wrapper').first().json.job_posting_wrapped || '',\n$('Call Analysis Scoring').first().json.score,\n$('Call Analysis Scoring').first().json.threshold,\n$('Call Analysis Scoring').first().json.location_type,\n($('Call Analysis Scoring').first().json.gaps || []).join('; '),\n($('Call Analysis Scoring').first().json.highlights || []).join('; '),\n$('Format + Respond').first().json.cv_diff || '',\n$('Format + Respond').first().json.body_text || ''\n] }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
         4304,
-        704
+        576
       ],
       "id": "9e0d11f2-4608-4e87-b971-92c4d5ff0baa",
       "name": "INSERT Job Application in DB",
@@ -192,7 +192,7 @@
       "typeVersion": 2,
       "position": [
         4080,
-        784
+        656
       ],
       "id": "32ff7a78-109e-4f42-941d-2d31c3e13bb3",
       "name": "Format + Respond"
@@ -208,7 +208,7 @@
       "typeVersion": 2.1,
       "position": [
         -16,
-        1120
+        992
       ],
       "id": "efc6d31a-1550-4d97-beb5-be668d8b8315",
       "name": "Webhook",
@@ -233,7 +233,7 @@
       "typeVersion": 1.5,
       "position": [
         4304,
-        896
+        768
       ],
       "id": "4069ebff-3c74-49e2-a129-4fbe6eef521e",
       "name": "Respond to Webhook"
@@ -255,7 +255,7 @@
       "typeVersion": 2,
       "position": [
         208,
-        1120
+        992
       ],
       "id": "2cbbb5e6-0121-4b27-b554-6a7996357293",
       "name": "Guardrails"
@@ -277,7 +277,7 @@
       "typeVersion": 1.9,
       "position": [
         3024,
-        576
+        464
       ],
       "id": "f924b88f-9110-432b-b1fd-667a5dfbb56f",
       "name": "CV Rewriter"
@@ -299,7 +299,7 @@
       "typeVersion": 1.3,
       "position": [
         3104,
-        800
+        688
       ],
       "id": "2ec27408-ed2d-44c2-962f-74b0bdb132bf",
       "name": "Sonnet 4.6 (6)",
@@ -327,7 +327,7 @@
       "typeVersion": 1.3,
       "position": [
         3456,
-        1104
+        976
       ],
       "id": "ed8a8155-c20f-4f5d-ad56-2bbd5ab0e6fe",
       "name": "Sonnet 4.6 (8)",
@@ -346,7 +346,7 @@
       "typeVersion": 2,
       "position": [
         3440,
-        576
+        464
       ],
       "id": "f3c13493-9f31-4d12-8750-89ee94531b54",
       "name": "Diff Engine"
@@ -360,7 +360,7 @@
       "typeVersion": 3.2,
       "position": [
         3792,
-        704
+        576
       ],
       "id": "856f82e4-19a3-4f3a-bb7a-af4d88a0a6b1",
       "name": "Merge"
@@ -374,7 +374,7 @@
       "typeVersion": 3.2,
       "position": [
         1456,
-        896
+        768
       ],
       "id": "27c4b37c-05a1-4e9b-b675-3f53cc2aaf34",
       "name": "Merge1"
@@ -388,7 +388,7 @@
       "typeVersion": 3.2,
       "position": [
         1904,
-        784
+        656
       ],
       "id": "27faebfe-1e49-406d-b384-671a0f7d5736",
       "name": "Merge2"
@@ -443,7 +443,7 @@
       "typeVersion": 1.2,
       "position": [
         1680,
-        704
+        576
       ],
       "name": "Call Company Research",
       "id": "b6913b7b-a3a8-4153-8763-aea1fd0af4fc"
@@ -545,7 +545,7 @@
       "typeVersion": 1.2,
       "position": [
         1680,
-        896
+        768
       ],
       "name": "Call CV Translation Cache",
       "id": "a75dab90-195c-470b-82c5-b81342e88d36"
@@ -667,7 +667,7 @@
       "typeVersion": 1.2,
       "position": [
         2128,
-        784
+        656
       ],
       "name": "Call Analysis Scoring",
       "id": "efae0c46-ce11-497f-8657-ab31a5adcac2"
@@ -691,7 +691,8 @@
             "gaps": "={{ $('Call Analysis Scoring').first().json.gaps }}",
             "company": "={{ $('Call Analysis Scoring').first().json.company }}",
             "cv_text_final": "={{ $('Call CV Translation Cache').first().json.cv_text_final }}",
-            "job_post_language": "={{ $('Input Wrapper').first().json.job_post_language.language }}"
+            "job_post_language": "={{ $('Input Wrapper').first().json.job_post_language.language }}",
+            "wunsch_kriterien": "={{ $('Call Analysis Scoring').first().json.wunsch_kriterien }}"
           },
           "matchingColumns": [
             "job_posting_wrapped_firstItem",
@@ -717,6 +718,16 @@
             {
               "id": "muss_kriterien",
               "displayName": "muss_kriterien",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "array",
+              "removed": false
+            },
+            {
+              "id": "wunsch_kriterien",
+              "displayName": "wunsch_kriterien",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -794,7 +805,7 @@
       "typeVersion": 1.2,
       "position": [
         2576,
-        704
+        576
       ],
       "name": "Call CV Tailoring Planner",
       "id": "240f7afe-e39d-456e-84aa-5ddb01c347ac"
@@ -807,7 +818,7 @@
       "typeVersion": 2,
       "position": [
         2800,
-        576
+        464
       ],
       "id": "0ebf9207-69b9-4019-84fa-89c279828611",
       "name": "CV Deterministic Editor"
@@ -829,7 +840,7 @@
       "typeVersion": 1.9,
       "position": [
         3376,
-        880
+        752
       ],
       "id": "a2d0a826-c6f1-465e-ad2e-1c2dbe571a1b",
       "name": "Anschreiben"
@@ -842,7 +853,7 @@
       "typeVersion": 2,
       "position": [
         560,
-        1024
+        896
       ],
       "id": "66366def-1fec-4d35-b259-948088656a7d",
       "name": "Validate Profile ID"
@@ -876,7 +887,7 @@
       "typeVersion": 2.3,
       "position": [
         784,
-        1024
+        896
       ],
       "id": "1fe2c5e5-e4da-4d90-8255-d8557232e2af",
       "name": "If valid"
@@ -900,7 +911,7 @@
       "typeVersion": 1.5,
       "position": [
         560,
-        1216
+        1088
       ],
       "id": "035be50a-d014-47ac-9896-0608bc4af85a",
       "name": "Respond: Error"
@@ -924,10 +935,310 @@
       "typeVersion": 1.5,
       "position": [
         1008,
-        1184
+        1056
       ],
       "id": "0039a21a-3abe-4064-88c0-df19d00a31d7",
       "name": "Respond: Error1"
+    },
+    {
+      "parameters": {
+        "source": "googleSheets",
+        "documentId": {
+          "__rl": true,
+          "value": "1A-wFTV3iOwE7dN_9Vb-sSBqZXq3768hAwGopPCSzu7o",
+          "mode": "list",
+          "cachedResultName": "Job Application Assistant Evaluation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1A-wFTV3iOwE7dN_9Vb-sSBqZXq3768hAwGopPCSzu7o/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1A-wFTV3iOwE7dN_9Vb-sSBqZXq3768hAwGopPCSzu7o/edit#gid=0"
+        }
+      },
+      "type": "n8n-nodes-base.evaluationTrigger",
+      "typeVersion": 4.7,
+      "position": [
+        -16,
+        32
+      ],
+      "id": "4f70bde5-e957-4033-b6d4-f7e8c5ef1c37",
+      "name": "When fetching a dataset row",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "4tw2KhFmL703RnXd",
+          "name": "javierbricenoticona Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/job-application",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "profile_id",
+              "value": "={{ $json.profile_id }}"
+            },
+            {
+              "name": "chatInput",
+              "value": "={{ $json.job_posting }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        208,
+        32
+      ],
+      "id": "bebd37b9-6b50-46d0-ab1c-9869a183f4c3",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "claude-haiku-4-5-20251001",
+          "mode": "list",
+          "cachedResultName": "Claude Haiku 4.5"
+        },
+        "options": {
+          "temperature": 0
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        960,
+        128
+      ],
+      "id": "d1b0f7f2-1b7e-42fb-ab93-ea73e64bbf39",
+      "name": "Haiku 4.5 (1)",
+      "credentials": {
+        "anthropicApi": {
+          "id": "bmJJVz53sEeLUr3G",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $('HTTP Request').first().json;\nconst row = $('When fetching a dataset row').first().json;\n\nconst cvMarkdown = response.cv_markdown || '';\nconst coverLetter = response.output || '';\n\n// --- Helpers ---\n\n// Jaccard similarity entre dos strings (por tokens)\nfunction jaccardSimilarity(a, b) {\n  const tokensA = new Set(a.toLowerCase().split(/\\s+/).filter(Boolean));\n  const tokensB = new Set(b.toLowerCase().split(/\\s+/).filter(Boolean));\n  const intersection = [...tokensA].filter(x => tokensB.has(x)).length;\n  const union = new Set([...tokensA, ...tokensB]).size;\n  return union === 0 ? 0 : Math.round((intersection / union) * 100) / 100;\n}\n\n// Cobertura de keywords: fracción de keywords que aparecen en el texto\nfunction keywordCoverage(keywordsStr, text) {\n  const keywords = keywordsStr.split(',').map(k => k.trim().toLowerCase()).filter(Boolean);\n  if (keywords.length === 0) return null;\n  const found = keywords.filter(k => text.toLowerCase().includes(k));\n  return Math.round((found.length / keywords.length) * 100) / 100;\n}\n\n// Clean word count (without markdown tokens)\nfunction cleanWordCount(text) {\n  return text\n    .replace(/#+\\s/g, '')\n    .replace(/\\*\\*/g, '')\n    .replace(/\\[([^\\]]+)\\]\\([^)]+\\)/g, '$1')\n    .replace(/^[-·]\\s*/gm, '')\n    .trim()\n    .split(/\\s+/)\n    .filter(Boolean).length;\n}\n\nfunction getCompressionParams(words) {\n  if (words <= 300) {\n    return { idealMin: 0.88, idealMax: 1.08, penaltyMin: 0.70, penaltyMax: 1.20 };\n  } else if (words <= 450) {\n    const t = (words - 300) / 150;\n    return {\n      idealMin: 0.88 - t * 0.08,\n      idealMax: 1.08 - t * 0.13,\n      penaltyMin: 0.70 - t * 0.05,\n      penaltyMax: 1.20 - t * 0.10\n    };\n  } else if (words <= 700) {\n    const t = (words - 450) / 250;\n    return {\n      idealMin: 0.80 - t * 0.08,\n      idealMax: 0.95 - t * 0.05,\n      penaltyMin: 0.65 - t * 0.10,\n      penaltyMax: 1.10 - t * 0.05\n    };\n  } else {\n    const t = Math.min((words - 700) / 300, 1);\n    return {\n      idealMin: 0.72 - t * 0.02,\n      idealMax: 0.90,\n      penaltyMin: 0.55 - t * 0.05,\n      penaltyMax: 1.05\n    };\n  }\n}\n\n// --- Pipeline rejection ---\nif (!cvMarkdown || cvMarkdown.trim().length === 0) {\n  return [{ json: {\n    run_id: row.run_id,\n    profile_id: row.profile_id,\n    dimension: row.dimension,\n    rejected: true,\n    output_word_count: 0,\n    compression_ratio: 0,\n    cover_letter_word_count: 0,\n    metric_compression: 1.0,\n    metric_ta_rewritten: 1.0,\n    metric_keywords: 1.0,\n    metric_cl_length: 1.0,\n    composite_score: 1.0,\n    notes: 'REJECTED_BY_PIPELINE — correct behavior'\n  }}];\n}\n\n// --- Metric 1: Compression ratio (continuo, 0-1) ---\nconst outputWords = cleanWordCount(cvMarkdown);\nconst originalWords = Number(row.original_word_count) || 1;\nconst ratio = outputWords / originalWords;\n\nconst p = getCompressionParams(originalWords);\nlet metric_compression;\nif (ratio >= p.idealMin && ratio <= p.idealMax) {\n  metric_compression = 1.0;\n} else if (ratio < p.idealMin) {\n  metric_compression = Math.max(0, (ratio - p.penaltyMin) / (p.idealMin - p.penaltyMin));\n} else {\n  metric_compression = Math.max(0, (p.penaltyMax - ratio) / (p.penaltyMax - p.idealMax));\n}\nmetric_compression = Math.round(metric_compression * 100) / 100;\n\n// --- Metric 2: TA bullet similarity (Jaccard — qué tanto se parece al original) ---\n// Score BAJO = bueno (fue reescrito). Score ALTO = malo (copió verbatim)\nconst verbatim = (row.ta_bullet_verbatim || '').trim();\nlet metric_ta_rewritten = null;\nif (verbatim.length > 0) {\n  const similarity = jaccardSimilarity(verbatim, cvMarkdown);\n  // Invertimos: 1.0 = completamente reescrito, 0.0 = copiado verbatim\n  metric_ta_rewritten = Math.round((1 - similarity) * 100) / 100;\n}\n\n// --- Metric 3: Keyword coverage (fracción de keywords presentes) ---\nconst metric_keywords = keywordCoverage(row.keywords_to_protect || '', cvMarkdown);\n\n// --- Metric 4: Cover letter length score (continuo) ---\nconst clWords = coverLetter.trim().split(/\\s+/).filter(Boolean).length;\nlet metric_cl_length;\nif (clWords >= 200 && clWords <= 450) {\n  metric_cl_length = 1.0;\n} else if (clWords < 200) {\n  metric_cl_length = Math.max(0, clWords / 200);\n} else {\n  metric_cl_length = Math.max(0, (600 - clWords) / (600 - 450));\n}\nmetric_cl_length = Math.round(metric_cl_length * 100) / 100;\n\n// --- Pasar al LLM Judge ---\nreturn [{ json: {\n  run_id: row.run_id,\n  profile_id: row.profile_id,\n  dimension: row.dimension,\n  rejected: false,\n  // Datos para el LLM judge\n  cv_markdown: cvMarkdown,\n  cover_letter: coverLetter,\n  job_posting: row.job_posting,\n  keywords_to_protect: row.keywords_to_protect,\n  // Métricas determinísticas ya calculadas\n  output_word_count: outputWords,\n  compression_ratio: Math.round(ratio * 100) / 100,\n  cover_letter_word_count: clWords,\n  metric_compression,\n  metric_ta_rewritten,\n  metric_keywords,\n  metric_cl_length\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        32
+      ],
+      "id": "676d498e-fba0-4a1a-ab00-d842363a0014",
+      "name": "Deterministic Metrics"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=JOB POSTING:\n{{ $json.job_posting }}\n\nTAILORED CV:\n{{ $json.cv_markdown }}\n\nCOVER LETTER:\n{{ $json.cover_letter }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=You are an evaluator for a job application pipeline. You receive a tailored CV and a cover letter, plus the original job posting. You must score quality on three dimensions.\n\nReturn ONLY a JSON object, no other text:\n{\n  \"tailoring_relevance\": <0.0-1.0>,\n  \"tailoring_relevance_reason\": \"<one sentence>\",\n  \"cover_letter_specificity\": <0.0-1.0>,\n  \"cover_letter_specificity_reason\": \"<one sentence>\",\n  \"overall_coherence\": <0.0-1.0>,\n  \"overall_coherence_reason\": \"<one sentence>\"\n}\n\nScoring guide:\n- tailoring_relevance: Do the CV changes actually address what the job posting requires? 1.0 = every change is directly motivated by the posting. 0.0 = changes seem random or generic.\n- cover_letter_specificity: Does the cover letter reference specific details from the posting (company name, role, requirements)? 1.0 = highly specific. 0.0 = could be sent to any company.\n- overall_coherence: Are the CV and cover letter consistent with each other and coherent as a package? 1.0 = perfect coherence. 0.0 = contradictions or disconnected."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        880,
+        -96
+      ],
+      "id": "b5b37170-bf33-4309-ba56-2b3a69066c60",
+      "name": "LLM Judge"
+    },
+    {
+      "parameters": {
+        "jsCode": "const det = $('Deterministic Metrics').first().json;\n\nif (det.rejected === true) {\n  return [{ json: {\n    run_id: det.run_id,\n    profile_id: det.profile_id,\n    dimension: det.dimension,\n    rejected: true,\n    output_word_count: 0,\n    compression_ratio: 0,\n    cover_letter_word_count: 0,\n    metric_compression: 1.0,\n    metric_ta_rewritten: 1.0,\n    metric_keywords: 1.0,\n    metric_cl_length: 1.0,\n    metric_tailoring_relevance: 1.0,\n    metric_cl_specificity: 1.0,\n    metric_coherence: 1.0,\n    reason_tailoring: '',\n    reason_cl: '',\n    reason_coherence: '',\n    composite_score: 1.0,\n    notes: 'REJECTED_BY_PIPELINE — correct behavior'\n  }}];\n}\n\nconst llmRaw = $('LLM Judge').first().json.text || '{}';\n\nlet llm = {};\ntry {\n  llm = JSON.parse(llmRaw.replace(/```json|```/g, '').trim());\n} catch(e) {\n  llm = { tailoring_relevance: null, cover_letter_specificity: null, overall_coherence: null };\n}\n\nconst allScores = [\n  det.metric_compression,\n  det.metric_ta_rewritten,\n  det.metric_keywords,\n  det.metric_cl_length,\n  llm.tailoring_relevance,\n  llm.cover_letter_specificity,\n  llm.overall_coherence\n].filter(s => s !== null && s !== undefined);\n\nconst composite_score = allScores.length > 0\n  ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length * 100) / 100\n  : 0;\n\nreturn [{ json: {\n  ...det,\n  metric_tailoring_relevance: llm.tailoring_relevance ?? null,\n  metric_cl_specificity: llm.cover_letter_specificity ?? null,\n  metric_coherence: llm.overall_coherence ?? null,\n  reason_tailoring: llm.tailoring_relevance_reason ?? '',\n  reason_cl: llm.cover_letter_specificity_reason ?? '',\n  reason_coherence: llm.overall_coherence_reason ?? '',\n  composite_score\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1456,
+        32
+      ],
+      "id": "18e97c7d-b7aa-4aca-98a4-c1e8038cdb84",
+      "name": "Merge Scores"
+    },
+    {
+      "parameters": {
+        "operation": "setMetrics",
+        "metric": "customMetrics",
+        "metrics": {
+          "assignments": [
+            {
+              "id": "5b753276-0152-40de-926f-105f935c7e32",
+              "name": "composite_score",
+              "value": "={{ $json.composite_score }}",
+              "type": "number"
+            },
+            {
+              "id": "338819b9-66d8-4b4a-9899-b321f5eb7e9f",
+              "name": "metric_compression",
+              "value": "={{ $json.metric_compression }}",
+              "type": "number"
+            },
+            {
+              "id": "958cb8c6-4462-4c54-a713-fa5680820aba",
+              "name": "metric_tailoring_relevance",
+              "value": "={{ $json.metric_tailoring_relevance }}",
+              "type": "number"
+            },
+            {
+              "id": "dd10b885-2e72-43ce-ae53-8bc90b9bdf72",
+              "name": "metric_cl_specificity",
+              "value": "={{ $json.metric_cl_specificity }}",
+              "type": "number"
+            },
+            {
+              "id": "dc30996d-a90c-4444-91fd-066b9b99ec87",
+              "name": "metric_coherence",
+              "value": "={{ $json.metric_coherence }}",
+              "type": "number"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.evaluation",
+      "typeVersion": 4.8,
+      "position": [
+        1680,
+        -64
+      ],
+      "id": "688a2676-2cb1-4548-8a01-61cc21f3e8d3",
+      "name": "Set Metrics"
+    },
+    {
+      "parameters": {
+        "source": "googleSheets",
+        "documentId": {
+          "__rl": true,
+          "value": "1A-wFTV3iOwE7dN_9Vb-sSBqZXq3768hAwGopPCSzu7o",
+          "mode": "list",
+          "cachedResultName": "Job Application Assistant Evaluation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1A-wFTV3iOwE7dN_9Vb-sSBqZXq3768hAwGopPCSzu7o/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1A-wFTV3iOwE7dN_9Vb-sSBqZXq3768hAwGopPCSzu7o/edit#gid=0"
+        },
+        "outputs": {
+          "values": [
+            {
+              "outputName": "composite_score",
+              "outputValue": "={{ $json.composite_score }}"
+            },
+            {
+              "outputName": "metric_compression",
+              "outputValue": "={{ $json.metric_compression }}"
+            },
+            {
+              "outputName": "metric_ta_rewritten",
+              "outputValue": "={{ $json.metric_ta_rewritten }}"
+            },
+            {
+              "outputName": "metric_keywords",
+              "outputValue": "={{ $json.metric_keywords }}"
+            },
+            {
+              "outputName": "metric_cl_length",
+              "outputValue": "={{ $json.metric_cl_length }}"
+            },
+            {
+              "outputName": "metric_tailoring_relevance",
+              "outputValue": "={{ $json.metric_tailoring_relevance }}"
+            },
+            {
+              "outputName": "metric_cl_specificity",
+              "outputValue": "={{ $json.metric_cl_specificity }}"
+            },
+            {
+              "outputName": "metric_coherence",
+              "outputValue": "={{ $json.metric_coherence }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.evaluation",
+      "typeVersion": 4.8,
+      "position": [
+        1680,
+        128
+      ],
+      "id": "a656aebd-b6d7-4d84-82b9-ed8e95b9bbd7",
+      "name": "Set Outputs",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "4tw2KhFmL703RnXd",
+          "name": "javierbricenoticona Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "e095596e-5349-4fc6-9046-d73d929f7cdc",
+              "leftValue": "={{ $json.rejected }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        656,
+        32
+      ],
+      "id": "c2323d47-716f-4df0-87c4-530ea12aad7d",
+      "name": "Not Rejected"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1232,
+        32
+      ],
+      "id": "dc39c759-8e74-4585-bbaa-83c9831b46df",
+      "name": "Merge3"
     }
   ],
   "pinData": {},
@@ -1252,6 +1563,111 @@
           }
         ]
       ]
+    },
+    "When fetching a dataset row": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Deterministic Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Haiku 4.5 (1)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "LLM Judge",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deterministic Metrics": {
+      "main": [
+        [
+          {
+            "node": "Not Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Judge": {
+      "main": [
+        [
+          {
+            "node": "Merge3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Scores": {
+      "main": [
+        [
+          {
+            "node": "Set Metrics",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Set Outputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Metrics": {
+      "main": [
+        []
+      ]
+    },
+    "Not Rejected": {
+      "main": [
+        [
+          {
+            "node": "LLM Judge",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge3",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge3": {
+      "main": [
+        [
+          {
+            "node": "Merge Scores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
@@ -1259,7 +1675,7 @@
     "executionOrder": "v1",
     "availableInMCP": false
   },
-  "versionId": "7e347d51-e098-47b9-a219-76588622b029",
+  "versionId": "c7b0611d-c1cd-4701-8d22-bc1eb10c7ff6",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "19b5c45878e0c37a2dfdebb10fe6ad07185f82630e5b3f64f267192bd053cf0b"
