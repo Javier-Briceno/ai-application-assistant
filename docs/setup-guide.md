@@ -251,12 +251,15 @@ A successful response is JSON with:
 - `output`
 - `cv_diff`
 - `cv_markdown`
+- `avatar_url`
 
 Expected behavior by threshold:
 
-- `pass` (`>= 55`): application package
-- `caution` (`45-54`): application package with caution framing
-- `fail` (`< 45`): gap analysis, usually with empty CV artifacts
+- `pass`: application package
+- `caution`: application package with caution framing
+- `fail`: gap analysis, usually with empty CV artifacts
+
+Thresholds are not assigned from raw score bands. The scoring workflow sums the five dimension scores for display, but assigns `pass`, `caution`, or `fail` from weighted dimension ratios plus hard/soft minimum checks.
 
 ## Step 12: Verify Translation Cache
 
@@ -320,7 +323,8 @@ Important behavior:
 - updating only profile metadata may skip LLM recomputation
 - updating `cv_text` recomputes `cv_hash` and `cv_language`
 - if `cv_text` changed, cached translated CV entries for `de` and `en` are deleted
-- updating source fields like `market_research` or `career_target` triggers derived key refresh
+- updating `market_research` triggers derived key refresh
+- updating `career_target` stores the new source text, but does not by itself rerun the derived profile extraction in the current workflow
 
 ## Troubleshooting
 
@@ -371,9 +375,14 @@ Update guides:
 
 - call `POST /profile-setup` with `profile_id` and updated `guide_text_de` and/or `guide_text_en`
 
-Update market assumptions or role strategy:
+Update market assumptions:
 
-- call `POST /profile-setup` with `profile_id` and updated `market_research` or `career_target`
+- call `POST /profile-setup` with `profile_id` and updated `market_research`
+
+Update role strategy text:
+
+- call `POST /profile-setup` with `profile_id` and updated `career_target`
+- include `cv_text` or `market_research` in the same update if you need `candidate_profile` and `role_type_scores` regenerated immediately
 
 Inspect candidate context:
 

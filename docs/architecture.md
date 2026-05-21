@@ -35,7 +35,7 @@ utility-extract-profile.json
     -> create or update profiles row
     -> UPSERT source keys into candidate_context
     -> if cv changed: delete translation cache keys
-    -> if source fields require refresh:
+    -> if create mode, cv_text update, or market_research update requires refresh:
        Fetch Full Context
        -> market-research extraction + core-skill extraction
        -> Dynamic Filter
@@ -89,6 +89,8 @@ The guardrails rejection branch returns plain text:
 - `cv_language`
 - `guide_text_de`
 - `guide_text_en`
+
+It also unions in the profile row's `avatar_url` from `job_application_assistant.profiles`.
 
 `Load Config` parses:
 
@@ -168,11 +170,12 @@ Then code nodes compute:
 - `location`
 - `strategic`
 
-Finally `Calculate Threshold` computes:
+Finally `Calculate Threshold` computes the score as the sum of the five dimensions, then assigns the threshold from weighted dimension ratios and hard/soft minimums:
 
-- `pass` for `>= 55`
-- `caution` for `45-54`
-- `fail` for `< 45`
+- `fail` if any dimension is below its hard minimum
+- `fail` if weighted fit is below `0.48`
+- `caution` if two or more dimensions are below their soft minimum, or weighted fit is below `0.62`
+- `pass` otherwise
 
 ### Pass/caution generation branch
 
@@ -180,7 +183,7 @@ If threshold is not `fail`, the main workflow calls `cv-tailoring-planner.json`.
 
 That sub-workflow:
 
-- computes a target CV budget of 500 words
+- computes a dynamic target CV budget: unchanged for CVs up to 700 words, otherwise 80% of the current word count clamped between 700 and 950 words
 - classifies CV segments as `DIREKT`, `TRANSFERABEL`, or `DISTRAKTOR`
 - enforces deterministic action rules
 - generates `cv_anpassungen`
@@ -222,6 +225,7 @@ Back in `main-workflow.json`:
 - `output`
 - `cv_diff`
 - `cv_markdown`
+- `avatar_url`
 
 `INSERT Job Application in DB` writes:
 
@@ -238,6 +242,8 @@ Back in `main-workflow.json`:
 - `anschreiben`
 
 It uses `continueErrorOutput`, so logging failure does not necessarily block the webhook response.
+
+`main-workflow.json` also contains an evaluation-only branch driven by `When fetching a dataset row`. That branch posts a dataset row back to the local `/job-application` webhook, computes deterministic and LLM-judge quality metrics, and writes evaluation metrics/outputs. It is separate from the production webhook path.
 
 ## Utility Workflows
 
@@ -270,8 +276,9 @@ Important behavior reflected in the current workflow:
 - `profiles` rows are created or updated before context writes
 - all `candidate_context` writes are scoped by `profile_id`
 - when `cv_text` changes, cached translations for `en` and `de` are deleted
-- LLM extraction only reruns when a refresh is needed; simple profile metadata updates can return success without recomputing derived keys
+- LLM extraction reruns on create, `cv_text` updates, or `market_research` updates; simple profile metadata, guide text, and `career_target`-only updates can return success without recomputing derived keys
 - `role_type_scores` is stored as a JSON string and must contain exactly one role with score `12`
+- `cv_language` is stored as a simple language code such as `de`, `en`, or `unknown`
 
 ### `utility-get-profiles.json`
 
