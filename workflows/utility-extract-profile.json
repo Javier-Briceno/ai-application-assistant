@@ -84,19 +84,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const cvText = $('Validate Inputs').first().json.cv_text;\nconst cvTextProvided = $(\"Validate Inputs\").first().json.cv_text_provided;\nconst isUpdate = $('Validate Inputs').first().json.is_update;\nconst shouldDetectLanguage = cvTextProvided || !isUpdate;\n\nfunction detectLanguage(text) {\n  const input = String(text || \"\").trim();\n\n  if (!input) {\n    return {\n      language: \"unknown\",\n      confidence: 0,\n      scores: { german: 0, english: 0 }\n    };\n  }\n\n  const lower = input.toLowerCase();\n\n  // Common markers\n  const germanWords = [\n    \"der\", \"die\", \"das\", \"und\", \"ist\", \"nicht\", \"ich\", \"du\", \"wir\", \"ihr\",\n    \"sie\", \"mit\", \"für\", \"auf\", \"ein\", \"eine\", \"einer\", \"einem\", \"den\",\n    \"dem\", \"des\", \"wie\", \"was\", \"aber\", \"auch\", \"noch\", \"nur\", \"schon\",\n    \"wenn\", \"dann\", \"oder\", \"hat\", \"haben\", \"war\", \"waren\", \"zum\", \"zur\"\n  ];\n\n  const englishWords = [\n    \"the\", \"and\", \"is\", \"not\", \"i\", \"you\", \"we\", \"they\", \"with\", \"for\",\n    \"on\", \"a\", \"an\", \"this\", \"that\", \"of\", \"to\", \"in\", \"as\", \"but\",\n    \"also\", \"still\", \"only\", \"already\", \"if\", \"then\", \"or\", \"has\", \"have\",\n    \"had\", \"was\", \"were\", \"be\", \"are\", \"from\", \"it\"\n  ];\n\n  let germanScore = 0;\n  let englishScore = 0;\n\n  // Strong German hints\n  if (/[äöüß]/.test(lower)) germanScore += 4;\n  if (/\\b(nicht|ich|und|für|mit|eine|einer|einem|der|die|das)\\b/.test(lower)) germanScore += 3;\n  if (/(sch|ung|keit|lich|chen)\\b/.test(lower)) germanScore += 2;\n\n  // Strong English hints\n  if (/\\b(the|and|with|this|that|have|from|are|was|were)\\b/.test(lower)) englishScore += 3;\n  if (/\\b(ing|tion|ness|ment)\\b/.test(lower)) englishScore += 1;\n\n  // Count stopwords\n  for (const word of germanWords) {\n    const matches = lower.match(new RegExp(`\\\\b${word}\\\\b`, \"g\"));\n    if (matches) germanScore += matches.length;\n  }\n\n  for (const word of englishWords) {\n    const matches = lower.match(new RegExp(`\\\\b${word}\\\\b`, \"g\"));\n    if (matches) englishScore += matches.length;\n  }\n\n  let language = \"unknown\";\n  if (germanScore > englishScore) language = \"de\";\n  else if (englishScore > germanScore) language = \"en\";\n\n  const total = germanScore + englishScore;\n  const confidence = total === 0\n    ? 0\n    : Number((Math.max(germanScore, englishScore) / total).toFixed(2));\n\n  return {\n    language,\n    confidence,\n    scores: {\n      german: germanScore,\n      english: englishScore\n    }\n  };\n}\n\nreturn [{ \n  json: { \n    cv_language: shouldDetectLanguage ? detectLanguage(cvText).language : null\n  } \n}]"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        432,
-        1104
-      ],
-      "id": "a178ec7b-e5ab-4266-b32d-49a4886361d6",
-      "name": "Detect CV Language"
-    },
-    {
-      "parameters": {
         "model": {
           "__rl": true,
           "value": "claude-sonnet-4-6",
@@ -470,7 +457,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const validated = $('Validate Inputs').first().json;\n\nif (validated.is_update) {\n  // UPDATE MODE\n  return [{ json: { profile_id: validated.profile_id } }]\n} else {\n  // CREATE MODE\n  return [{ json: { profile_id: $('CREATE Profile').first().json.id } }];\n}"
+        "jsCode": "const validated = $('Validate Inputs').first().json;\n\n// Safely capture hash and language — these nodes only run in UPDATE+cv_text case\nlet cv_hash = null;\ntry { cv_hash = $('Hash CV').first().json.new_hash; } catch(e) {}\n\nlet cv_language = null;\ntry { cv_language = $('Detect CV Language').first().json.cv_language; } catch(e) {}\n\nif (validated.is_update) {\n  return [{ json: { \n    profile_id: validated.profile_id,\n    cv_hash,\n    cv_language\n  }}];\n} else {\n  return [{ json: { \n    profile_id: $('CREATE Profile').first().json.id,\n    cv_hash,\n    cv_language\n  }}];\n}"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -868,7 +855,7 @@
               "leftValue": "={{ $('UPDATE Profile').first().json.id }}",
               "rightValue": "",
               "operator": {
-                "type": "object",
+                "type": "number",
                 "operation": "notEmpty",
                 "singleValue": true
               }
@@ -941,7 +928,7 @@
         "operation": "executeQuery",
         "query": "INSERT INTO job_application_assistant.candidate_context \n  (profile_id, key, value)\nSELECT $1, $2, $3\nWHERE $4 IS NOT NULL\nON CONFLICT (profile_id, key)\nDO UPDATE SET value = EXCLUDED.value, updated_at = NOW();",
         "options": {
-          "queryReplacement": "={{[\n$('Set Profile ID').first().json.profile_id,\n'cv_hash',\n$('Hash CV').first().json.new_hash,\n$('Validate Inputs').first().json.cv_text\n]}}"
+          "queryReplacement": "={{ [\n  $('Set Profile ID').first().json.profile_id,\n  'cv_hash',\n  $('Set Profile ID').first().json.cv_hash,\n  $('Validate Inputs').first().json.cv_text\n] }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -961,18 +948,26 @@
     },
     {
       "parameters": {
-        "type": "SHA256",
-        "value": "={{ $('Validate Inputs').first().json.cv_text }}",
-        "dataPropertyName": "new_hash"
+        "operation": "executeQuery",
+        "query": "INSERT INTO job_application_assistant.candidate_context \n  (profile_id, key, value)\nSELECT $1, $2, $3\nWHERE $4 IS NOT NULL\nON CONFLICT (profile_id, key)\nDO UPDATE SET value = EXCLUDED.value, updated_at = NOW();",
+        "options": {
+          "queryReplacement": "={{ [\n  $('Set Profile ID').first().json.profile_id,\n  'cv_language',\n  $('Set Profile ID').first().json.cv_language,\n  $('Validate Inputs').first().json.cv_text\n] }}"
+        }
       },
-      "type": "n8n-nodes-base.crypto",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
-        432,
-        912
+        2896,
+        1584
       ],
-      "id": "31554b99-7b26-4fd0-8f15-06dbb7319b08",
-      "name": "Hash CV"
+      "id": "5cc9d8ad-cf3f-4b94-a5b9-640143c8afd9",
+      "name": "UPSERT cv language",
+      "credentials": {
+        "postgres": {
+          "id": "FXEG0dQzOuAcjlhc",
+          "name": "Postgres account"
+        }
+      }
     },
     {
       "parameters": {
@@ -990,26 +985,31 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO job_application_assistant.candidate_context \n  (profile_id, key, value)\nSELECT $1, $2, $3\nWHERE $4 IS NOT NULL\nON CONFLICT (profile_id, key)\nDO UPDATE SET value = EXCLUDED.value, updated_at = NOW();",
-        "options": {
-          "queryReplacement": "={{[\n$('Set Profile ID').first().json.profile_id,\n'cv_language',\n$('Detect CV Language').first().json.cv_language,\n$('Validate Inputs').first().json.cv_text\n]}}"
-        }
+        "type": "SHA256",
+        "value": "={{ $('Validate Inputs').first().json.cv_text ?? ''}}",
+        "dataPropertyName": "new_hash"
       },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 1,
       "position": [
-        2896,
-        1584
+        432,
+        912
       ],
-      "id": "5cc9d8ad-cf3f-4b94-a5b9-640143c8afd9",
-      "name": "UPSERT cv language",
-      "credentials": {
-        "postgres": {
-          "id": "FXEG0dQzOuAcjlhc",
-          "name": "Postgres account"
-        }
-      }
+      "id": "31554b99-7b26-4fd0-8f15-06dbb7319b08",
+      "name": "Hash CV"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cvText = $('Validate Inputs').first().json.cv_text;\nconst cvTextProvided = $(\"Validate Inputs\").first().json.cv_text_provided;\nconst isUpdate = $('Validate Inputs').first().json.is_update;\nconst shouldDetectLanguage = cvTextProvided || !isUpdate;\n\nfunction detectLanguage(text) {\n  const input = String(text || \"\").trim();\n\n  if (!input) {\n    return {\n      language: \"unknown\",\n      confidence: 0,\n      scores: { german: 0, english: 0 }\n    };\n  }\n\n  const lower = input.toLowerCase();\n\n  // Common markers\n  const germanWords = [\n    \"der\", \"die\", \"das\", \"und\", \"ist\", \"nicht\", \"ich\", \"du\", \"wir\", \"ihr\",\n    \"sie\", \"mit\", \"für\", \"auf\", \"ein\", \"eine\", \"einer\", \"einem\", \"den\",\n    \"dem\", \"des\", \"wie\", \"was\", \"aber\", \"auch\", \"noch\", \"nur\", \"schon\",\n    \"wenn\", \"dann\", \"oder\", \"hat\", \"haben\", \"war\", \"waren\", \"zum\", \"zur\"\n  ];\n\n  const englishWords = [\n    \"the\", \"and\", \"is\", \"not\", \"i\", \"you\", \"we\", \"they\", \"with\", \"for\",\n    \"on\", \"a\", \"an\", \"this\", \"that\", \"of\", \"to\", \"in\", \"as\", \"but\",\n    \"also\", \"still\", \"only\", \"already\", \"if\", \"then\", \"or\", \"has\", \"have\",\n    \"had\", \"was\", \"were\", \"be\", \"are\", \"from\", \"it\"\n  ];\n\n  let germanScore = 0;\n  let englishScore = 0;\n\n  // Strong German hints\n  if (/[äöüß]/.test(lower)) germanScore += 4;\n  if (/\\b(nicht|ich|und|für|mit|eine|einer|einem|der|die|das)\\b/.test(lower)) germanScore += 3;\n  if (/(sch|ung|keit|lich|chen)\\b/.test(lower)) germanScore += 2;\n\n  // Strong English hints\n  if (/\\b(the|and|with|this|that|have|from|are|was|were)\\b/.test(lower)) englishScore += 3;\n  if (/\\b(ing|tion|ness|ment)\\b/.test(lower)) englishScore += 1;\n\n  // Count stopwords\n  for (const word of germanWords) {\n    const matches = lower.match(new RegExp(`\\\\b${word}\\\\b`, \"g\"));\n    if (matches) germanScore += matches.length;\n  }\n\n  for (const word of englishWords) {\n    const matches = lower.match(new RegExp(`\\\\b${word}\\\\b`, \"g\"));\n    if (matches) englishScore += matches.length;\n  }\n\n  let language = \"unknown\";\n  if (germanScore > englishScore) language = \"de\";\n  else if (englishScore > germanScore) language = \"en\";\n\n  const total = germanScore + englishScore;\n  const confidence = total === 0\n    ? 0\n    : Number((Math.max(germanScore, englishScore) / total).toFixed(2));\n\n  return {\n    language,\n    confidence,\n    scores: {\n      german: germanScore,\n      english: englishScore\n    }\n  };\n}\n\nreturn [{ \n  json: { \n    cv_language: shouldDetectLanguage ? detectLanguage(cvText).language : null\n  } \n}]"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        1104
+      ],
+      "id": "a178ec7b-e5ab-4266-b32d-49a4886361d6",
+      "name": "Detect CV Language"
     }
   ],
   "pinData": {},
@@ -1032,17 +1032,6 @@
             "node": "Finalize Output",
             "type": "main",
             "index": 0
-          }
-        ]
-      ]
-    },
-    "Detect CV Language": {
-      "main": [
-        [
-          {
-            "node": "Merge3",
-            "type": "main",
-            "index": 1
           }
         ]
       ]
@@ -1536,28 +1525,6 @@
         ]
       ]
     },
-    "Hash CV": {
-      "main": [
-        [
-          {
-            "node": "Merge3",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Merge3": {
-      "main": [
-        [
-          {
-            "node": "UPDATE?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "UPSERT cv language": {
       "main": [
         [
@@ -1579,6 +1546,39 @@
           }
         ]
       ]
+    },
+    "Merge3": {
+      "main": [
+        [
+          {
+            "node": "UPDATE?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hash CV": {
+      "main": [
+        [
+          {
+            "node": "Merge3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect CV Language": {
+      "main": [
+        [
+          {
+            "node": "Merge3",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
     }
   },
   "active": true,
@@ -1586,7 +1586,7 @@
     "executionOrder": "v1",
     "availableInMCP": false
   },
-  "versionId": "2c921788-4c49-4285-a7b2-3f8e558c3a56",
+  "versionId": "e0698ba4-7f01-4f44-b18b-b7b0ea75aced",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "19b5c45878e0c37a2dfdebb10fe6ad07185f82630e5b3f64f267192bd053cf0b"
