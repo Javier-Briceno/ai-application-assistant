@@ -26,6 +26,8 @@ export function createResultModel(input = {}) {
     company: normalizeString(input.company),
     role: normalizeString(input.role),
     language: normalizeLanguage(input.language),
+    avatarUrl: normalizeString(input.avatarUrl),
+    cvMarkdown: normalizeString(input.cvMarkdown),
     score,
     sections,
     cvDiff: findSectionByKey(sections, 'cv_diff'),

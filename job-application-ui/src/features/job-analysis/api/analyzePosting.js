@@ -53,6 +53,7 @@ export async function analyzePosting(postingText, profileId) {
       output: data.output,
       cv_diff: typeof data.cv_diff === 'string' ? data.cv_diff.trim() : '',
       cv_markdown: typeof data.cv_markdown === 'string' ? data.cv_markdown.trim() : '',
+      avatar_url: typeof data.avatar_url === 'string' ? data.avatar_url.trim() : '',
     };
   } catch (error) {
     if (error?.name === 'AbortError') {

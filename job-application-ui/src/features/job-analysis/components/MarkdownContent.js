@@ -1,12 +1,19 @@
 import { createElement } from '../../../shared/utils/dom.js';
 import { renderMarkdown } from '../../../shared/lib/markdown.js';
 import { copyToClipboard } from '../../../shared/utils/clipboard.js';
+import { downloadLebenslaufDocx, downloadAnschreibenDocx } from '../api/downloadDocx.js';
 
-export function createMarkdownContent(sections) {
+/**
+ * @param {Array}  sections
+ * @param {Object} options
+ * @param {string} options.avatarUrl   - base64 data URL of candidate photo
+ * @param {string} options.cvMarkdown  - full final CV markdown (for DOCX)
+ */
+export function createMarkdownContent(sections, options = {}) {
   const root = createElement('div', { className: 'content-body' });
 
   for (const section of sections) {
-    const heading = buildHeading(section);
+    const heading = buildHeading(section, options);
     const content = buildContent(section);
     root.appendChild(heading);
     root.appendChild(content);
@@ -15,10 +22,24 @@ export function createMarkdownContent(sections) {
   return { element: root };
 }
 
-function buildHeading(section) {
+function buildHeading(section, options) {
   const h2 = createElement('h2');
   h2.appendChild(document.createTextNode(section.title));
-  h2.appendChild(buildCopyButton(section));
+
+  // All buttons live in one group so space-between gives: [title]  [copy] [download]
+  const actions = createElement('div', { className: 'section-actions' });
+  actions.appendChild(buildCopyButton(section));
+
+  if (section.kind === 'diff' && options.cvMarkdown) {
+    actions.appendChild(buildDownloadButton(options));
+  }
+
+  if (section.kind === 'letter') {
+    const letterText = section.copyText || section.text || '';
+    if (letterText) actions.appendChild(buildAnschreibenDownloadButton(letterText));
+  }
+
+  h2.appendChild(actions);
   return h2;
 }
 
@@ -77,6 +98,62 @@ function buildCopyButton(section) {
       }, 2000);
     } catch (_) {
       // silent — clipboard may be unavailable in some contexts
+    }
+  });
+
+  return btn;
+}
+
+function buildAnschreibenDownloadButton(letterText) {
+  const btn = createElement('button', {
+    className: 'copy-btn download-btn',
+    text: 'Download .docx',
+    attrs: { type: 'button' },
+  });
+
+  btn.addEventListener('click', async () => {
+    btn.textContent = 'Generating…';
+    btn.disabled = true;
+
+    try {
+      await downloadAnschreibenDocx(letterText);
+      btn.textContent = 'Downloaded!';
+      setTimeout(() => {
+        btn.textContent = 'Download .docx';
+        btn.disabled = false;
+      }, 2000);
+    } catch (err) {
+      console.error('Anschreiben DOCX error:', err);
+      btn.textContent = 'Error — retry';
+      btn.disabled = false;
+    }
+  });
+
+  return btn;
+}
+
+function buildDownloadButton({ cvMarkdown, avatarUrl }) {
+  const btn = createElement('button', {
+    className: 'copy-btn download-btn',
+    text: 'Download .docx',
+    attrs: { type: 'button' },
+  });
+
+  btn.addEventListener('click', async () => {
+    btn.textContent = 'Generating…';
+    btn.disabled = true;
+
+    try {
+      await downloadLebenslaufDocx(cvMarkdown, avatarUrl || '');
+      btn.textContent = 'Downloaded!';
+      setTimeout(() => {
+        btn.textContent = 'Download .docx';
+        btn.disabled = false;
+      }, 2000);
+    } catch (err) {
+      console.error('DOCX download error:', err);
+      btn.textContent = 'Error — retry';
+      btn.disabled = false;
     }
   });
 

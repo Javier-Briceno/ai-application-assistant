@@ -16,6 +16,13 @@
   justify-content: space-between;
 }
 
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .copy-btn {
   font-family: var(--mono);
   font-size: 10px;

@@ -15,9 +15,27 @@ const FIELDS = [
   { key: 'github_url',      tag: 'input',    type: 'url',   required: false, rows: null },
 ];
 
+function resizeAndEncode(file, maxWidth = 400) {
+  return new Promise(resolve => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const scale = Math.min(1, maxWidth / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width  = img.width  * scale;
+      canvas.height = img.height * scale;
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/jpeg', 0.85));
+    };
+    img.src = url;
+  });
+}
+
 export function createProfileModal({ onSave, onClose }) {
   let currentProfile = null;
   let slowSaveTimer = null;
+  let hiddenAvatarValue = '';
 
   // Structure
   const modal = createElement('div', {
@@ -40,10 +58,40 @@ export function createProfileModal({ onSave, onClose }) {
   });
   appendChildren(header, title, closeBtn);
 
-  // Body — build fields
+  // Body
   const body = createElement('div', { className: 'profile-modal__body' });
-  const fieldRefs = {};
 
+  // Avatar upload
+  const avatarWrapper = createElement('div', { className: 'profile-modal__field' });
+  const avatarLabel = createElement('label', { text: 'Photo' });
+
+  const avatarPreview = document.createElement('img');
+  avatarPreview.className = 'profile-modal__avatar-preview';
+  avatarPreview.alt = 'Profile photo preview';
+  avatarPreview.style.display = 'none';
+
+  const fileInput = createElement('input', {
+    attrs: { type: 'file', accept: 'image/*' },
+  });
+
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    if (file.size > 500_000) {
+      alert('Please use an image under 500KB.');
+      fileInput.value = '';
+      return;
+    }
+    hiddenAvatarValue = await resizeAndEncode(file);
+    avatarPreview.src = hiddenAvatarValue;
+    avatarPreview.style.display = 'block';
+  });
+
+  appendChildren(avatarWrapper, avatarLabel, avatarPreview, fileInput);
+  body.appendChild(avatarWrapper);
+
+  // Text / textarea fields
+  const fieldRefs = {};
   for (const field of FIELDS) {
     const wrapper = createElement('div', { className: 'profile-modal__field' });
     const fieldLabel = createElement('label', {
@@ -113,6 +161,7 @@ export function createProfileModal({ onSave, onClose }) {
   // Save
   saveBtn.addEventListener('click', async () => {
     const data = collectFormData(fieldRefs);
+    if (hiddenAvatarValue) data.avatar_url = hiddenAvatarValue;
 
     if (currentProfile?.id) {
       data.profile_id = currentProfile.id;
@@ -145,6 +194,7 @@ export function createProfileModal({ onSave, onClose }) {
 
     open(profile = null) {
       currentProfile = profile;
+      hiddenAvatarValue = profile?.avatar_url || '';
 
       setText(
         title,
@@ -154,6 +204,15 @@ export function createProfileModal({ onSave, onClose }) {
       for (const field of FIELDS) {
         fieldRefs[field.key].value = profile?.[field.key] ?? '';
       }
+
+      if (hiddenAvatarValue) {
+        avatarPreview.src = hiddenAvatarValue;
+        avatarPreview.style.display = 'block';
+      } else {
+        avatarPreview.src = '';
+        avatarPreview.style.display = 'none';
+      }
+      fileInput.value = '';
 
       setDisabled(saveBtn, false);
       setText(saveBtn, UI_TEXT.profiles.saveButton);

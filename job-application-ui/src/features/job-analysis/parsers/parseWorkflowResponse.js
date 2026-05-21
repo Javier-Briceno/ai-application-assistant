@@ -11,6 +11,7 @@ export function parseWorkflowResponse(payload) {
   const rawOutput = safePayload.output;
   const cvDiff = safePayload.cv_diff;
   const cvMarkdown = safePayload.cv_markdown;
+  const avatarUrl = safePayload.avatar_url;
 
   if (!rawOutput && !cvDiff) {
     return createEmptyResult();
@@ -35,6 +36,8 @@ export function parseWorkflowResponse(payload) {
     company: header.company,
     role: header.role,
     language,
+    avatarUrl,
+    cvMarkdown,
     score: {
       company: header.company,
       role: header.role,
@@ -58,6 +61,7 @@ function normalizePayload(payload) {
     output: typeof payload.output === 'string' ? payload.output.trim() : '',
     cv_diff: typeof payload.cv_diff === 'string' ? payload.cv_diff.trim() : '',
     cv_markdown: typeof payload.cv_markdown === 'string' ? payload.cv_markdown.trim() : '',
+    avatar_url: typeof payload.avatar_url === 'string' ? payload.avatar_url.trim() : '',
   };
 }
 

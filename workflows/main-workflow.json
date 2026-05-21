@@ -44,7 +44,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT key, value\nFROM job_application_assistant.candidate_context\nWHERE profile_id = $1\n  AND key IN ('candidate_profile', 'role_type_scores', 'cv_text', 'cv_language', 'guide_text_de', 'guide_text_en');",
+        "query": "SELECT key, value\nFROM job_application_assistant.candidate_context\nWHERE profile_id = $1\n  AND key IN ('candidate_profile', 'role_type_scores', 'cv_text', 'cv_language', 'guide_text_de', 'guide_text_en')\n\nUNION ALL\n\nSELECT 'avatar_url' AS key, avatar_url AS value\nFROM job_application_assistant.profiles\nWHERE id = $1;",
         "options": {
           "queryReplacement": "={{ [$('Webhook').first().json.body.profile_id] }}"
         }
@@ -217,7 +217,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { output: $('Format + Respond').first().json.output, cv_diff: $('Format + Respond').first().json.cv_diff, cv_markdown: $('Format + Respond').first().json.cv_markdown } }}",
+        "responseBody": "={{ { \noutput: $('Format + Respond').first().json.output, \ncv_diff: $('Format + Respond').first().json.cv_diff, \ncv_markdown: $('Format + Respond').first().json.cv_markdown,\navatar_url: $('Load Config').first().json.avatar_url\n} }}",
         "options": {
           "responseHeaders": {
             "entries": [
@@ -1675,7 +1675,7 @@
     "executionOrder": "v1",
     "availableInMCP": false
   },
-  "versionId": "c7b0611d-c1cd-4701-8d22-bc1eb10c7ff6",
+  "versionId": "04850e98-d865-4d82-a383-90785e7ebe0a",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "19b5c45878e0c37a2dfdebb10fe6ad07185f82630e5b3f64f267192bd053cf0b"
