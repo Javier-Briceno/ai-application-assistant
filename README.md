@@ -34,6 +34,7 @@ For each request, the system:
   - `output`
   - `cv_diff`
   - `cv_markdown`
+  - `avatar_url`
 - attempts to log the run to `job_applications`
 
 ## Workflow Layout
@@ -90,14 +91,15 @@ Important behavior:
 ### `analysis-scoring.json`
 Runs structured semantic analysis and computes dimension scores in code.
 
-The final threshold logic is:
+The final threshold logic uses weighted dimension ratios plus hard/soft dimension minimums:
 
-- `pass` for scores `>= 55`
-- `caution` for scores `45-54`
-- `fail` for scores `< 45`
+- `fail` if any dimension is below its hard minimum
+- `fail` if weighted fit is below `0.48`
+- `caution` if two or more dimensions are below their soft minimum, or weighted fit is below `0.62`
+- `pass` otherwise
 
 ### `cv-tailoring-planner.json`
-Classifies CV segments, applies deterministic action rules, enforces a target word budget of 500 words, generates `cv_anpassungen`, and corrects invalid transferable-removal instructions before the main workflow rewrites the CV.
+Classifies CV segments, applies deterministic action rules, computes a dynamic word budget, generates `cv_anpassungen`, and corrects invalid transferable-removal instructions before the main workflow rewrites the CV.
 
 ## Database Model
 
@@ -219,7 +221,8 @@ Success response:
 {
   "output": "markdown report with score header and body",
   "cv_diff": "line diff between original and rewritten CV",
-  "cv_markdown": "full rewritten CV in markdown"
+  "cv_markdown": "full rewritten CV in markdown",
+  "avatar_url": "profile avatar data URL or null"
 }
 ```
 

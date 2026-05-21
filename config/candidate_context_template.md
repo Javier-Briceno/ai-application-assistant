@@ -98,20 +98,13 @@ Important behavior:
 The main runtime parses this key back into an object and uses it to compute `role_fit`.
 
 ### `cv_language`
-Detected language metadata for the base CV, stored as JSON.
+Detected language code for the base CV, stored as plain text.
 
-Expected structure:
+Expected values:
 
-```json
-{
-  "language": "de",
-  "confidence": 0.91,
-  "scores": {
-    "german": 42,
-    "english": 8
-  }
-}
-```
+- `de`
+- `en`
+- `unknown`
 
 ### `cv_hash`
 SHA-256 hash of the current `cv_text`.
@@ -208,8 +201,13 @@ After changing `guide_text_de` or `guide_text_en`:
 
 - call `POST /profile-setup` with `profile_id`
 
-After changing `market_research` or `career_target`:
+After changing `market_research`:
 
 - call `POST /profile-setup` with `profile_id` so `candidate_profile` and `role_type_scores` stay aligned
+
+After changing `career_target`:
+
+- call `POST /profile-setup` with `profile_id` to store the new source text
+- include `cv_text` or `market_research` in the same update if the derived `candidate_profile` and `role_type_scores` should be regenerated immediately
 
 Avoid manually editing generated keys unless you are intentionally debugging the pipeline.
