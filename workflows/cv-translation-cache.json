@@ -53,7 +53,7 @@
     },
     {
       "parameters": {
-        "jsCode": "let cvText = '';\nlet guideText = '';\nconst jobPostLanguage = $('Start').first().json.job_post_language;\n\ntry {\n  cvText = $('CV Translator').first().json.text || '';\n} catch (e) {}\n\nif (!cvText) {\n  try {\n    cvText = $('Pivot CV Cache Rows').first().json['translated_cv_text_' + $('Start').first().json.job_post_language] || '';\n  } catch (e) {}\n}\n\nif (!cvText) {\n  cvText = $('Start').first().json.cv_text || '';\n}\n\nif (jobPostLanguage === 'en') {\n  guideText = $('Start').first().json.guide_text_en;\n} else {\n  guideText = $('Start').first().json.guide_text_de;\n}\n\nreturn [{\n  json: {\n    cv_text_final: cvText,\n    guide_text_final: guideText\n  }\n}];"
+        "jsCode": "let cvText = '';\nlet guideText = '';\nconst jobPostLanguage = $('Start').first().json.job_post_language;\n\ntry {\n  cvText = $('CV Translator').first().json.text || '';\n} catch (e) {}\n\nif (!cvText) {\n  try {\n    cvText = $('Pivot CV Cache Rows').first().json['translated_cv_text_' + $('Start').first().json.job_post_language] || '';\n  } catch (e) {}\n}\n\nif (!cvText) {\n  cvText = $('Start').first().json.cv_text || '';\n}\n\nreturn [{\n  json: {\n    cv_text_final: cvText\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -231,12 +231,6 @@
               "name": "cv_text"
             },
             {
-              "name": "guide_text_en"
-            },
-            {
-              "name": "guide_text_de"
-            },
-            {
               "name": "cv_language"
             },
             {
@@ -406,7 +400,7 @@
     "executionOrder": "v1",
     "availableInMCP": false
   },
-  "versionId": "edb3f05d-ce7a-4218-8daf-39262276e6c5",
+  "versionId": "63e98615-37a1-423d-a2b7-5fca1410d140",
   "meta": {
     "instanceId": "19b5c45878e0c37a2dfdebb10fe6ad07185f82630e5b3f64f267192bd053cf0b"
   },

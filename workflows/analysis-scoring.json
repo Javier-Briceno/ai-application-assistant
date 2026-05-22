@@ -168,7 +168,7 @@
         1536
       ],
       "id": "07f30b08-3b6f-4e93-bd15-ae72ec647aff",
-      "name": "Anthropic Chat Model",
+      "name": "Sonnet 4.6",
       "credentials": {
         "anthropicApi": {
           "id": "bmJJVz53sEeLUr3G",
@@ -245,7 +245,7 @@
         ]
       ]
     },
-    "Anthropic Chat Model": {
+    "Sonnet 4.6": {
       "ai_languageModel": [
         [
           {
@@ -262,7 +262,7 @@
     "executionOrder": "v1",
     "availableInMCP": false
   },
-  "versionId": "73044df0-c4c0-4c6a-864d-4511d32a5255",
+  "versionId": "bf8eb254-acb4-4e04-a422-941ed2280e68",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "19b5c45878e0c37a2dfdebb10fe6ad07185f82630e5b3f64f267192bd053cf0b"
