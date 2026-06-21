@@ -1,0 +1,15 @@
+services:
+  cv-assistant:
+    build: .
+    image: cv-assistant:latest
+    restart: unless-stopped
+    # host network so the container can reach the local Postgres on 127.0.0.1:5432
+    network_mode: host
+    env_file:
+      - .env
+    volumes:
+      # Persist NiceGUI storage (user preferences, storage_secret sessions)
+      - nicegui_storage:/app/.nicegui
+
+volumes:
+  nicegui_storage:

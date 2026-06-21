@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+@layer base {
+  * { box-sizing: border-box; }
+  body {
+    background: #0a0a0c;
+    color: #e8e8ea;
+    font-family: system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    margin: 0;
+  }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #2a2a2e; border-radius: 99px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3a3a3e; }
+}
+
+:root {
+  --bg: #0a0a0c;
+  --surface: #0f0f12;
+  --surface-2: #111114;
+  --border: #1e1e22;
+  --border-accent: #083a20;
+  --accent: #059669;
+  --accent-dim: #041510;
+  --accent-hi: #10b981;
+  --caution: #f59e0b;
+  --caution-dim: #1a1000;
+  --fail: #b91c1c;
+  --fail-dim: #1a0505;
+  --text: #e8e8ea;
+  --text-dim: #888;
+  --text-muted: #444;
+  /* legacy hsl vars consumed by ui/button, ui/badge etc. */
+  --background: 240 6% 4%;
+  --foreground: 240 5% 91%;
+  --card: 240 5% 7%;
+  --card-foreground: 240 5% 91%;
+  --border-hsl: 240 4% 13%;
+  --border: 240 4% 13%;
+  --input: 240 4% 13%;
+  --primary: 158 91% 30%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 240 4% 13%;
+  --secondary-foreground: 240 5% 65%;
+  --muted: 240 4% 13%;
+  --muted-foreground: 240 5% 50%;
+  --destructive: 0 63% 40%;
+  --positive: 158 70% 35%;
+  --warning: 38 80% 45%;
+  --radius: 0.4375rem;
+}
+
+/* Sidebar */
+.sb-inner { width: 44px; }
+.sb-inner:hover {
+  width: 160px;
+  box-shadow: 4px 0 24px rgba(0,0,0,.7);
+}
+.sb-label { opacity: 0; max-width: 0; overflow: hidden; }
+.sb-inner:hover .sb-label { opacity: 1; max-width: 120px; }
+
+/* Animations */
+.fade-in { animation: fadeIn .3s ease forwards; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.step-pulse { animation: stepPulse 1.4s ease-in-out infinite; }
+@keyframes stepPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: .35; }
+}
+
+@keyframes barGrow {
+  from { width: 0 !important; }
+}
+.bar-anim { animation: barGrow .55s ease forwards; }
+
+/* Diff styles */
+.diff-del { color: #555; text-decoration: line-through; display: block; padding: 1px 4px; }
+.diff-add { color: #6ee7b7; background: rgba(5,150,105,.08); display: block; padding: 1px 4px; }
+.diff-ctx { color: #444; display: block; padding: 1px 4px; }

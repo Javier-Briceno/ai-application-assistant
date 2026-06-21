@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design Interview — Runde 6</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0a0c;color:#e8e8ea;font-family:system-ui,sans-serif;min-height:100vh}
+#shell{max-width:960px;margin:0 auto;padding:2rem 1.5rem 6rem}
+.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:2.5rem}
+.hdr-title{font-size:.85rem;font-weight:600;color:#555;letter-spacing:.08em;text-transform:uppercase}
+.hdr-count{font-size:.85rem;color:#555}
+.prog-wrap{height:3px;background:#1e1e22;border-radius:99px;margin-bottom:2.5rem;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,#059669,#10b981);border-radius:99px;transition:width .4s ease}
+.q-label{font-size:.75rem;font-weight:600;color:#059669;text-transform:uppercase;letter-spacing:.1em;margin-bottom:.6rem}
+.q-text{font-size:1.5rem;font-weight:700;line-height:1.3;margin-bottom:.5rem}
+.q-sub{font-size:.9rem;color:#666;margin-bottom:2rem}
+.opts{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}
+.opts.cols3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:600px){.opts,.opts.cols3{grid-template-columns:1fr}}
+.opt{border:2px solid #1e1e22;border-radius:12px;overflow:hidden;cursor:pointer;transition:border-color .15s,transform .15s;background:#0f0f12}
+.opt:hover{border-color:#059669;transform:translateY(-2px)}
+.opt.selected{border-color:#059669;background:#041510}
+.opt-preview{width:100%;height:160px;overflow:hidden;position:relative;background:#16161a}
+.opt-label{padding:.75rem 1rem;font-size:.875rem;font-weight:600}
+.opt-desc{padding:0 1rem .75rem;font-size:.75rem;color:#666;line-height:1.4}
+.nav{position:fixed;bottom:0;left:0;right:0;background:#0a0a0c;border-top:1px solid #1e1e22;padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center}
+.nav-info{font-size:.8rem;color:#444}
+.btn{padding:.6rem 1.4rem;border-radius:8px;font-size:.875rem;font-weight:600;cursor:pointer;border:none;transition:background .15s}
+.btn-primary{background:#059669;color:#fff}
+.btn-primary:hover{background:#047857}
+.btn-primary:disabled{background:#09261a;color:#2a5a3a;cursor:not-allowed}
+.btn-ghost{background:transparent;color:#666;border:1px solid #2a2a2e}
+.btn-ghost:hover{border-color:#555;color:#aaa}
+.summary-wrap{display:none}
+.summary-wrap.visible{display:block}
+.summary-item{display:flex;gap:1rem;align-items:flex-start;padding:1rem;border:1px solid #1e1e22;border-radius:10px;margin-bottom:.75rem;background:#0f0f12}
+.summary-q{font-size:.75rem;color:#666;margin-bottom:.2rem}
+.summary-a{font-size:.9rem;font-weight:600}
+.summary-preview{width:80px;height:50px;border-radius:6px;overflow:hidden;flex-shrink:0;position:relative}
+.done-msg{text-align:center;padding:2rem 0 1.5rem}
+.done-msg h2{font-size:1.6rem;font-weight:700;margin-bottom:.5rem}
+.done-msg p{color:#666;margin-bottom:2rem}
+.context{background:#041510;border:1px solid #083a20;border-radius:10px;padding:1rem 1.25rem;margin-bottom:2rem;font-size:.8rem;color:#34d399}
+.context-row{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.5rem}
+.tag{padding:2px 8px;background:#083a20;border-radius:99px;font-size:.75rem;color:#6ee7b7}
+</style>
+</head>
+<body>
+<div id="shell">
+  <div class="hdr">
+    <span class="hdr-title">Design Interview — Runde 6 (letzte)</span>
+    <span class="hdr-count" id="hdr-count"></span>
+  </div>
+  <div class="prog-wrap"><div class="prog-fill" id="prog"></div></div>
+  <div class="context">
+    <strong>Runde 5 Entscheidungen:</strong>
+    <div class="context-row">
+      <span class="tag">Chat = kleines Eck-Popup</span>
+      <span class="tag">Timeline mittlere Breite</span>
+      <span class="tag">Download = Icon only</span>
+      <span class="tag">Chat-Header: Firma + Titel</span>
+      <span class="tag">Neueste Auto-Auswahl</span>
+    </div>
+  </div>
+  <div id="question-area"></div>
+  <div class="summary-wrap" id="summary"></div>
+</div>
+<div class="nav">
+  <button class="btn btn-ghost" id="btn-back" onclick="goBack()">← Zurück</button>
+  <span class="nav-info" id="nav-info"></span>
+  <button class="btn btn-primary" id="btn-next" onclick="goNext()" disabled>Weiter →</button>
+</div>
+
+<script>
+const questions = [
+  {
+    id: 'timeline-entry-detail',
+    label: 'Offene Frage — Zeitstrahl-Einträge',
+    text: 'Was steht in jedem Eintrag der Verlauf-Timeline?',
+    sub: 'Jeder Klick öffnet die vollständige Analyse. Was siehst du in der Zeile selbst?',
+    cols: 3,
+    options: [
+      {
+        id: 'name-badge-date',
+        label: 'Firma · Badge · Datum',
+        desc: 'Firmenname, Score-Badge (Empfohlen/Grenzfall/Nicht) und Datum. Kompakt und informativ.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:4px;justify-content:center">
+            <div style="height:4px;background:#333;border-radius:2px;width:30%;margin-bottom:3px"></div>
+            ${[['Google — Sr. Engineer','#059669','Empfohlen','12. Jun'],['SAP — Dev Lead','#d97706','Grenzfall','3. Jun'],['BMW — Architect','#059669','Empfohlen','28. Mai']].map(([n,c,t,d],i)=>`
+              <div style="display:flex;gap:4px;align-items:flex-start">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:1px;padding-top:3px;flex-shrink:0">
+                  <div style="width:6px;height:6px;background:${c};border-radius:50%"></div>
+                  ${i<2?'<div style="width:1px;height:16px;background:#1e1e22"></div>':''}
+                </div>
+                <div style="flex:1;padding:5px 6px;background:${i===0?'#041510':'#0f0f12'};border-radius:5px;border:1px solid ${i===0?'#083a20':'#1a1a1e'}">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+                    <div style="height:4px;background:${i===0?'#aaa':'#555'};border-radius:2px;width:55%"></div>
+                    <div style="height:4px;background:#1e1e22;border-radius:2px;width:20%"></div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:4px">
+                    <div style="height:10px;background:${c}22;border:1px solid ${c}44;border-radius:99px;padding:0 4px;display:flex;align-items:center">
+                      <div style="height:3px;background:${c};border-radius:2px;width:22px"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>`).join('')}
+          </div>`
+      },
+      {
+        id: 'name-title-date',
+        label: 'Firma · Jobtitel · Datum',
+        desc: 'Kein Badge — nur Firmenname, Jobtitel und Datum. Übersichtlicher, mehr Text.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:4px;justify-content:center">
+            <div style="height:4px;background:#333;border-radius:2px;width:30%;margin-bottom:3px"></div>
+            ${[['#059669',0],['#d97706',1],['#059669',2]].map(([c,i])=>`
+              <div style="display:flex;gap:4px;align-items:flex-start">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:1px;padding-top:3px;flex-shrink:0">
+                  <div style="width:6px;height:6px;background:${c};border-radius:50%"></div>
+                  ${i<2?'<div style="width:1px;height:18px;background:#1e1e22"></div>':''}
+                </div>
+                <div style="flex:1;padding:5px 6px;background:${i===0?'#041510':'#0f0f12'};border-radius:5px;border:1px solid ${i===0?'#083a20':'#1a1a1e'}">
+                  <div style="height:4px;background:${i===0?'#ccc':'#555'};border-radius:2px;width:60%;margin-bottom:3px"></div>
+                  <div style="height:3px;background:${i===0?'#059669':'#444'};border-radius:2px;width:45%;margin-bottom:2px"></div>
+                  <div style="height:3px;background:#333;border-radius:2px;width:25%"></div>
+                </div>
+              </div>`).join('')}
+          </div>`
+      },
+      {
+        id: 'full-card',
+        label: 'Vollständige Karte',
+        desc: 'Firma, Jobtitel, Badge, Datum und 1 Zeile Zusammenfassung (z.B. "3 Änderungen · 2 Lücken").',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:8px;display:flex;flex-direction:column;gap:4px;justify-content:center">
+            <div style="height:4px;background:#333;border-radius:2px;width:28%;margin-bottom:2px"></div>
+            ${[['#059669',0,'Empfohlen'],['#d97706',1,'Grenzfall']].map(([c,i,t])=>`
+              <div style="display:flex;gap:4px;align-items:flex-start">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:1px;padding-top:3px;flex-shrink:0">
+                  <div style="width:6px;height:6px;background:${c};border-radius:50%"></div>
+                  ${i===0?'<div style="width:1px;height:28px;background:#1e1e22"></div>':''}
+                </div>
+                <div style="flex:1;padding:5px 7px;background:${i===0?'#041510':'#0f0f12'};border-radius:6px;border:1px solid ${i===0?'#083a20':'#1a1a1e'}">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+                    <div style="height:4px;background:${i===0?'#ccc':'#555'};border-radius:2px;width:50%"></div>
+                    <div style="height:9px;background:${c}22;border:1px solid ${c}44;border-radius:99px;padding:0 3px;display:flex;align-items:center"><div style="height:3px;background:${c};border-radius:2px;width:18px"></div></div>
+                  </div>
+                  <div style="height:3px;background:${i===0?'#059669':'#444'};border-radius:2px;width:40%;margin-bottom:3px"></div>
+                  <div style="height:3px;background:#222;border-radius:2px;width:65%"></div>
+                </div>
+              </div>`).join('')}
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'profile-management',
+    label: 'Offene Frage — Profilverwaltung',
+    text: 'Wie erstellst oder bearbeitest du ein Profil?',
+    sub: 'Du hast ein Dropdown für die Profilauswahl. Aber wo ist der Button um ein neues Profil anzulegen oder das bestehende zu bearbeiten?',
+    cols: 2,
+    options: [
+      {
+        id: 'plus-next-dropdown',
+        label: '+ Button neben Dropdown',
+        desc: 'Ein kleines "+" neben dem Profil-Dropdown zum Erstellen. Klick auf den Profilnamen im Dropdown öffnet die Bearbeitung.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:14px;display:flex;flex-direction:column;gap:8px;justify-content:center">
+            <div style="height:6px;background:#555;border-radius:2px;width:40%"></div>
+            <div style="display:flex;gap:5px;align-items:center">
+              <div style="flex:1;height:28px;background:#111114;border-radius:6px;border:1px solid #222;display:flex;align-items:center;padding:0 8px;justify-content:space-between">
+                <div style="display:flex;align-items:center;gap:5px">
+                  <div style="width:14px;height:14px;background:#059669;border-radius:50%"></div>
+                  <div style="height:5px;background:#aaa;border-radius:2px;width:40px"></div>
+                </div>
+                <div style="font-size:9px;color:#555">▼</div>
+              </div>
+              <div style="width:28px;height:28px;background:#111114;border-radius:6px;border:1px solid #1e3a1e;display:flex;align-items:center;justify-content:center">
+                <div style="font-size:14px;color:#059669;line-height:1">+</div>
+              </div>
+            </div>
+            <div style="height:6px;background:#333;border-radius:2px;width:60%"></div>
+            <div style="height:35px;background:#0f0f12;border-radius:5px;border:1px solid #1a1a1e"></div>
+            <div style="height:20px;background:#059669;border-radius:5px;width:45%"></div>
+          </div>`
+      },
+      {
+        id: 'settings-icon-sidebar',
+        label: 'Zahnrad in der Sidebar',
+        desc: 'Ein Einstellungs-Icon ganz unten in der Icon-Sidebar. Öffnet Profilverwaltung als eigene Seite oder Panel.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c">
+            <div style="width:52px;background:#080810;border-right:1px solid #1a1a20;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:6px">
+              <div style="width:28px;height:28px;background:#041510;border-radius:7px;border:1px solid #059669"></div>
+              <div style="width:28px;height:28px;background:#1e1e22;border-radius:7px"></div>
+              <div style="flex:1"></div>
+              <div style="width:28px;height:28px;background:#1e1e22;border-radius:50%;display:flex;align-items:center;justify-content:center">
+                <div style="width:14px;height:14px;border:1.5px solid #555;border-radius:50%;position:relative">
+                  <div style="position:absolute;inset:2px;background:#555;border-radius:50%"></div>
+                </div>
+              </div>
+            </div>
+            <div style="flex:1;padding:10px;display:flex;flex-direction:column;gap:6px">
+              <div style="height:6px;background:#555;border-radius:2px;width:40%"></div>
+              <div style="height:24px;background:#111114;border-radius:5px;border:1px solid #222;display:flex;align-items:center;padding:0 8px"><div style="height:5px;background:#aaa;border-radius:2px;width:45%"></div></div>
+              <div style="height:40px;background:#0f0f12;border-radius:5px;border:1px solid #1a1a1e;flex:1"></div>
+              <div style="height:18px;background:#059669;border-radius:5px;width:40%"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'avatar-click',
+        label: 'Avatar anklicken',
+        desc: 'Das Profilavatar im Dropdown ist klickbar und öffnet ein kleines Popup mit Bearbeiten/Wechseln-Optionen.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:12px;display:flex;flex-direction:column;gap:7px;justify-content:center">
+            <div style="height:6px;background:#555;border-radius:2px;width:40%"></div>
+            <div style="height:28px;background:#111114;border-radius:6px;border:1px solid #1e3a1e;display:flex;align-items:center;padding:0 8px;justify-content:space-between">
+              <div style="display:flex;align-items:center;gap:5px">
+                <div style="width:16px;height:16px;background:#059669;border-radius:50%;cursor:pointer;box-shadow:0 0 0 2px #083a20"></div>
+                <div style="height:5px;background:#aaa;border-radius:2px;width:40px"></div>
+              </div>
+              <div style="font-size:9px;color:#555">▼</div>
+            </div>
+            <div style="background:#111114;border-radius:7px;border:1px solid #1e3a1e;padding:6px;display:flex;flex-direction:column;gap:4px">
+              <div style="height:14px;background:#0f0f12;border-radius:4px;border:1px solid #1a1a1e;display:flex;align-items:center;padding:0 6px">
+                <div style="height:4px;background:#059669;border-radius:2px;width:50%"></div>
+              </div>
+              <div style="height:14px;background:#0f0f12;border-radius:4px;border:1px solid #1a1a1e;display:flex;align-items:center;padding:0 6px">
+                <div style="height:4px;background:#555;border-radius:2px;width:40%"></div>
+              </div>
+              <div style="height:1px;background:#1e1e22"></div>
+              <div style="height:14px;background:#0f0f12;border-radius:4px;border:1px solid #1a1a1e;display:flex;align-items:center;padding:0 6px">
+                <div style="height:4px;background:#555;border-radius:2px;width:55%"></div>
+              </div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'inline-edit',
+        label: 'Bearbeiten-Icon im Dropdown',
+        desc: 'Das Dropdown listet alle Profile — jedes hat ein kleines Stift-Icon zum Bearbeiten. "Neues Profil" als letzter Eintrag.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:12px;display:flex;flex-direction:column;gap:7px;justify-content:center">
+            <div style="height:6px;background:#555;border-radius:2px;width:40%"></div>
+            <div style="background:#111114;border-radius:7px;border:1px solid #1e3a1e;padding:5px;display:flex;flex-direction:column;gap:2px">
+              <div style="display:flex;align-items:center;gap:5px;padding:4px 5px;background:#041510;border-radius:4px">
+                <div style="width:14px;height:14px;background:#059669;border-radius:50%"></div>
+                <div style="flex:1;height:4px;background:#ccc;border-radius:2px"></div>
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M6.5 1.5l2 2-5 5H1.5v-2l5-5z" stroke="#555" stroke-width="1" stroke-linecap="round"/></svg>
+              </div>
+              <div style="display:flex;align-items:center;gap:5px;padding:4px 5px;border-radius:4px">
+                <div style="width:14px;height:14px;background:#444;border-radius:50%"></div>
+                <div style="flex:1;height:4px;background:#555;border-radius:2px"></div>
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M6.5 1.5l2 2-5 5H1.5v-2l5-5z" stroke="#444" stroke-width="1" stroke-linecap="round"/></svg>
+              </div>
+              <div style="height:1px;background:#1e1e22;margin:1px 0"></div>
+              <div style="display:flex;align-items:center;gap:5px;padding:4px 5px;border-radius:4px">
+                <div style="width:14px;height:14px;border-radius:50%;border:1.5px dashed #059669;display:flex;align-items:center;justify-content:center"><div style="font-size:10px;color:#059669;line-height:1">+</div></div>
+                <div style="flex:1;height:4px;background:#059669;border-radius:2px;width:50%"></div>
+              </div>
+            </div>
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'fail-caution-colors',
+    label: 'Offene Frage — Farbkodierung',
+    text: 'Welche Farben für Grenzfall und Nicht empfohlen?',
+    sub: 'Empfohlen = Grün (#059669). Was sind die Farben für die anderen beiden Zustände?',
+    cols: 3,
+    options: [
+      {
+        id: 'yellow-red',
+        label: 'Gelb / Rot',
+        desc: 'Klassisch: Gelb für Grenzfall, Rot für Nicht empfohlen. Intuitiv und vertraut.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:12px;display:flex;flex-direction:column;gap:8px;justify-content:center">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="height:14px;background:#05966922;border:1px solid #05966944;border-radius:99px;padding:0 8px;display:flex;align-items:center"><div style="height:4px;background:#059669;border-radius:2px;width:45px"></div></div>
+              <div style="height:5px;background:#059669;border-radius:2px;flex:1"></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="height:14px;background:#d9770622;border:1px solid #d9770644;border-radius:99px;padding:0 8px;display:flex;align-items:center"><div style="height:4px;background:#d97706;border-radius:2px;width:35px"></div></div>
+              <div style="height:5px;background:#d97706;border-radius:2px;flex:1;width:60%"></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="height:14px;background:#dc262622;border:1px solid #dc262644;border-radius:99px;padding:0 8px;display:flex;align-items:center"><div style="height:4px;background:#dc2626;border-radius:2px;width:40px"></div></div>
+              <div style="height:5px;background:#dc2626;border-radius:2px;flex:1;width:35%"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'amber-red',
+        label: 'Amber / Rot (dunkler)',
+        desc: 'Wärmeres Amber (#f59e0b) statt grellem Gelb, dunkles Rot (#b91c1c). Weniger aggressiv.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:12px;display:flex;flex-direction:column;gap:8px;justify-content:center">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="height:14px;background:#05966922;border:1px solid #05966944;border-radius:99px;padding:0 8px;display:flex;align-items:center"><div style="height:4px;background:#059669;border-radius:2px;width:45px"></div></div>
+              <div style="height:5px;background:#059669;border-radius:2px;flex:1"></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="height:14px;background:#f59e0b22;border:1px solid #f59e0b44;border-radius:99px;padding:0 8px;display:flex;align-items:center"><div style="height:4px;background:#f59e0b;border-radius:2px;width:35px"></div></div>
+              <div style="height:5px;background:#f59e0b;border-radius:2px;flex:1;width:60%"></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="height:14px;background:#b91c1c22;border:1px solid #b91c1c44;border-radius:99px;padding:0 8px;display:flex;align-items:center"><div style="height:4px;background:#b91c1c;border-radius:2px;width:40px"></div></div>
+              <div style="height:5px;background:#b91c1c;border-radius:2px;flex:1;width:35%"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'blue-red',
+        label: 'Blau / Grau',
+        desc: 'Grenzfall in Blau (neutral, nicht alarmierend), Nicht empfohlen in gedämpftem Rot. Weniger emotional.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:12px;display:flex;flex-direction:column;gap:8px;justify-content:center">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="height:14px;background:#05966922;border:1px solid #05966944;border-radius:99px;padding:0 8px;display:flex;align-items:center"><div style="height:4px;background:#059669;border-radius:2px;width:45px"></div></div>
+              <div style="height:5px;background:#059669;border-radius:2px;flex:1"></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="height:14px;background:#3b82f622;border:1px solid #3b82f644;border-radius:99px;padding:0 8px;display:flex;align-items:center"><div style="height:4px;background:#3b82f6;border-radius:2px;width:35px"></div></div>
+              <div style="height:5px;background:#3b82f6;border-radius:2px;flex:1;width:60%"></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="height:14px;background:#55555522;border:1px solid #55555544;border-radius:99px;padding:0 8px;display:flex;align-items:center"><div style="height:4px;background:#777;border-radius:2px;width:40px"></div></div>
+              <div style="height:5px;background:#555;border-radius:2px;flex:1;width:35%"></div>
+            </div>
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'step-to-result-transition',
+    label: 'Offene Frage — Übergang',
+    text: 'Wenn die Analyse fertig ist — wie wechselt die Schrittliste zu den Ergebnissen?',
+    sub: 'Die Schritte erscheinen nacheinander. Dann ist alles fertig. Was passiert als nächstes?',
+    cols: 3,
+    options: [
+      {
+        id: 'instant-replace',
+        label: 'Sofortiger Wechsel',
+        desc: 'Die Schrittliste verschwindet sofort, Ergebnisse erscheinen. Schnell, kein Warten.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;display:flex;gap:0;position:relative;overflow:hidden">
+            <div style="flex:1;padding:10px;display:flex;flex-direction:column;gap:4px;justify-content:center">
+              ${['Stelle analysiert','Profil klassifiziert','Passung bewertet','CV angepasst','Anschreiben'].map((s,i)=>`
+                <div style="display:flex;align-items:center;gap:5px">
+                  <div style="width:6px;height:6px;border-radius:50%;background:#059669;flex-shrink:0"></div>
+                  <div style="font-size:8px;color:#6ee7b7;font-family:monospace">${s}</div>
+                </div>`).join('')}
+            </div>
+            <div style="position:absolute;right:0;top:0;bottom:0;width:50%;background:#059669;display:flex;align-items:center;justify-content:center;opacity:.15"></div>
+            <div style="position:absolute;right:0;top:0;bottom:0;width:50%;padding:10px;display:flex;flex-direction:column;gap:4px">
+              <div style="height:10px;background:#041510;border-radius:99px;width:60%;border:1px solid #083a20"></div>
+              <div style="height:3px;background:#0a3a2a;border-radius:2px;width:85%"></div>
+              <div style="height:3px;background:#3a1a1a;border-radius:2px;width:65%;opacity:.7"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'fade-in',
+        label: 'Sanftes Einblenden',
+        desc: 'Schrittliste blendet aus, Ergebnisse blenden sanft ein. Ruhige Transition (~0.4s).',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:5px;justify-content:center;position:relative">
+            <div style="position:absolute;inset:10px;display:flex;flex-direction:column;gap:4px;opacity:.2">
+              ${['Stelle analysiert','Profil klassifiziert','Passung bewertet','CV angepasst','Anschreiben fertig'].map(s=>`
+                <div style="display:flex;align-items:center;gap:5px">
+                  <div style="width:6px;height:6px;border-radius:50%;background:#059669;flex-shrink:0"></div>
+                  <div style="font-size:8px;color:#6ee7b7;font-family:monospace">${s}</div>
+                </div>`).join('')}
+            </div>
+            <div style="position:relative;display:flex;flex-direction:column;gap:4px;opacity:.85">
+              <div style="height:10px;background:#041510;border-radius:99px;width:55%;border:1px solid #083a20"></div>
+              <div style="height:3px;background:#0a3a2a;border-radius:2px;width:85%"></div>
+              <div style="height:3px;background:#3a1a1a;border-radius:2px;width:65%;opacity:.7"></div>
+              <div style="height:3px;background:#1e1e22;border-radius:2px;width:75%"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'steps-collapse',
+        label: 'Schritte klappen zusammen',
+        desc: 'Alle Schritte markiert ✓, dann komprimieren sie zu einer kleinen Statuszeile oben. Ergebnisse erscheinen darunter.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:5px">
+            <div style="background:#041510;border:1px solid #083a20;border-radius:6px;padding:5px 8px;display:flex;align-items:center;gap:6px">
+              <div style="display:flex;gap:3px">
+                ${[1,2,3,4,5].map(()=>`<div style="width:5px;height:5px;background:#059669;border-radius:50%"></div>`).join('')}
+              </div>
+              <div style="font-size:7px;color:#6ee7b7">5 Schritte abgeschlossen</div>
+            </div>
+            <div style="height:10px;background:#041510;border-radius:99px;width:55%;border:1px solid #083a20"></div>
+            <div style="display:flex;align-items:center;gap:4px"><div style="height:2px;background:#059669;width:10px;border-radius:2px"></div><div style="height:3px;background:#059669;border-radius:2px;width:25px"></div><div style="flex:1;height:1px;background:#1e1e22"></div></div>
+            <div style="height:3px;background:#0a3a2a;border-radius:2px;width:85%"></div>
+            <div style="height:3px;background:#3a1a1a;border-radius:2px;width:65%;opacity:.7"></div>
+            <div style="height:3px;background:#1e1e22;border-radius:2px;width:75%"></div>
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'sidebar-labels',
+    label: 'Letzte Frage — Sidebar-Labels',
+    text: 'Zeigt die Icon-Sidebar immer die Label-Texte?',
+    sub: 'Die Sidebar hat Icons für "Analyse" und "Verlauf". Siehst du die Wörter immer, oder nur beim Hover?',
+    cols: 3,
+    options: [
+      {
+        id: 'always-labels',
+        label: 'Immer sichtbar',
+        desc: 'Icon + kurzer Text darunter. Sidebar ist etwas breiter (~64px). Keine Verwirrung welcher Icon was ist.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c">
+            <div style="width:62px;background:#080810;border-right:1px solid #1a1a20;display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:8px">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+                <div style="width:28px;height:28px;background:#041510;border-radius:7px;border:1px solid #059669"></div>
+                <div style="height:4px;background:#059669;border-radius:2px;width:32px"></div>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+                <div style="width:28px;height:28px;background:#1e1e22;border-radius:7px"></div>
+                <div style="height:4px;background:#333;border-radius:2px;width:28px"></div>
+              </div>
+            </div>
+            <div style="flex:1;padding:10px;display:flex;flex-direction:column;gap:5px">
+              <div style="height:6px;background:#555;border-radius:2px;width:50%"></div>
+              <div style="height:24px;background:#111114;border-radius:5px;border:1px solid #222"></div>
+              <div style="flex:1;background:#0f0f12;border-radius:5px;border:1px solid #1a1a1e"></div>
+              <div style="height:16px;background:#059669;border-radius:5px;width:40%"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'hover-only',
+        label: 'Nur beim Hover (Tooltip)',
+        desc: 'Ultra-schmale Sidebar mit nur Icons. Hover zeigt einen Tooltip-Text. Maximaler Platz für Inhalt.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c">
+            <div style="width:46px;background:#080810;border-right:1px solid #1a1a20;display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:8px">
+              <div style="position:relative">
+                <div style="width:28px;height:28px;background:#041510;border-radius:7px;border:1px solid #059669"></div>
+                <div style="position:absolute;left:34px;top:50%;transform:translateY(-50%);background:#1e1e22;border:1px solid #2a2a2e;border-radius:4px;padding:2px 6px;white-space:nowrap">
+                  <div style="height:4px;background:#ccc;border-radius:2px;width:35px"></div>
+                </div>
+              </div>
+              <div style="width:28px;height:28px;background:#1e1e22;border-radius:7px"></div>
+            </div>
+            <div style="flex:1;padding:10px;display:flex;flex-direction:column;gap:5px">
+              <div style="height:6px;background:#555;border-radius:2px;width:50%"></div>
+              <div style="height:24px;background:#111114;border-radius:5px;border:1px solid #222"></div>
+              <div style="flex:1;background:#0f0f12;border-radius:5px;border:1px solid #1a1a1e"></div>
+              <div style="height:16px;background:#059669;border-radius:5px;width:40%"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'expand-on-hover',
+        label: 'Sidebar klappt bei Hover auf',
+        desc: 'Sidebar ist schmal wenn du arbeitest, aber fährt auf ~160px aus wenn du drüber fährst — zeigt dann Icons + Labels.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c">
+            <div style="width:90px;background:#080810;border-right:1px solid #059669;display:flex;flex-direction:column;padding:10px 8px;gap:5px;transition:width .2s">
+              <div style="display:flex;align-items:center;gap:6px;padding:5px 6px;background:#041510;border-radius:6px;border:1px solid #083a20">
+                <div style="width:18px;height:18px;background:#059669;border-radius:5px;flex-shrink:0"></div>
+                <div style="height:4px;background:#059669;border-radius:2px;width:35px"></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:6px">
+                <div style="width:18px;height:18px;background:#1e1e22;border-radius:5px;flex-shrink:0"></div>
+                <div style="height:4px;background:#333;border-radius:2px;width:28px"></div>
+              </div>
+            </div>
+            <div style="flex:1;padding:10px;display:flex;flex-direction:column;gap:5px">
+              <div style="height:6px;background:#555;border-radius:2px;width:50%"></div>
+              <div style="height:24px;background:#111114;border-radius:5px;border:1px solid #222"></div>
+              <div style="flex:1;background:#0f0f12;border-radius:5px;border:1px solid #1a1a1e"></div>
+            </div>
+          </div>`
+      }
+    ]
+  }
+];
+
+let current = 0;
+const answers = JSON.parse(localStorage.getItem('design-answers-6') || '{}');
+
+function render() {
+  const q = questions[current];
+  const isSummary = current >= questions.length;
+  document.getElementById('hdr-count').textContent = isSummary ? 'Fertig!' : `${current+1} / ${questions.length}`;
+  document.getElementById('prog').style.width = `${((current+(isSummary?1:0))/questions.length)*100}%`;
+  document.getElementById('btn-back').style.display = (current===0||isSummary)?'none':'';
+  document.getElementById('btn-next').style.display = isSummary?'none':'';
+  if (isSummary) { renderSummary(); return; }
+  const sel = answers[q.id];
+  document.getElementById('nav-info').textContent = sel?'':'Bitte eine Option wählen';
+  document.getElementById('btn-next').disabled = !sel;
+  document.getElementById('summary').classList.remove('visible');
+  document.getElementById('question-area').style.display = '';
+  document.getElementById('question-area').innerHTML = `
+    <div class="q-label">${q.label}</div>
+    <div class="q-text">${q.text}</div>
+    ${q.sub?`<div class="q-sub">${q.sub}</div>`:''}
+    <div class="opts ${q.cols===3?'cols3':''}">
+      ${q.options.map(opt=>`
+        <div class="opt ${sel===opt.id?'selected':''}" onclick="selectOpt('${q.id}','${opt.id}',this)">
+          <div class="opt-preview">${opt.preview}</div>
+          <div class="opt-label">${opt.label}</div>
+          <div class="opt-desc">${opt.desc}</div>
+        </div>`).join('')}
+    </div>`;
+}
+function selectOpt(qid,oid,el){
+  answers[qid]=oid;
+  localStorage.setItem('design-answers-6',JSON.stringify(answers));
+  document.querySelectorAll('.opt').forEach(e=>e.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('btn-next').disabled=false;
+  document.getElementById('nav-info').textContent='';
+}
+function goNext(){current++;render();window.scrollTo(0,0);}
+function goBack(){if(current>0){current--;render();window.scrollTo(0,0);}}
+function renderSummary(){
+  document.getElementById('question-area').style.display='none';
+  const sumEl=document.getElementById('summary');
+  sumEl.classList.add('visible');
+  let rows='';
+  questions.forEach(q=>{
+    const aid=answers[q.id];
+    const opt=q.options.find(o=>o.id===aid);
+    if(!opt)return;
+    rows+=`<div class="summary-item"><div class="summary-preview" style="position:relative">${opt.preview}</div><div><div class="summary-q">${q.label}</div><div class="summary-a">${opt.label}</div><div style="font-size:.75rem;color:#555;margin-top:.15rem">${opt.desc}</div></div></div>`;
+  });
+  sumEl.innerHTML=`<div class="done-msg"><h2>✅ Interview abgeschlossen!</h2><p>Alle Antworten werden gespeichert — Claude baut jetzt die neue UI.</p></div>${rows}
+    <button class="btn btn-primary" style="width:100%;margin-top:1rem;padding:.9rem" onclick="submit()">Absenden & fertig →</button>`;
+  fetch('/api/design-answers-6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(answers)})
+    .then(r=>r.json()).then(()=>{document.querySelector('.done-msg p').textContent='✅ Gespeichert! Claude fängt jetzt an zu bauen.';}).catch(()=>{});
+}
+function submit(){
+  fetch('/api/design-answers-6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(answers)})
+    .then(r=>r.json()).then(()=>{document.querySelector('.done-msg p').textContent='✅ Gespeichert! Claude fängt jetzt an zu bauen.';});
+}
+render();
+</script>
+</body>
+</html>

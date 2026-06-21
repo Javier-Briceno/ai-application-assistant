@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design Interview — Runde 11 (Final)</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0a0c;color:#e8e8ea;font-family:system-ui,sans-serif;min-height:100vh}
+#shell{max-width:960px;margin:0 auto;padding:2rem 1.5rem 6rem}
+.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:2.5rem}
+.hdr-title{font-size:.85rem;font-weight:600;color:#555;letter-spacing:.08em;text-transform:uppercase}
+.hdr-count{font-size:.85rem;color:#555}
+.prog-wrap{height:3px;background:#1e1e22;border-radius:99px;margin-bottom:2.5rem;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,#059669,#10b981);border-radius:99px;transition:width .4s ease}
+.q-label{font-size:.75rem;font-weight:600;color:#059669;text-transform:uppercase;letter-spacing:.1em;margin-bottom:.6rem}
+.q-text{font-size:1.45rem;font-weight:700;line-height:1.3;margin-bottom:.5rem}
+.q-sub{font-size:.9rem;color:#666;margin-bottom:2rem}
+.opts{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}
+.opts.cols3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:600px){.opts,.opts.cols3{grid-template-columns:1fr}}
+.opt{border:2px solid #1e1e22;border-radius:12px;overflow:hidden;cursor:pointer;transition:border-color .15s,transform .15s;background:#0f0f12}
+.opt:hover{border-color:#059669;transform:translateY(-2px)}
+.opt.selected{border-color:#059669;background:#041510}
+.opt-preview{width:100%;height:150px;overflow:hidden;position:relative;background:#16161a}
+.opt-label{padding:.7rem 1rem;font-size:.875rem;font-weight:600}
+.opt-desc{padding:0 1rem .7rem;font-size:.75rem;color:#666;line-height:1.4}
+.nav{position:fixed;bottom:0;left:0;right:0;background:#0a0a0c;border-top:1px solid #1e1e22;padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center}
+.nav-info{font-size:.8rem;color:#444}
+.btn{padding:.6rem 1.4rem;border-radius:8px;font-size:.875rem;font-weight:600;cursor:pointer;border:none;transition:background .15s}
+.btn-primary{background:#059669;color:#fff}.btn-primary:hover{background:#047857}
+.btn-primary:disabled{background:#09261a;color:#2a5a3a;cursor:not-allowed}
+.btn-ghost{background:transparent;color:#666;border:1px solid #2a2a2e}.btn-ghost:hover{border-color:#555;color:#aaa}
+.summary-wrap{display:none}.summary-wrap.visible{display:block}
+.summary-item{display:flex;gap:1rem;align-items:flex-start;padding:1rem;border:1px solid #1e1e22;border-radius:10px;margin-bottom:.75rem;background:#0f0f12}
+.summary-q{font-size:.75rem;color:#666;margin-bottom:.2rem}
+.summary-a{font-size:.9rem;font-weight:600}
+.summary-preview{width:80px;height:50px;border-radius:6px;overflow:hidden;flex-shrink:0}
+.done-msg{text-align:center;padding:2rem 0 1.5rem}
+.done-msg h2{font-size:1.6rem;font-weight:700;margin-bottom:.5rem}
+.done-msg p{color:#666;margin-bottom:2rem}
+.finale-badge{display:inline-block;padding:3px 10px;background:#083a20;border:1px solid #059669;border-radius:99px;font-size:.75rem;color:#6ee7b7;margin-bottom:1.5rem}
+</style>
+</head>
+<body>
+<div id="shell">
+  <div class="hdr">
+    <span class="hdr-title">Runde 11 — Letzte Fragen</span>
+    <span class="hdr-count" id="hdr-count"></span>
+  </div>
+  <div class="prog-wrap"><div class="prog-fill" id="prog"></div></div>
+  <div class="finale-badge">🎯 Finale Runde — danach wird gebaut</div>
+  <div id="question-area"></div>
+  <div class="summary-wrap" id="summary"></div>
+</div>
+<div class="nav">
+  <button class="btn btn-ghost" id="btn-back" onclick="goBack()">← Zurück</button>
+  <span class="nav-info" id="nav-info"></span>
+  <button class="btn btn-primary" id="btn-next" onclick="goNext()" disabled>Weiter →</button>
+</div>
+
+<script>
+const Q = [
+  {
+    id:'button-loading-state',label:'Frage 1 — Button während Analyse',
+    text:'Wie sieht der „Analysieren"-Button aus während die Analyse läuft?',
+    sub:'Die Analyse dauert 10–30 Sekunden. Der Button sollte das widerspiegeln.',
+    cols:3,options:[
+      {id:'spinner-disabled',label:'Spinner + deaktiviert',desc:'Button wird ausgegraut, zeigt einen kleinen Lade-Spinner links neben dem Text "Analysiere…". Klar dass man nicht nochmal klicken soll.',preview:`
+        <div style="background:#0a0a0c;height:100%;display:flex;align-items:flex-end;padding:16px">
+          <div style="width:100%;height:34px;background:#09261a;border-radius:7px;border:1px solid #1e4a2a;display:flex;align-items:center;justify-content:center;gap:7px">
+            <div style="width:12px;height:12px;border-radius:50%;border:2px solid #1e4a2a;border-top-color:#059669"></div>
+            <div style="height:4px;background:#1e4a2a;border-radius:2px;width:55px"></div>
+          </div>
+        </div>`},
+      {id:'pulse-green',label:'Pulsierendes Grün',desc:'Button bleibt grün aber pulsiert sanft (Opacity 1→0.6→1). Kein Spinner, wirkt "lebendig".',preview:`
+        <div style="background:#0a0a0c;height:100%;display:flex;align-items:flex-end;padding:16px">
+          <div style="width:100%;height:34px;background:#059669;border-radius:7px;display:flex;align-items:center;justify-content:center;opacity:.65">
+            <div style="height:4px;background:rgba(255,255,255,.7);border-radius:2px;width:65px"></div>
+          </div>
+        </div>`},
+      {id:'progress-bar-button',label:'Fortschrittsbalken im Button',desc:'Der Button füllt sich von links nach rechts grün während die Schritte abgeschlossen werden.',preview:`
+        <div style="background:#0a0a0c;height:100%;display:flex;align-items:flex-end;padding:16px">
+          <div style="width:100%;height:34px;background:#09261a;border-radius:7px;overflow:hidden;position:relative;border:1px solid #1e4a2a">
+            <div style="position:absolute;left:0;top:0;bottom:0;width:60%;background:#059669;border-radius:7px 0 0 7px"></div>
+            <div style="position:relative;z-index:1;height:100%;display:flex;align-items:center;justify-content:center">
+              <div style="height:4px;background:rgba(255,255,255,.8);border-radius:2px;width:55px"></div>
+            </div>
+          </div>
+        </div>`}
+    ]
+  },
+  {
+    id:'diff-deletions',label:'Frage 2 — CV-Diff: Löschungen',
+    text:'Wie werden im CV-Diff entfernte Stellen dargestellt?',
+    sub:'Grüne Zeilen = hinzugefügt. Was ist mit Zeilen die gelöscht oder ersetzt wurden?',
+    cols:3,options:[
+      {id:'red-minus',label:'Rote Zeilen mit „−"',desc:'Entfernte Zeilen erscheinen in Rot mit einem „−" Zeichen vorne. Git-Stil, vollständig.',preview:`
+        <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:2px;justify-content:center;font-family:monospace">
+          ${[['−','#3a1a1a','#b91c1c','90%'],['−','#3a1a1a','#b91c1c','70%'],['+','#0a3a2a','#059669','85%'],['+','#0a3a2a','#059669','60%'],['','#111','#333','75%'],['','#111','#333','55%']].map(([s,bg,c,w])=>`
+            <div style="display:flex;align-items:center;gap:4px;background:${bg};border-radius:2px;padding:1px 4px">
+              <div style="width:8px;font-size:7px;color:${c};flex-shrink:0">${s}</div>
+              <div style="height:3px;background:${c};border-radius:2px;width:${w};opacity:.6"></div>
+            </div>`).join('')}
+        </div>`},
+      {id:'strikethrough',label:'Durchgestrichen grau',desc:'Gelöschte Zeilen erscheinen grau und durchgestrichen — wie "ausgegraut". Keine rote Farbe.',preview:`
+        <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:2px;justify-content:center">
+          ${[[true,'85%'],[true,'65%'],[false,'90%',true],[false,'70%',true],[false,'75%',false],[false,'50%',false]].map(([del,w,add])=>`
+            <div style="display:flex;align-items:center;gap:4px;background:${add?'#0a3a2a':del?'transparent':'transparent'};border-radius:2px;padding:1px 4px">
+              ${add?`<div style="width:8px;font-size:7px;color:#059669;flex-shrink:0">+</div>`:`<div style="width:8px;flex-shrink:0"></div>`}
+              <div style="height:3px;background:${add?'#059669':del?'#2a2a2e':'#1a1a1e'};border-radius:2px;width:${w};${del?'opacity:.4;text-decoration:line-through':''}"></div>
+              ${del?`<div style="position:absolute;height:1px;background:#2a2a2e;width:${w}"></div>`:''}
+            </div>`).join('')}
+        </div>`},
+      {id:'additions-only',label:'Nur Hinzufügungen',desc:'Nur grüne „+" Zeilen werden gezeigt. Keine Löschungen angezeigt — übersichtlicher, weniger Information.',preview:`
+        <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:2px;justify-content:center">
+          ${[[true,'#0a3a2a','#059669','85%'],[true,'#0a3a2a','#059669','65%'],[false,'transparent','#1a1a1e','80%'],[false,'transparent','#1a1a1e','55%'],[false,'transparent','#1a1a1e','70%']].map(([add,bg,c,w])=>`
+            <div style="display:flex;align-items:center;gap:4px;background:${bg};border-radius:2px;padding:1px 4px">
+              <div style="width:8px;font-size:7px;color:${add?'#059669':'transparent'};flex-shrink:0">+</div>
+              <div style="height:3px;background:${c};border-radius:2px;width:${w};opacity:${add?'.7':'.3'}"></div>
+            </div>`).join('')}
+        </div>`}
+    ]
+  },
+  {
+    id:'bewertung-commentary',label:'Frage 3 — Bewertung: Erklärender Text',
+    text:'Gibt es unter dem Score-Badge und den Balken einen erklärenden Text?',
+    sub:'Die KI analysiert — soll sie auch in Worten erklären warum der Score so ist?',
+    cols:3,options:[
+      {id:'no-text',label:'Nein — nur Badge + Balken',desc:'Keine Texterklärung. Der Score spricht für sich. Kompakter Bewertungs-Block.',preview:`
+        <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:5px">
+          <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">
+            <div style="width:9px;height:9px;background:#1a2a1a;border-radius:2px;border:1px solid #059669;flex-shrink:0"></div>
+            <div style="height:4px;background:#059669;border-radius:2px;width:40%;opacity:.7"></div>
+            <div style="height:14px;padding:0 6px;background:#041510;border:1px solid #059669;border-radius:99px;display:flex;align-items:center;margin-left:4px">
+              <div style="height:3px;background:#059669;border-radius:2px;width:30px"></div>
+            </div>
+            <div style="flex:1;height:1px;background:#083a20"></div>
+          </div>
+          ${Array(5).fill(0).map((_,i)=>`
+            <div style="display:flex;align-items:center;gap:4px">
+              <div style="width:45px;height:3px;background:#2a2a2e;border-radius:2px;flex-shrink:0"></div>
+              <div style="flex:1;height:5px;background:#1e1e22;border-radius:99px;overflow:hidden">
+                <div style="height:100%;background:${['#059669','#059669','#f59e0b','#f59e0b','#b91c1c'][i]};width:${[88,75,62,55,30][i]}%;border-radius:99px"></div>
+              </div>
+            </div>`).join('')}
+        </div>`},
+      {id:'short-paragraph',label:'Kurzer Absatz',desc:'2–3 Sätze KI-Kommentar unter den Balken: "Deine technischen Skills passen gut, jedoch fehlt Erfahrung in X."',preview:`
+        <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap-4px">
+          <div style="display:flex;align-items:center;gap:5px;margin-bottom:4px">
+            <div style="width:9px;height:9px;background:#1a2a1a;border-radius:2px;border:1px solid #059669;flex-shrink:0"></div>
+            <div style="height:4px;background:#059669;border-radius:2px;width:40%;opacity:.7"></div>
+            <div style="height:12px;padding:0 5px;background:#041510;border:1px solid #059669;border-radius:99px;display:flex;align-items:center;margin-left:4px">
+              <div style="height:3px;background:#059669;border-radius:2px;width:25px"></div>
+            </div>
+            <div style="flex:1;height:1px;background:#083a20"></div>
+          </div>
+          ${Array(3).fill(0).map((_,i)=>`
+            <div style="display:flex;align-items:center;gap:3px;margin-bottom:2px">
+              <div style="width:38px;height:3px;background:#2a2a2e;border-radius:2px;flex-shrink:0"></div>
+              <div style="flex:1;height:4px;background:#1e1e22;border-radius:99px;overflow:hidden">
+                <div style="height:100%;background:${['#059669','#059669','#f59e0b'][i]};width:${[85,72,58][i]}%;border-radius:99px"></div>
+              </div>
+            </div>`).join('')}
+          <div style="margin-top:5px;background:#0f0f12;border-radius:5px;border:1px solid #1a1a1e;padding:5px;display:flex;flex-direction:column;gap:2px">
+            ${[95,80,65].map(w=>`<div style="height:3px;background:#1e3a1e;border-radius:2px;width:${w}%"></div>`).join('')}
+          </div>
+        </div>`},
+      {id:'expandable-per-dimension',label:'Aufklappbar pro Dimension',desc:'Jeder Balken hat ein ▶ Icon — klicken öffnet eine Zeile mit KI-Erklärung für genau diese Dimension.',preview:`
+        <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:4px;justify-content:center">
+          ${[['#059669',85,true],['#059669',72,false],['#f59e0b',58,false]].map(([c,p,open])=>`
+            <div>
+              <div style="display:flex;align-items:center;gap:3px">
+                <div style="width:38px;height:3px;background:#2a2a2e;border-radius:2px;flex-shrink:0"></div>
+                <div style="flex:1;height:4px;background:#1e1e22;border-radius:99px;overflow:hidden">
+                  <div style="height:100%;background:${c};width:${p}%;border-radius:99px"></div>
+                </div>
+                <div style="font-size:8px;color:#555;flex-shrink:0">${open?'▼':'▶'}</div>
+              </div>
+              ${open?`<div style="margin-top:3px;margin-left:41px;background:#0a1a0f;border-radius:4px;padding:4px;border-left:2px solid ${c}">
+                <div style="height:3px;background:#1e3a1e;border-radius:2px;width:90%;margin-bottom:2px"></div>
+                <div style="height:3px;background:#1e3a1e;border-radius:2px;width:70%"></div>
+              </div>`:''}
+            </div>`).join('')}
+        </div>`}
+    ]
+  },
+  {
+    id:'profile-create-location',label:'Frage 4 — Neues Profil erstellen',
+    text:'Wo erscheint das Formular wenn du „+ Neues Profil" klickst?',
+    sub:'Im Profil-Menü (Klick auf Avatar unten in Sidebar) gibt es einen „Neues Profil" Eintrag.',
+    cols:3,options:[
+      {id:'modal',label:'Modal-Dialog',desc:'Ein zentriertes Modal über dem gesamten UI. Backdrop-Overlay dahinter. Klassisch.',preview:`
+        <div style="position:relative;background:#0a0a0c;height:100%;overflow:hidden">
+          <div style="position:absolute;inset:0;background:rgba(0,0,0,.6)"></div>
+          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:130px;background:#111114;border-radius:9px;border:1px solid #1e3a1e;padding:10px;display:flex;flex-direction:column;gap:5px">
+            <div style="height:5px;background:#e8e8ea;border-radius:2px;width:60%;margin-bottom:2px"></div>
+            <div style="height:3px;background:#333;border-radius:2px;width:35%"></div>
+            <div style="height:16px;background:#0a0a0c;border-radius:4px;border:1px solid #1e3a1e"></div>
+            <div style="height:3px;background:#333;border-radius:2px;width:30%"></div>
+            <div style="height:16px;background:#0a0a0c;border-radius:4px;border:1px solid #1e3a1e"></div>
+            <div style="display:flex;gap:3px;margin-top:2px">
+              <div style="flex:1;height:16px;background:#1a1a1e;border-radius:4px;border:1px solid #222"></div>
+              <div style="flex:1;height:16px;background:#059669;border-radius:4px"></div>
+            </div>
+          </div>
+        </div>`},
+      {id:'sidebar-expand',label:'Inline im Sidebar-Menü',desc:'Das Profil-Menü klappt sich aus und zeigt das Formular direkt inline. Kein separater Dialog.',preview:`
+        <div style="position:relative;background:#0a0a0c;height:100%;overflow:hidden">
+          <div style="position:absolute;bottom:8px;left:8px;background:#111114;border:1px solid #1e3a1e;border-radius:8px;width:130px;overflow:hidden">
+            <div style="padding:5px 8px;border-bottom:1px solid #1a1a1e">
+              <div style="height:4px;background:#555;border-radius:2px;width:70%;margin-bottom:2px"></div>
+              <div style="height:3px;background:#2a2a2e;border-radius:2px;width:50%"></div>
+            </div>
+            <div style="padding:7px 8px;display:flex;flex-direction:column;gap:4px">
+              <div style="height:3px;background:#555;border-radius:2px;width:25%"></div>
+              <div style="height:14px;background:#0a0a0c;border-radius:3px;border:1px solid #1e3a1e"></div>
+              <div style="height:3px;background:#555;border-radius:2px;width:30%"></div>
+              <div style="height:14px;background:#0a0a0c;border-radius:3px;border:1px solid #1e3a1e"></div>
+              <div style="height:16px;background:#059669;border-radius:4px;margin-top:2px"></div>
+            </div>
+          </div>
+        </div>`},
+      {id:'right-panel-takeover',label:'Rechtes Panel',desc:'Das Ergebnis-Panel wird vorübergehend durch das "Neues Profil" Formular ersetzt. Viel Platz.',preview:`
+        <div style="display:flex;height:100%;background:#0a0a0c;overflow:hidden">
+          <div style="width:36px;background:#080810;border-right:1px solid #1a1a20"></div>
+          <div style="width:34%;background:#0a0a0c;border-right:1px solid #1a1a20;padding:6px;display:flex;flex-direction:column;gap:4px;opacity:.3">
+            <div style="flex:1;background:#111114;border-radius:5px;border:1px solid #1a1a1e;min-height:0"></div>
+            <div style="height:18px;background:#2a2a2e;border-radius:5px"></div>
+          </div>
+          <div style="flex:1;padding:10px;display:flex;flex-direction:column;gap:5px">
+            <div style="height:6px;background:#e8e8ea;border-radius:2px;width:40%;margin-bottom:4px"></div>
+            <div style="height:3px;background:#333;border-radius:2px;width:25%"></div>
+            <div style="height:22px;background:#111114;border-radius:5px;border:1px solid #1e3a1e"></div>
+            <div style="height:3px;background:#333;border-radius:2px;width:30%"></div>
+            <div style="height:22px;background:#111114;border-radius:5px;border:1px solid #1e3a1e"></div>
+            <div style="display:flex;gap:4px;margin-top:2px">
+              ${['#059669','#3b82f6','#a855f7','#f59e0b'].map(c=>`<div style="width:16px;height:16px;background:${c};border-radius:50%;opacity:.7"></div>`).join('')}
+            </div>
+            <div style="height:24px;background:#059669;border-radius:6px;margin-top:4px;width:40%"></div>
+          </div>
+        </div>`}
+    ]
+  },
+  {
+    id:'chat-streaming',label:'Frage 5 — Chat: KI-Antwort Streaming',
+    text:'Erscheint die KI-Antwort im Chat sofort komplett oder wird sie live gestreamt?',
+    sub:'Die KI-Antwort wird von der API Token für Token geliefert.',
+    cols:3,options:[
+      {id:'streaming-typewriter',label:'Live Streaming',desc:'Text erscheint Wort für Wort in Echtzeit. Du siehst die Antwort entstehen — lebendiger, aber komplexer.',preview:`
+        <div style="position:relative;background:#0a0a0c;height:100%;overflow:hidden">
+          <div style="position:absolute;bottom:0;right:0;width:145px;height:130px;background:#111114;border-radius:8px 0 0 0;border:1px solid #1e3a1e;border-right:none;border-bottom:none;padding:8px;display:flex;flex-direction:column;gap:5px">
+            <div style="height:4px;background:#059669;border-radius:2px;width:60%;margin-bottom:2px"></div>
+            <div style="display:flex;gap:4px;align-items:flex-start">
+              <div style="width:12px;height:12px;background:#059669;border-radius:50%;flex-shrink:0"></div>
+              <div style="flex:1;background:#041510;border:1px solid #083a20;border-radius:2px 6px 6px 6px;padding:4px 5px;display:flex;flex-direction:column;gap:2px">
+                <div style="height:3px;background:#059669;border-radius:2px;width:90%;opacity:.7"></div>
+                <div style="height:3px;background:#059669;border-radius:2px;width:70%;opacity:.7"></div>
+                <div style="display:flex;align-items:center;gap:2px">
+                  <div style="height:3px;background:#059669;border-radius:2px;width:40%;opacity:.7"></div>
+                  <div style="width:2px;height:9px;background:#059669;opacity:.9"></div>
+                </div>
+              </div>
+            </div>
+            <div style="flex:1"></div>
+            <div style="height:14px;background:#0a0a0c;border-radius:4px;border:1px solid #1e3a1e"></div>
+          </div>
+        </div>`},
+      {id:'loading-then-full',label:'Ladeanimation → Komplett',desc:'Erst ein pulsierender "…" Bubble, dann erscheint die ganze Antwort auf einmal. Einfacher zu implementieren.',preview:`
+        <div style="position:relative;background:#0a0a0c;height:100%;overflow:hidden">
+          <div style="position:absolute;bottom:0;right:0;width:145px;height:130px;background:#111114;border-radius:8px 0 0 0;border:1px solid #1e3a1e;border-right:none;border-bottom:none;padding:8px;display:flex;flex-direction:column;gap:5px">
+            <div style="height:4px;background:#059669;border-radius:2px;width:60%;margin-bottom:2px"></div>
+            <div style="display:flex;gap:4px;align-items:flex-start">
+              <div style="width:12px;height:12px;background:#059669;border-radius:50%;flex-shrink:0"></div>
+              <div style="background:#041510;border:1px solid #083a20;border-radius:2px 6px 6px 6px;padding:6px 8px;display:flex;gap:3px;align-items:center">
+                ${Array(3).fill(0).map((_,i)=>`<div style="width:4px;height:4px;background:#059669;border-radius:50%;opacity:${.3+i*.3}"></div>`).join('')}
+              </div>
+            </div>
+            <div style="flex:1"></div>
+            <div style="height:14px;background:#0a0a0c;border-radius:4px;border:1px solid #1e3a1e"></div>
+          </div>
+        </div>`},
+      {id:'instant',label:'Sofort komplett',desc:'Keine Animation — Text erscheint instant wenn der API-Call fertig ist. Keine Verzögerung.',preview:`
+        <div style="position:relative;background:#0a0a0c;height:100%;overflow:hidden">
+          <div style="position:absolute;bottom:0;right:0;width:145px;height:130px;background:#111114;border-radius:8px 0 0 0;border:1px solid #1e3a1e;border-right:none;border-bottom:none;padding:8px;display:flex;flex-direction:column;gap:5px">
+            <div style="height:4px;background:#059669;border-radius:2px;width:60%;margin-bottom:2px"></div>
+            <div style="display:flex;gap:4px;align-items:flex-start">
+              <div style="width:12px;height:12px;background:#059669;border-radius:50%;flex-shrink:0"></div>
+              <div style="flex:1;background:#041510;border:1px solid #083a20;border-radius:2px 6px 6px 6px;padding:4px 5px;display:flex;flex-direction:column;gap:2px">
+                ${[90,78,60].map(w=>`<div style="height:3px;background:#059669;border-radius:2px;width:${w}%;opacity:.7"></div>`).join('')}
+              </div>
+            </div>
+            <div style="flex:1"></div>
+            <div style="height:14px;background:#0a0a0c;border-radius:4px;border:1px solid #1e3a1e"></div>
+          </div>
+        </div>`}
+    ]
+  },
+  {
+    id:'date-format',label:'Frage 6 — Datum Format im Verlauf',
+    text:'Wie wird das Datum bei Timeline-Einträgen dargestellt?',
+    sub:'Jeder Verlauf-Eintrag hat: Firmenname · Score-Badge · Datum.',
+    cols:3,options:[
+      {id:'short-month',label:'"12. Jun"',desc:'Tag + Monat als Text. Klar und kurz. Kein Jahr (da meist alles im selben Jahr).',preview:`
+        <div style="background:#0a0a0c;height:100%;padding:12px;display:flex;flex-direction:column;gap:6px;justify-content:center">
+          ${[['Google GmbH','#059669','12. Jun'],['SAP SE','#f59e0b','8. Jun'],['BMW AG','#b91c1c','3. Mai']].map(([n,c,d],i)=>`
+            <div style="display:flex;gap:5px;align-items:center">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:1px;flex-shrink:0">
+                <div style="width:7px;height:7px;background:${c};border-radius:50%"></div>
+                ${i<2?'<div style="width:1px;height:14px;background:#1e1e22"></div>':''}
+              </div>
+              <div style="flex:1;padding:5px 7px;background:#0e1a14;border-radius:6px;border:2px solid ${i===0?'#059669':'#1a1a1e'};display:flex;align-items:center;justify-content:space-between">
+                <div style="height:4px;background:#666;border-radius:2px;width:50%"></div>
+                <div style="display:flex;align-items:center;gap:4px">
+                  <div style="height:10px;padding:0 4px;background:${c}22;border:1px solid ${c}55;border-radius:99px;display:flex;align-items:center"><div style="height:3px;background:${c};border-radius:2px;width:20px"></div></div>
+                  <div style="font-size:7px;color:#444;white-space:nowrap">${d}</div>
+                </div>
+              </div>
+            </div>`).join('')}
+        </div>`},
+      {id:'full-date',label:'"12.06.2025"',desc:'Vollständiges Datum mit Jahr. Präziser, nützlich wenn du Einträge über mehrere Jahre hast.',preview:`
+        <div style="background:#0a0a0c;height:100%;padding:12px;display:flex;flex-direction:column;gap:6px;justify-content:center">
+          ${[['#059669','12.06.2025'],['#f59e0b','08.06.2025'],['#b91c1c','03.05.2025']].map(([c,d],i)=>`
+            <div style="display:flex;gap:5px;align-items:center">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:1px;flex-shrink:0">
+                <div style="width:7px;height:7px;background:${c};border-radius:50%"></div>
+                ${i<2?'<div style="width:1px;height:14px;background:#1e1e22"></div>':''}
+              </div>
+              <div style="flex:1;padding:5px 7px;background:${i===0?'#0e1a14':'#0f0f12'};border-radius:6px;border:${i===0?'2':'1'}px solid ${i===0?'#059669':'#1a1a1e'};display:flex;align-items:center;justify-content:space-between">
+                <div style="height:4px;background:#666;border-radius:2px;width:40%"></div>
+                <div style="font-size:6.5px;color:#444;white-space:nowrap">${d}</div>
+              </div>
+            </div>`).join('')}
+        </div>`},
+      {id:'relative-time',label:'"vor 3 Tagen"',desc:'Relative Zeit. "heute", "gestern", "vor 3 Tagen", "vor 2 Wochen". Natürlich — aber wird nach Monaten unscharf.',preview:`
+        <div style="background:#0a0a0c;height:100%;padding:12px;display:flex;flex-direction:column;gap:6px;justify-content:center">
+          ${[['#059669','heute'],['#f59e0b','vor 4 Tagen'],['#b91c1c','vor 3 Wochen']].map(([c,d],i)=>`
+            <div style="display:flex;gap:5px;align-items:center">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:1px;flex-shrink:0">
+                <div style="width:7px;height:7px;background:${c};border-radius:50%"></div>
+                ${i<2?'<div style="width:1px;height:14px;background:#1e1e22"></div>':''}
+              </div>
+              <div style="flex:1;padding:5px 7px;background:${i===0?'#0e1a14':'#0f0f12'};border-radius:6px;border:${i===0?'2':'1'}px solid ${i===0?'#059669':'#1a1a1e'};display:flex;align-items:center;justify-content:space-between">
+                <div style="height:4px;background:#666;border-radius:2px;width:50%"></div>
+                <div style="font-size:6.5px;color:#444;white-space:nowrap">${d}</div>
+              </div>
+            </div>`).join('')}
+        </div>`}
+    ]
+  },
+  {
+    id:'toast-style',label:'Frage 7 — Erfolgs-Toast ("Kopiert!")',
+    text:'Wo erscheint die Bestätigung nachdem du etwas kopiert oder heruntergeladen hast?',
+    sub:'Z.B. nach Klick auf das Clipboard-Icon im Anschreiben-Textfeld.',
+    cols:3,options:[
+      {id:'bottom-center',label:'Unten Mitte',desc:'Ein kleiner grüner Toast erscheint kurz zentriert am unteren Rand des Screens. 2 Sekunden, dann weg.',preview:`
+        <div style="position:relative;background:#0a0a0c;height:100%;overflow:hidden">
+          <div style="position:absolute;bottom:12px;left:50%;transform:translateX(-50%);background:#041510;border:1px solid #059669;border-radius:8px;padding:5px 12px;display:flex;align-items:center;gap:5px;white-space:nowrap">
+            <div style="width:8px;height:8px;border-radius:50%;background:#059669"></div>
+            <div style="height:4px;background:#059669;border-radius:2px;width:40px;opacity:.8"></div>
+          </div>
+        </div>`},
+      {id:'top-right',label:'Oben Rechts',desc:'Klassische Toast-Position oben rechts. Standard-UI-Muster, Nutzer kennen es.',preview:`
+        <div style="position:relative;background:#0a0a0c;height:100%;overflow:hidden">
+          <div style="position:absolute;top:12px;right:12px;background:#041510;border:1px solid #059669;border-radius:8px;padding:5px 12px;display:flex;align-items:center;gap:5px">
+            <div style="width:8px;height:8px;border-radius:50%;background:#059669"></div>
+            <div style="height:4px;background:#059669;border-radius:2px;width:40px;opacity:.8"></div>
+          </div>
+        </div>`},
+      {id:'inline-icon-change',label:'Icon ändert sich',desc:'Kein Toast. Das Clipboard-Icon wechselt kurz zu einem grünen Haken ✓ und dann zurück. Keine Ablenkung.',preview:`
+        <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:5px">
+          <div style="display:flex;align-items:center;justify-content:flex-end;gap:4px">
+            <div style="width:18px;height:18px;background:#041510;border-radius:4px;border:1px solid #059669;display:flex;align-items:center;justify-content:center">
+              <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3L9 1" stroke="#059669" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div style="width:18px;height:18px;background:#083a20;border-radius:4px;border:1px solid #059669;display:flex;align-items:center;justify-content:center;font-size:8px;color:#059669">↓</div>
+          </div>
+          <div style="flex:1;background:#0d1a11;border:2px solid #059669;border-radius:6px;padding:5px;display:flex;flex-direction:column;gap:2px;min-height:0">
+            ${Array(4).fill(0).map(()=>`<div style="height:3px;background:#1a3a1a;border-radius:2px;width:85%"></div>`).join('')}
+          </div>
+        </div>`}
+    ]
+  },
+  {
+    id:'company-extraction',label:'Frage 8 — Firmenname: Auto-Extraktion',
+    text:'Woher kommt der Firmenname im Ergebnis-Header?',
+    sub:'Der Header zeigt "Firmenname · Jobbezeichnung" oben in den Ergebnissen.',
+    cols:3,options:[
+      {id:'auto-extract',label:'Automatisch extrahiert',desc:'Die KI liest Firma und Jobbezeichnung aus der eingefügten Stellenausschreibung. Du musst nichts tippen.',preview:`
+        <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:5px">
+          <div style="padding:8px;background:#0f0f12;border-radius:7px;border:1px solid #1a1a1e">
+            <div style="height:6px;background:#e8e8ea;border-radius:2px;width:50%;margin-bottom:4px"></div>
+            <div style="height:4px;background:#555;border-radius:2px;width:70%"></div>
+            <div style="display:flex;align-items:center;gap:4px;margin-top:5px">
+              <div style="height:12px;padding:0 5px;background:#041510;border:1px solid #059669;border-radius:99px;display:flex;align-items:center">
+                <div style="height:3px;background:#059669;border-radius:2px;width:25px"></div>
+              </div>
+              <div style="font-size:7px;color:#2a4a2a;opacity:.7">✓ auto</div>
+            </div>
+          </div>
+        </div>`},
+      {id:'manual-input',label:'Manuell eingeben',desc:'Über der Textarea gibt es ein kleines Feld "Firmenname" — du trägst ihn selbst ein. Präziser, aber ein Klick mehr.',preview:`
+        <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:4px">
+          <div style="height:3px;background:#555;border-radius:2px;width:40%"></div>
+          <div style="height:18px;background:#111114;border-radius:5px;border:1px solid #1a3a1a;padding:0 6px;display:flex;align-items:center">
+            <div style="height:3px;background:#1e3a1e;border-radius:2px;width:55%;opacity:.5"></div>
+          </div>
+          <div style="height:3px;background:#555;border-radius:2px;width:50%;margin-top:2px"></div>
+          <div style="flex:1;background:#111114;border-radius:5px;border:1px solid #1a1a1e;min-height:0"></div>
+          <div style="height:20px;background:#059669;border-radius:5px"></div>
+        </div>`},
+      {id:'auto-with-confirm',label:'Auto + bestätigbar',desc:'Auto-Extraktion, aber der extrahierte Name erscheint editierbar oben in den Ergebnissen. Du kannst ihn anpassen.',preview:`
+        <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:5px">
+          <div style="padding:5px 7px;background:#0f0f12;border-radius:6px;border:1px solid #1a1a1e;display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <div style="height:5px;background:#e8e8ea;border-radius:2px;width:65px;margin-bottom:3px"></div>
+              <div style="height:3px;background:#555;border-radius:2px;width:80px"></div>
+            </div>
+            <div style="font-size:8px;color:#555">✏</div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:3px">
+            <div style="display:flex;align-items:center;gap:4px">
+              <div style="width:8px;height:8px;background:#1a2a1a;border-radius:2px;border:1px solid #059669;flex-shrink:0"></div>
+              <div style="height:4px;background:#059669;border-radius:2px;width:40%;opacity:.7"></div>
+              <div style="height:12px;padding:0 5px;background:#041510;border:1px solid #059669;border-radius:99px;display:flex;align-items:center;margin-left:4px"><div style="height:3px;background:#059669;border-radius:2px;width:22px"></div></div>
+              <div style="flex:1;height:1px;background:#083a20"></div>
+            </div>
+          </div>
+        </div>`}
+    ]
+  },
+  {
+    id:'auto-scroll-results',label:'Frage 9 — Auto-Scroll nach Analyse',
+    text:'Wenn die Ergebnisse erscheinen — scrollt das rechte Panel automatisch nach oben?',
+    sub:'Wenn du eine zweite Analyse machst ohne die Seite zu verlassen.',
+    cols:3,options:[
+      {id:'auto-scroll-top',label:'Automatisch nach oben',desc:'Das Ergebnis-Panel scrollt automatisch ganz nach oben wenn neue Ergebnisse laden. Du siehst immer zuerst den Header.',preview:`
+        <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:4px;position:relative">
+          <div style="flex:1;background:#0f0f12;border-radius:6px;border:1px solid #1a1a1e;padding:6px;display:flex;flex-direction:column;gap:3px;min-height:0">
+            <div style="height:6px;background:#e8e8ea;border-radius:2px;width:50%;margin-bottom:3px"></div>
+            <div style="height:4px;background:#555;border-radius:2px;width:70%"></div>
+            ${Array(4).fill(0).map(()=>`<div style="height:3px;background:#1a1a1e;border-radius:2px;width:85%"></div>`).join('')}
+          </div>
+          <div style="position:absolute;right:14px;top:14px;display:flex;flex-direction:column;align-items:center;gap:1px">
+            <div style="font-size:9px;color:#059669">↑</div>
+            <div style="width:2px;height:20px;background:#083a20;border-radius:99px">
+              <div style="width:100%;height:30%;background:#059669;border-radius:99px"></div>
+            </div>
+          </div>
+        </div>`},
+      {id:'no-scroll',label:'Kein Auto-Scroll',desc:'Das Panel bleibt wo es ist. Du scrollst selbst. Gut wenn du weißt wo du hinschaust.',preview:`
+        <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:4px;position:relative">
+          <div style="flex:1;background:#0f0f12;border-radius:6px;border:1px solid #1a1a1e;padding:6px;overflow:hidden;min-height:0">
+            <div style="transform:translateY(-30px);display:flex;flex-direction:column;gap:3px">
+              <div style="height:3px;background:#0a3a2a;border-radius:2px;width:85%"></div>
+              <div style="height:3px;background:#3a1a1a;border-radius:2px;width:70%"></div>
+              <div style="height:6px;background:#e8e8ea;border-radius:2px;width:50%;margin:3px 0"></div>
+              <div style="height:4px;background:#555;border-radius:2px;width:65%"></div>
+              ${Array(3).fill(0).map(()=>`<div style="height:3px;background:#1a1a1e;border-radius:2px;width:80%"></div>`).join('')}
+            </div>
+          </div>
+        </div>`},
+      {id:'smooth-scroll-indicator',label:'Sanft + Anzeige',desc:'Auto-Scroll nach oben, aber mit einem kurzen visuellen Hinweis "↑ Neue Ergebnisse" der dann verschwindet.',preview:`
+        <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:4px;position:relative">
+          <div style="position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:2;background:#041510;border:1px solid #059669;border-radius:99px;padding:2px 8px;display:flex;align-items:center;gap:3px">
+            <span style="font-size:7px;color:#059669">↑</span>
+            <div style="height:3px;background:#059669;border-radius:2px;width:40px;opacity:.7"></div>
+          </div>
+          <div style="flex:1;background:#0f0f12;border-radius:6px;border:1px solid #1a1a1e;padding:6px;display:flex;flex-direction:column;gap:3px;min-height:0">
+            <div style="height:6px;background:#e8e8ea;border-radius:2px;width:50%;margin-bottom:3px"></div>
+            <div style="height:4px;background:#555;border-radius:2px;width:70%"></div>
+          </div>
+        </div>`}
+    ]
+  },
+  {
+    id:'sidebar-labels-language',label:'Frage 10 — Sidebar Labels Sprache',
+    text:'Wenn die Sidebar aufklappt (Hover) — in welcher Sprache sind die Labels?',
+    sub:'Die Sidebar zeigt Duotone-Icons. Beim Hover klappt sie auf und zeigt Labels.',
+    cols:3,options:[
+      {id:'german',label:'Deutsch',desc:'"Analysieren" · "Verlauf" · "Einstellungen". Konsistent mit der restlichen App-Sprache.',preview:`
+        <div style="display:flex;height:100%;background:#0a0a0c;overflow:hidden">
+          <div style="width:44px;background:#080810;border-right:1px solid #1a1a20;flex-shrink:0"></div>
+          <div style="width:120px;background:#0b0b10;border-right:1px solid #2a2a36;display:flex;flex-direction:column;gap:10px;padding:10px 6px;box-shadow:4px 0 16px rgba(0,0,0,.6)">
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="width:16px;height:16px;background:#1a2a1a;border-radius:3px;border:1px solid #059669;flex-shrink:0"></div>
+              <div style="height:4px;background:#059669;border-radius:2px;width:55px;opacity:.8"></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="width:16px;height:16px;background:#111;border-radius:3px;border:1px solid #222;flex-shrink:0"></div>
+              <div style="height:4px;background:#444;border-radius:2px;width:40px"></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="width:16px;height:16px;background:#111;border-radius:3px;border:1px solid #222;flex-shrink:0"></div>
+              <div style="height:4px;background:#444;border-radius:2px;width:60px"></div>
+            </div>
+          </div>
+          <div style="flex:1;background:#0a0a0c;opacity:.4"></div>
+        </div>`},
+      {id:'english',label:'Englisch',desc:'"Analyse" · "History" · "Settings". Englische Labels, auch wenn der Rest der App Deutsch ist.',preview:`
+        <div style="display:flex;height:100%;background:#0a0a0c;overflow:hidden">
+          <div style="width:44px;background:#080810;border-right:1px solid #1a1a20;flex-shrink:0"></div>
+          <div style="width:110px;background:#0b0b10;border-right:1px solid #2a2a36;display:flex;flex-direction:column;gap:10px;padding:10px 6px;box-shadow:4px 0 16px rgba(0,0,0,.6)">
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="width:16px;height:16px;background:#1a2a1a;border-radius:3px;border:1px solid #059669;flex-shrink:0"></div>
+              <div style="height:4px;background:#059669;border-radius:2px;width:40px;opacity:.8"></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="width:16px;height:16px;background:#111;border-radius:3px;border:1px solid #222;flex-shrink:0"></div>
+              <div style="height:4px;background:#444;border-radius:2px;width:35px"></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="width:16px;height:16px;background:#111;border-radius:3px;border:1px solid #222;flex-shrink:0"></div>
+              <div style="height:4px;background:#444;border-radius:2px;width:45px"></div>
+            </div>
+          </div>
+          <div style="flex:1;background:#0a0a0c;opacity:.4"></div>
+        </div>`},
+      {id:'icons-only-no-labels',label:'Keine Labels — nur Icons',desc:'Die Sidebar klappt nicht auf. Nur die Icons sind sichtbar, kein Text. Tooltip beim langen Hover.',preview:`
+        <div style="display:flex;height:100%;background:#0a0a0c;overflow:hidden">
+          <div style="width:52px;background:#080810;border-right:1px solid #1a1a20;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:10px">
+            <div style="width:8px;height:8px;background:#083a20;border-radius:50%;border:1px solid #059669;margin-bottom:4px"></div>
+            <div style="width:22px;height:22px;background:#1a2a1a;border-radius:5px;border:2px solid #059669"></div>
+            <div style="width:22px;height:22px;background:#111;border-radius:5px;border:1px solid #222"></div>
+            <div style="width:22px;height:22px;background:#111;border-radius:5px;border:1px solid #222"></div>
+          </div>
+          <div style="flex:1;background:#0a0a0c;opacity:.4"></div>
+        </div>`}
+    ]
+  },
+  {
+    id:'mobile-layout',label:'Frage 11 — Mobile Layout',
+    text:'Wie verhält sich die App auf einem Smartphone?',
+    sub:'Die App ist primär für Desktop gebaut. Was passiert auf kleinen Screens?',
+    cols:3,options:[
+      {id:'responsive-stack',label:'Responsiv — alles stapelt sich',desc:'Unter 768px: Sidebar wird zur Bottom-Tabbar, Input und Ergebnisse stapeln sich vertikal. Vollständig nutzbar auf Handy.',preview:`
+        <div style="display:flex;height:100%;background:#0a0a0c;overflow:hidden;flex-direction:column">
+          <div style="flex:1;padding:6px;display:flex;flex-direction:column;gap:4px;overflow:hidden;min-height:0">
+            <div style="height:14px;background:#111114;border-radius:4px;border:1px solid #1a3a1a"></div>
+            <div style="flex:1;background:#111114;border-radius:4px;border:1px solid #1a1a1e;min-height:0"></div>
+            <div style="height:16px;background:#059669;border-radius:4px"></div>
+          </div>
+          <div style="height:40px;background:#080810;border-top:1px solid #1a1a20;display:flex;align-items:center;justify-content:space-around;flex-shrink:0">
+            <div style="width:20px;height:20px;background:#1a2a1a;border-radius:4px;border:1px solid #059669"></div>
+            <div style="width:20px;height:20px;background:#111;border-radius:4px;border:1px solid #222"></div>
+            <div style="width:20px;height:20px;background:#111;border-radius:4px;border:1px solid #222"></div>
+          </div>
+        </div>`},
+      {id:'desktop-only',label:'Desktop only — Hinweis auf Handy',desc:'Auf kleinen Screens erscheint eine Meldung: "Diese App ist für Desktop optimiert." Kein responsives Layout.',preview:`
+        <div style="background:#0a0a0c;height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;padding:16px;text-align:center">
+          <div style="width:32px;height:32px;border-radius:6px;border:2px dashed #1e3a1e;display:flex;align-items:center;justify-content:center">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1e3a1e" stroke-width="1.5" stroke-linecap="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+          </div>
+          <div style="height:3px;background:#1e3a1e;border-radius:2px;width:70%;opacity:.5"></div>
+          <div style="height:3px;background:#0f2a18;border-radius:2px;width:90%;opacity:.4"></div>
+          <div style="height:3px;background:#0f2a18;border-radius:2px;width:75%;opacity:.4"></div>
+        </div>`},
+      {id:'zoom-to-fit',label:'Skaliert / herausgezoomt',desc:'Die Desktop-Ansicht wird auf kleinen Screens rausgezoomt und angepasst dargestellt. Kein echtes mobiles Layout.',preview:`
+        <div style="background:#0a0a0c;height:100%;display:flex;align-items:center;justify-content:center;padding:8px">
+          <div style="transform:scale(0.6);transform-origin:center;width:100%;height:100%;display:flex;overflow:hidden;border-radius:4px;border:1px solid #1e3a1e">
+            <div style="width:30px;background:#080810;border-right:1px solid #1a1a20;flex-shrink:0"></div>
+            <div style="width:35%;background:#0a0a0c;border-right:1px solid #1a1a20;padding:4px;display:flex;flex-direction:column;gap:3px">
+              <div style="flex:1;background:#111114;border-radius:3px;border:1px solid #1a1a1e;min-height:0"></div>
+              <div style="height:12px;background:#059669;border-radius:3px"></div>
+            </div>
+            <div style="flex:1;padding:4px;display:flex;flex-direction:column;gap:2px">
+              <div style="height:8px;background:#083a20;border-radius:99px;width:50%;border:1px solid #1a4a2a"></div>
+              <div style="flex:1;background:#0a1a0f;border-radius:3px;border:1px solid #1a3a1e;min-height:0"></div>
+            </div>
+          </div>
+        </div>`}
+    ]
+  },
+  {
+    id:'verlauf-filter-persistence',label:'Frage 12 — Verlauf-Filter Persistenz',
+    text:'Merkt sich die App welches Profil im Verlauf-Filter ausgewählt war?',
+    sub:'Du filterst auf "Javier DE". Du schließt die App. Beim nächsten Öffnen: welches Profil ist ausgewählt?',
+    cols:3,options:[
+      {id:'remember-last',label:'Merkt sich den letzten Filter',desc:'Der zuletzt gewählte Profilfilter wird in localStorage gespeichert. Beim nächsten Start ist er wieder aktiv.',preview:`
+        <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:5px">
+          <div style="height:3px;background:#555;border-radius:2px;width:25%;margin-bottom:3px"></div>
+          <div style="height:22px;background:#111114;border-radius:5px;border:1px solid #1e3a1e;display:flex;align-items:center;padding:0 7px;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:4px">
+              <div style="width:10px;height:10px;background:#059669;border-radius:50%"></div>
+              <div style="height:4px;background:#888;border-radius:2px;width:40px"></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:3px">
+              <div style="font-size:7px;color:#059669">✓</div>
+              <div style="font-size:8px;color:#555">▼</div>
+            </div>
+          </div>
+          ${Array(2).fill(0).map(()=>`<div style="height:20px;background:#0f0f12;border-radius:5px;border:1px solid #1a1a1e"></div>`).join('')}
+        </div>`},
+      {id:'always-reset-all',label:'Immer "Alle" beim Start',desc:'Filter wird nicht gespeichert. Beim nächsten Öffnen zeigt die Verlauf-Seite immer alle Profile. Vorhersehbar.',preview:`
+        <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:5px">
+          <div style="height:3px;background:#555;border-radius:2px;width:25%;margin-bottom:3px"></div>
+          <div style="height:22px;background:#111114;border-radius:5px;border:1px solid #1a1a1e;display:flex;align-items:center;padding:0 7px;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:4px">
+              <div style="height:4px;background:#888;border-radius:2px;width:20px"></div>
+              <div style="font-size:7px;color:#555">(Alle)</div>
+            </div>
+            <div style="font-size:8px;color:#555">▼</div>
+          </div>
+          ${Array(3).fill(0).map((_,i)=>`<div style="height:20px;background:#0f0f12;border-radius:5px;border:1px solid #1a1a1e;border-left:${i===0?'3px solid #059669':i===1?'3px solid #3b82f6':'1px solid #1a1a1e'}"></div>`).join('')}
+        </div>`},
+      {id:'per-session',label:'Pro Sitzung',desc:'Filter bleibt innerhalb einer Browsersitzung erhalten, wird aber nicht in localStorage gespeichert. Reset beim Tab schließen.',preview:`
+        <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:5px">
+          <div style="height:22px;background:#111114;border-radius:5px;border:1px solid #1e3a1e;display:flex;align-items:center;padding:0 7px;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:4px">
+              <div style="width:10px;height:10px;background:#3b82f6;border-radius:50%"></div>
+              <div style="height:4px;background:#888;border-radius:2px;width:35px"></div>
+            </div>
+            <div style="font-size:8px;color:#555">▼</div>
+          </div>
+          <div style="height:3px;background:#083a20;border-radius:2px;width:60%;opacity:.4"></div>
+          ${Array(2).fill(0).map(()=>`<div style="height:20px;background:#0f0f12;border-radius:5px;border-left:3px solid #3b82f6;border-top:1px solid #1a2a3a;border-right:1px solid #1a2a3a;border-bottom:1px solid #1a2a3a"></div>`).join('')}
+        </div>`}
+    ]
+  },
+  {
+    id:'anschreiben-language',label:'Frage 13 — Anschreiben Sprache',
+    text:'In welcher Sprache wird das Anschreiben erstellt?',
+    sub:'Das Profil hat eine Sprache (DE/EN/ES). Die Stellenausschreibung kann auf Englisch oder Deutsch sein.',
+    cols:3,options:[
+      {id:'always-profile-lang',label:'Immer Profilsprache',desc:'Das Anschreiben wird immer in der im Profil eingestellten Sprache erstellt, unabhängig von der Stellenausschreibung.',preview:`
+        <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:5px">
+          <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px">
+            <div style="width:12px;height:12px;background:#1e3a1e;border-radius:50%;border:1px solid #059669;display:flex;align-items:center;justify-content:center;font-size:6px;color:#059669;flex-shrink:0">JB</div>
+            <div style="height:4px;background:#888;border-radius:2px;width:35px"></div>
+            <div style="height:12px;padding:0 5px;background:#083a20;border-radius:99px;display:flex;align-items:center;margin-left:3px">
+              <div style="height:3px;background:#059669;border-radius:2px;width:12px;opacity:.8"></div>
+            </div>
+            <div style="font-size:8px;color:#1e3a1e">→</div>
+            <div style="height:12px;padding:0 5px;background:#083a20;border-radius:99px;display:flex;align-items:center">
+              <div style="height:3px;background:#059669;border-radius:2px;width:12px;opacity:.8"></div>
+            </div>
+          </div>
+          <div style="flex:1;background:#0d1a11;border:1px solid #1a3a1a;border-radius:6px;padding:5px;display:flex;flex-direction:column;gap:2px;min-height:0">
+            ${[85,70,90,65].map(w=>`<div style="height:3px;background:#1a3a1a;border-radius:2px;width:${w}%"></div>`).join('')}
+          </div>
+        </div>`},
+      {id:'follow-job-posting',label:'Sprache der Stellenausschreibung',desc:'Die KI erkennt die Sprache der Stellenausschreibung und erstellt das Anschreiben in derselben Sprache.',preview:`
+        <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:5px">
+          <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px">
+            <div style="height:12px;padding:0 5px;background:#083a20;border-radius:99px;display:flex;align-items:center">
+              <div style="height:3px;background:#059669;border-radius:2px;width:14px;opacity:.8"></div>
+            </div>
+            <div style="font-size:8px;color:#1e3a1e">🔍</div>
+            <div style="font-size:8px;color:#1e3a1e">→</div>
+            <div style="height:12px;padding:0 5px;background:#083a20;border-radius:99px;display:flex;align-items:center">
+              <div style="height:3px;background:#059669;border-radius:2px;width:14px;opacity:.8"></div>
+            </div>
+          </div>
+          <div style="flex:1;background:#0d1a11;border:1px solid #1a3a1a;border-radius:6px;padding:5px;display:flex;flex-direction:column;gap:2px;min-height:0">
+            ${[85,70,90,65].map(w=>`<div style="height:3px;background:#1a3a1a;border-radius:2px;width:${w}%"></div>`).join('')}
+          </div>
+        </div>`},
+      {id:'user-picks-lang',label:'Du wählst per Dropdown',desc:'Über der Analyse-Schaltfläche gibt es ein kleines Dropdown: "Anschreiben auf: [Deutsch ▼]". Du entscheidest.',preview:`
+        <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap-4px">
+          <div style="flex:1;background:#111114;border-radius:5px;border:1px solid #1a1a1e;min-height:0;margin-bottom:5px"></div>
+          <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px">
+            <div style="height:3px;background:#555;border-radius:2px;width:40%"></div>
+            <div style="flex:1;height:18px;background:#0a0a0c;border-radius:4px;border:1px solid #1a3a1a;display:flex;align-items:center;padding:0 5px;justify-content:space-between">
+              <div style="height:3px;background:#888;border-radius:2px;width:30px"></div>
+              <div style="font-size:8px;color:#555">▼</div>
+            </div>
+          </div>
+          <div style="height:22px;background:#059669;border-radius:5px"></div>
+        </div>`}
+    ]
+  },
+  {
+    id:'results-scroll-position',label:'Frage 14 — Ergebnisse: Welcher Abschnitt zuerst?',
+    text:'Wenn die Ergebnisse eingeblendet werden — welcher Abschnitt wird zuerst gezeigt?',
+    sub:'Die Ergebnisse haben: Bewertung → Lebenslauf-Änderungen → Anschreiben. Das Panel scrollt unabhängig.',
+    cols:3,options:[
+      {id:'bewertung-first',label:'Bewertung zuerst (oben)',desc:'Die Seite scrollt nach oben — zuerst siehst du die Bewertung (Score + Balken). Dann scrollst du runter.',preview:`
+        <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:5px">
+          <div style="padding:7px;background:#041510;border-radius:7px;border:1px solid #059669">
+            <div style="height:5px;background:#e8e8ea;border-radius:2px;width:50%;margin-bottom:3px"></div>
+            <div style="height:4px;background:#555;border-radius:2px;width:70%;margin-bottom:6px"></div>
+            <div style="display:flex;align-items:center;gap:5px">
+              <div style="height:4px;background:#059669;border-radius:2px;width:40%;opacity:.7"></div>
+              <div style="height:12px;padding:0 5px;background:#083a20;border:1px solid #059669;border-radius:99px;display:flex;align-items:center;margin-left:2px"><div style="height:3px;background:#059669;border-radius:2px;width:20px"></div></div>
+              <div style="flex:1;height:1px;background:#083a20"></div>
+            </div>
+            ${Array(3).fill(0).map((_,i)=>`<div style="display:flex;align-items:center;gap:3px;margin-top:3px"><div style="width:30px;height:3px;background:#2a2a2e;border-radius:2px;flex-shrink:0"></div><div style="flex:1;height:4px;background:#1e1e22;border-radius:99px;overflow:hidden"><div style="height:100%;background:${['#059669','#059669','#f59e0b'][i]};width:${[85,70,55][i]}%;border-radius:99px"></div></div></div>`).join('')}
+          </div>
+        </div>`},
+      {id:'stay-at-current',label:'Bleibt wo man ist',desc:'Kein Auto-Scroll. Wenn du weiter unten bist beim Analysieren, bleibst du dort. Ergebnisse erscheinen wo der Fokus ist.',preview:`
+        <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:4px;overflow:hidden">
+          <div style="transform:translateY(-40px);display:flex;flex-direction:column;gap:4px">
+            <div style="display:flex;align-items:center;gap:5px;margin-bottom:4px">
+              <div style="width:9px;height:9px;background:#1a2a1a;border-radius:2px;border:1px solid #059669;flex-shrink:0"></div>
+              <div style="height:4px;background:#555;border-radius:2px;width:45%;opacity:.5"></div>
+            </div>
+            ${Array(3).fill(0).map(()=>`<div style="height:3px;background:#0a3a2a;border-radius:2px;width:85%"></div>`).join('')}
+            <div style="height:1px;background:#1e1e22;margin-top:4px"></div>
+            <div style="display:flex;align-items:center;gap:5px;margin-top:2px">
+              <div style="width:9px;height:9px;background:#1a2a1a;border-radius:2px;border:1px solid #059669;flex-shrink:0"></div>
+              <div style="height:4px;background:#555;border-radius:2px;width:55%;opacity:.5"></div>
+            </div>
+            ${[90,75,85,60].map(w=>`<div style="height:3px;background:#1a3a1a;border-radius:2px;width:${w}%"></div>`).join('')}
+          </div>
+        </div>`},
+      {id:'highlight-new-flash',label:'Kurzes Aufleuchten',desc:'Alle Abschnitt-Header leuchten kurz grün auf wenn neue Ergebnisse erscheinen — kein Scroll, aber visuelles Signal.',preview:`
+        <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:5px">
+          ${['BEWERTUNG','LEBENSLAUF-ÄNDERUNGEN','ANSCHREIBEN'].map((l,i)=>`
+            <div style="display:flex;align-items:center;gap:4px;padding:3px 5px;background:${['#041510','#03100a','#020c07'][i]};border-radius:4px;border:1px solid ${'#059669'}55">
+              <div style="width:8px;height:8px;background:#1a2a1a;border-radius:2px;border:1px solid #059669;flex-shrink:0"></div>
+              <div style="height:3px;background:#059669;border-radius:2px;flex:1;opacity:${[.8,.5,.3][i]}"></div>
+              <div style="flex:1;height:1px;background:#083a20"></div>
+            </div>`).join('')}
+        </div>`}
+    ]
+  },
+  {
+    id:'profile-selector-trigger',label:'Frage 15 — Profil-Avatar: Klick-Verhalten',
+    text:'Was passiert wenn du auf den Profil-Avatar unten in der Sidebar klickst?',
+    sub:'Der Avatar zeigt die Initialen und Farbe des aktiven Profils. Was erscheint beim Klick?',
+    cols:3,options:[
+      {id:'dropdown-above',label:'Dropdown nach oben',desc:'Ein Menü klappt nach oben auf: alle Profile, "+ Neues Profil", "Einstellungen". Klick wechselt aktives Profil.',preview:`
+        <div style="position:relative;display:flex;height:100%;background:#0a0a0c;overflow:hidden">
+          <div style="width:44px;background:#080810;border-right:1px solid #1a1a20;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:8px;position:relative;z-index:1">
+            <div style="width:8px;height:8px;background:#083a20;border-radius:50%;border:1px solid #059669;margin-bottom:2px"></div>
+            <div style="width:20px;height:20px;background:#1a2a1a;border-radius:4px;border:2px solid #059669"></div>
+            <div style="width:20px;height:20px;background:#111;border-radius:4px;border:1px solid #222"></div>
+            <div style="flex:1"></div>
+            <div style="width:26px;height:26px;background:#1e3a1e;border-radius:50%;border:2px solid #059669;display:flex;align-items:center;justify-content:center;font-size:7px;color:#059669;font-weight:700">JB</div>
+          </div>
+          <div style="position:absolute;left:50px;bottom:8px;width:120px;background:#111114;border:1px solid #1e3a1e;border-radius:7px;overflow:hidden;z-index:2">
+            ${[['#059669','Javier DE',true],['#3b82f6','Javier ES',false]].map(([c,n,act])=>`
+              <div style="padding:5px 8px;display:flex;align-items:center;gap:5px;background:${act?'#041510':'transparent'};border-bottom:1px solid #111">
+                <div style="width:10px;height:10px;background:${c};border-radius:50%;flex-shrink:0"></div>
+                <div style="height:3px;background:${act?'#888':'#444'};border-radius:2px;flex:1"></div>
+                ${act?`<div style="font-size:8px;color:#059669">✓</div>`:''}
+              </div>`).join('')}
+            <div style="padding:5px 8px;display:flex;align-items:center;gap:5px">
+              <div style="width:10px;height:10px;border:1px dashed #333;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:7px;color:#333">+</div>
+              <div style="height:3px;background:#333;border-radius:2px;flex:1"></div>
+            </div>
+          </div>
+        </div>`},
+      {id:'side-panel',label:'Panel von rechts',desc:'Ein Panel gleitet von rechts herein mit Profilwahl + Verwaltungs-Optionen. Mehr Platz für lange Profilnamen.',preview:`
+        <div style="position:relative;display:flex;height:100%;background:#0a0a0c;overflow:hidden">
+          <div style="width:44px;background:#080810;border-right:1px solid #1a1a20;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:8px;flex-shrink:0">
+            <div style="width:8px;height:8px;background:#083a20;border-radius:50%;border:1px solid #059669;margin-bottom:2px"></div>
+            <div style="width:20px;height:20px;background:#1a2a1a;border-radius:4px;border:2px solid #059669"></div>
+            <div style="width:20px;height:20px;background:#111;border-radius:4px;border:1px solid #222"></div>
+            <div style="flex:1"></div>
+            <div style="width:26px;height:26px;background:#1e3a1e;border-radius:50%;border:2px solid #059669;font-size:7px;color:#059669;font-weight:700;display:flex;align-items:center;justify-content:center">JB</div>
+          </div>
+          <div style="flex:1;opacity:.3;padding:8px;display:flex;flex-direction:column;gap:3px">
+            <div style="flex:1;background:#111;border-radius:5px;min-height:0"></div>
+          </div>
+          <div style="position:absolute;right:0;top:0;bottom:0;width:130px;background:#0d0d12;border-left:1px solid #1e3a1e;padding:10px;display:flex;flex-direction:column;gap:6px;box-shadow:-4px 0 16px rgba(0,0,0,.6)">
+            <div style="height:5px;background:#e8e8ea;border-radius:2px;width:50%;margin-bottom:4px"></div>
+            ${[['#059669','Javier DE',true],['#3b82f6','Javier ES',false]].map(([c,n,act])=>`
+              <div style="display:flex;align-items:center;gap:5px;padding:4px 5px;background:${act?'#041510':'transparent'};border-radius:4px;border:${act?'1px solid #059669':'1px solid transparent'}">
+                <div style="width:12px;height:12px;background:${c};border-radius:50%;flex-shrink:0"></div>
+                <div style="height:3px;background:${act?'#888':'#444'};border-radius:2px;flex:1"></div>
+              </div>`).join('')}
+          </div>
+        </div>`},
+      {id:'full-settings-page',label:'Öffnet Profil-Einstellungen',desc:'Klick auf Avatar öffnet die Einstellungs-Seite direkt auf dem Profil-Tab. Profilverwaltung und App-Einstellungen in einer Seite.',preview:`
+        <div style="display:flex;height:100%;background:#0a0a0c;overflow:hidden">
+          <div style="width:44px;background:#080810;border-right:1px solid #1a1a20;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:8px">
+            <div style="width:8px;height:8px;background:#083a20;border-radius:50%;border:1px solid #059669;margin-bottom:2px"></div>
+            <div style="width:20px;height:20px;background:#1a2a1a;border-radius:4px;border:1px solid #1a1a1e;opacity:.4"></div>
+            <div style="width:20px;height:20px;background:#111;border-radius:4px;border:1px solid #1a1a1e;opacity:.4"></div>
+            <div style="flex:1"></div>
+            <div style="width:26px;height:26px;background:#1e3a1e;border-radius:50%;border:3px solid #059669;font-size:7px;color:#059669;font-weight:700;display:flex;align-items:center;justify-content:center">JB</div>
+          </div>
+          <div style="flex:1;padding:8px;display:flex;flex-direction:column;gap:5px">
+            <div style="height:5px;background:#e8e8ea;border-radius:2px;width:35%;margin-bottom:4px"></div>
+            <div style="display:flex;gap:3px;margin-bottom:4px">
+              ${['Profile','App'].map((t,i)=>`<div style="height:16px;padding:0 7px;background:${i===0?'#041510':'transparent'};border-radius:4px;border:${i===0?'1px solid #059669':'1px solid #222'};display:flex;align-items:center"><div style="height:3px;background:${i===0?'#059669':'#444'};border-radius:2px;width:20px"></div></div>`).join('')}
+            </div>
+            ${Array(2).fill(0).map(()=>`<div style="height:18px;background:#111114;border-radius:5px;border:1px solid #1a1a1e"></div>`).join('')}
+          </div>
+        </div>`}
+    ]
+  }
+];
+
+let current = 0;
+const answers = JSON.parse(localStorage.getItem('design-answers-11') || '{}');
+
+function render() {
+  const q = Q[current];
+  const isSummary = current >= Q.length;
+  document.getElementById('hdr-count').textContent = isSummary ? 'Fertig!' : `${current+1} / ${Q.length}`;
+  document.getElementById('prog').style.width = `${((current+(isSummary?1:0))/Q.length)*100}%`;
+  document.getElementById('btn-back').style.display = (current===0||isSummary)?'none':'';
+  document.getElementById('btn-next').style.display = isSummary?'none':'';
+  if (isSummary) { renderSummary(); return; }
+  const sel = answers[q.id];
+  document.getElementById('nav-info').textContent = sel?'':'Bitte eine Option wählen';
+  document.getElementById('btn-next').disabled = !sel;
+  document.getElementById('summary').classList.remove('visible');
+  document.getElementById('question-area').style.display = '';
+  document.getElementById('question-area').innerHTML = `
+    <div class="q-label">${q.label}</div>
+    <div class="q-text">${q.text}</div>
+    ${q.sub?`<div class="q-sub">${q.sub}</div>`:''}
+    <div class="opts ${q.cols===3?'cols3':''}">
+      ${q.options.map(opt=>`
+        <div class="opt ${sel===opt.id?'selected':''}" onclick="selectOpt('${q.id}','${opt.id}',this)">
+          <div class="opt-preview">${opt.preview}</div>
+          <div class="opt-label">${opt.label}</div>
+          <div class="opt-desc">${opt.desc}</div>
+        </div>`).join('')}
+    </div>`;
+}
+function selectOpt(qid,oid,el){
+  answers[qid]=oid;
+  localStorage.setItem('design-answers-11',JSON.stringify(answers));
+  document.querySelectorAll('.opt').forEach(e=>e.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('btn-next').disabled=false;
+  document.getElementById('nav-info').textContent='';
+}
+function goNext(){current++;render();window.scrollTo(0,0);}
+function goBack(){if(current>0){current--;render();window.scrollTo(0,0);}}
+function renderSummary(){
+  document.getElementById('question-area').style.display='none';
+  const sumEl=document.getElementById('summary');
+  sumEl.classList.add('visible');
+  let rows='';
+  Q.forEach(q=>{
+    const aid=answers[q.id];
+    const opt=q.options.find(o=>o.id===aid);
+    if(!opt)return;
+    rows+=`<div class="summary-item"><div class="summary-preview">${opt.preview}</div><div><div class="summary-q">${q.label}</div><div class="summary-a">${opt.label}</div><div style="font-size:.75rem;color:#555;margin-top:.15rem">${opt.desc}</div></div></div>`;
+  });
+  sumEl.innerHTML=`<div class="done-msg"><h2>🎉 Design-Interview abgeschlossen!</h2><p>Alle Entscheidungen über alle Runden gespeichert. Claude baut jetzt die komplette React-UI.</p></div>${rows}
+    <button class="btn btn-primary" style="width:100%;margin-top:1rem;padding:.9rem" onclick="submit()">Absenden & Bauen →</button>`;
+  fetch('/api/design-answers-11',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(answers)})
+    .then(r=>r.json()).then(()=>{}).catch(()=>{});
+}
+function submit(){
+  fetch('/api/design-answers-11',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(answers)})
+    .then(r=>r.json()).then(()=>{document.querySelector('.done-msg p').textContent='✅ Gespeichert! Das Design-Interview ist vollständig. Jetzt geht\'s ans Bauen.';});
+}
+render();
+</script>
+</body>
+</html>

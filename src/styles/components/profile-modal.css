@@ -1,0 +1,199 @@
+.profile-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.profile-modal[hidden] { display: none; }
+
+.profile-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+}
+
+.profile-modal__panel {
+  position: relative;
+  z-index: 1;
+  background: var(--surface);
+  border: 1px solid var(--border-bright);
+  border-radius: 10px;
+  width: 100%;
+  max-width: 640px;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.profile-modal__panel::-webkit-scrollbar { width: 4px; }
+.profile-modal__panel::-webkit-scrollbar-track { background: transparent; }
+.profile-modal__panel::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 2px; }
+
+.profile-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 1;
+  flex-shrink: 0;
+}
+
+.profile-modal__title {
+  font-family: var(--serif);
+  font-size: 18px;
+  font-style: italic;
+  font-weight: 400;
+  color: var(--text);
+}
+
+.profile-modal__close {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  transition: color 0.15s;
+}
+
+.profile-modal__close:hover { color: var(--text); }
+
+.profile-modal__body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex: 1;
+}
+
+.profile-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── Inline field rows (side-by-side inputs) ── */
+.profile-modal__field-row {
+  display: flex;
+  gap: 12px;
+}
+
+.profile-modal__field-row > .profile-modal__field {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Fixed-width modifiers for narrow sub-fields */
+.profile-modal__field--w80  { flex: 0 0 80px  !important; }
+.profile-modal__field--w120 { flex: 0 0 120px !important; }
+
+/* Required indicator — applied dynamically by open() based on create vs edit mode */
+.profile-modal__field--required > label::after {
+  content: ' *';
+}
+
+.profile-modal__field label {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+}
+
+.profile-modal__field input,
+.profile-modal__field textarea {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.7;
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color 0.15s;
+  resize: vertical;
+}
+
+.profile-modal__field input:focus,
+.profile-modal__field textarea:focus { border-color: var(--border-bright); }
+
+.profile-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  position: sticky;
+  bottom: 0;
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.profile-modal__status {
+  font-size: 11px;
+  color: var(--muted);
+  flex: 1;
+}
+
+.profile-modal__status--error { color: var(--fail); }
+
+.profile-modal__actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.profile-modal__cancel {
+  padding: 10px 16px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.profile-modal__cancel:hover {
+  color: var(--text);
+  border-color: var(--border-bright);
+}
+
+.profile-modal__save {
+  padding: 10px 20px;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: #0e0e0e;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.profile-modal__save:hover { opacity: 0.9; }
+.profile-modal__save:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.profile-modal__avatar-preview {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 50%;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+}

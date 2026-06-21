@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design Interview — Runde 4</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0a0c;color:#e8e8ea;font-family:system-ui,sans-serif;min-height:100vh}
+#shell{max-width:960px;margin:0 auto;padding:2rem 1.5rem 6rem}
+.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:2.5rem}
+.hdr-title{font-size:.85rem;font-weight:600;color:#555;letter-spacing:.08em;text-transform:uppercase}
+.hdr-count{font-size:.85rem;color:#555}
+.prog-wrap{height:3px;background:#1e1e22;border-radius:99px;margin-bottom:2.5rem;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,#059669,#10b981);border-radius:99px;transition:width .4s ease}
+.q-label{font-size:.75rem;font-weight:600;color:#059669;text-transform:uppercase;letter-spacing:.1em;margin-bottom:.6rem}
+.q-text{font-size:1.5rem;font-weight:700;line-height:1.3;margin-bottom:.5rem}
+.q-sub{font-size:.9rem;color:#666;margin-bottom:2rem}
+.opts{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}
+.opts.cols3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:600px){.opts,.opts.cols3{grid-template-columns:1fr}}
+.opt{border:2px solid #1e1e22;border-radius:12px;overflow:hidden;cursor:pointer;transition:border-color .15s,transform .15s;background:#0f0f12}
+.opt:hover{border-color:#059669;transform:translateY(-2px)}
+.opt.selected{border-color:#059669;background:#041510}
+.opt-preview{width:100%;height:160px;overflow:hidden;position:relative;background:#16161a}
+.opt-label{padding:.75rem 1rem;font-size:.875rem;font-weight:600}
+.opt-desc{padding:0 1rem .75rem;font-size:.75rem;color:#666;line-height:1.4}
+.nav{position:fixed;bottom:0;left:0;right:0;background:#0a0a0c;border-top:1px solid #1e1e22;padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center}
+.nav-info{font-size:.8rem;color:#444}
+.btn{padding:.6rem 1.4rem;border-radius:8px;font-size:.875rem;font-weight:600;cursor:pointer;border:none;transition:background .15s}
+.btn-primary{background:#059669;color:#fff}
+.btn-primary:hover{background:#047857}
+.btn-primary:disabled{background:#09261a;color:#2a5a3a;cursor:not-allowed}
+.btn-ghost{background:transparent;color:#666;border:1px solid #2a2a2e}
+.btn-ghost:hover{border-color:#555;color:#aaa}
+.summary-wrap{display:none}
+.summary-wrap.visible{display:block}
+.summary-item{display:flex;gap:1rem;align-items:flex-start;padding:1rem;border:1px solid #1e1e22;border-radius:10px;margin-bottom:.75rem;background:#0f0f12}
+.summary-q{font-size:.75rem;color:#666;margin-bottom:.2rem}
+.summary-a{font-size:.9rem;font-weight:600}
+.summary-preview{width:80px;height:50px;border-radius:6px;overflow:hidden;flex-shrink:0}
+.done-msg{text-align:center;padding:2rem 0 1.5rem}
+.done-msg h2{font-size:1.6rem;font-weight:700;margin-bottom:.5rem}
+.done-msg p{color:#666;margin-bottom:2rem}
+.context{background:#041510;border:1px solid #083a20;border-radius:10px;padding:1rem 1.25rem;margin-bottom:2rem;font-size:.8rem;color:#34d399}
+.context strong{color:#6ee7b7}
+.context-row{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.5rem}
+.tag{padding:2px 8px;background:#083a20;border-radius:99px;font-size:.75rem;color:#6ee7b7}
+</style>
+</head>
+<body>
+<div id="shell">
+  <div class="hdr">
+    <span class="hdr-title">Design Interview — Runde 4</span>
+    <span class="hdr-count" id="hdr-count"></span>
+  </div>
+  <div class="prog-wrap"><div class="prog-fill" id="prog"></div></div>
+
+  <div class="context">
+    <strong>Neue Features diese Runde:</strong> Download-Buttons · Verlauf → Vollansicht · Follow-up Chat
+    <div class="context-row">
+      <span class="tag">35% Input / 65% Ergebnis</span>
+      <span class="tag">Schrittliste beim Laden</span>
+      <span class="tag">Diff = erste 8 Zeilen</span>
+      <span class="tag">Anschreiben mit Kopier-Button</span>
+    </div>
+  </div>
+
+  <div id="question-area"></div>
+  <div class="summary-wrap" id="summary"></div>
+</div>
+
+<div class="nav">
+  <button class="btn btn-ghost" id="btn-back" onclick="goBack()">← Zurück</button>
+  <span class="nav-info" id="nav-info"></span>
+  <button class="btn btn-primary" id="btn-next" onclick="goNext()" disabled>Weiter →</button>
+</div>
+
+<script>
+const questions = [
+  {
+    id: 'download-placement',
+    label: 'Neue Anforderung — Downloads',
+    text: 'Wo sind die Download-Buttons für CV und Anschreiben?',
+    sub: 'Beide Dokumente (.docx) müssen herunterladbar sein. Wo gehören die Buttons hin?',
+    cols: 2,
+    options: [
+      {
+        id: 'per-section',
+        label: 'Je ein Button pro Sektion',
+        desc: 'Direkt im Header der jeweiligen Sektion: "↓ CV herunterladen" beim Diff, "↓ Anschreiben" beim Anschreiben-Block.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;align-items:center;gap:4px">
+              <div style="height:3px;background:#059669;width:12px;border-radius:2px"></div>
+              <div style="height:4px;background:#059669;border-radius:2px;width:40px"></div>
+              <div style="flex:1;height:1px;background:#1e1e22"></div>
+              <div style="height:16px;background:#0a0a0c;border-radius:4px;border:1px solid #2a2a2e;padding:0 6px;display:flex;align-items:center;gap:3px">
+                <div style="width:5px;height:5px;border-bottom:1.5px solid #059669;border-right:1.5px solid #059669;transform:rotate(45deg) translateY(-1px)"></div>
+                <div style="height:4px;background:#059669;border-radius:2px;width:28px"></div>
+              </div>
+            </div>
+            <div style="height:4px;background:#0a3a2a;border-radius:2px;width:85%"></div>
+            <div style="height:4px;background:#1e1e22;border-radius:2px;width:70%"></div>
+            <div style="height:4px;background:#3a1a1a;border-radius:2px;width:80%;opacity:.7"></div>
+            <div style="height:10px"></div>
+            <div style="display:flex;align-items:center;gap:4px">
+              <div style="height:3px;background:#555;width:12px;border-radius:2px"></div>
+              <div style="height:4px;background:#555;border-radius:2px;width:50px"></div>
+              <div style="flex:1;height:1px;background:#1e1e22"></div>
+              <div style="height:16px;background:#0a0a0c;border-radius:4px;border:1px solid #2a2a2e;padding:0 6px;display:flex;align-items:center;gap:3px">
+                <div style="width:5px;height:5px;border-bottom:1.5px solid #555;border-right:1.5px solid #555;transform:rotate(45deg) translateY(-1px)"></div>
+                <div style="height:4px;background:#555;border-radius:2px;width:32px"></div>
+              </div>
+            </div>
+            <div style="height:4px;background:#1e1e22;border-radius:2px;width:90%"></div>
+            <div style="height:4px;background:#1e1e22;border-radius:2px;width:75%"></div>
+          </div>`
+      },
+      {
+        id: 'download-bar',
+        label: 'Download-Leiste ganz unten',
+        desc: 'Beide Download-Buttons zusammen in einer festen Leiste am unteren Rand des Ergebnisbereichs. Immer sichtbar.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;display:flex;flex-direction:column">
+            <div style="flex:1;padding:10px;display:flex;flex-direction:column;gap:4px;overflow:hidden">
+              <div style="height:12px;background:#041510;border-radius:99px;width:50%;border:1px solid #083a20"></div>
+              <div style="display:flex;align-items:center;gap:4px;margin-top:4px"><div style="height:3px;background:#059669;width:12px;border-radius:2px"></div><div style="height:4px;background:#059669;border-radius:2px;width:35px"></div><div style="flex:1;height:1px;background:#1e1e22"></div></div>
+              <div style="height:4px;background:#0a3a2a;border-radius:2px;width:85%"></div>
+              <div style="height:4px;background:#3a1a1a;border-radius:2px;width:70%;opacity:.7"></div>
+              <div style="height:4px;background:#1e1e22;border-radius:2px;width:80%"></div>
+            </div>
+            <div style="padding:8px;border-top:1px solid #1e1e22;background:#080810;display:flex;gap:6px">
+              <div style="flex:1;height:22px;background:#059669;border-radius:5px;display:flex;align-items:center;justify-content:center;gap:3px">
+                <div style="height:5px;background:rgba(255,255,255,.6);border-radius:2px;width:50%"></div>
+              </div>
+              <div style="flex:1;height:22px;background:#0f0f12;border-radius:5px;border:1px solid #2a2a2e;display:flex;align-items:center;justify-content:center">
+                <div style="height:5px;background:#555;border-radius:2px;width:50%"></div>
+              </div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'floating-downloads',
+        label: 'Schwebende Download-Buttons',
+        desc: 'Zwei kleine schwebende Buttons oben rechts im Ergebnisbereich. Immer sichtbar, stören nicht.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:5px;position:relative">
+            <div style="position:absolute;top:8px;right:8px;display:flex;gap:4px">
+              <div style="height:18px;background:#059669;border-radius:4px;padding:0 6px;display:flex;align-items:center">
+                <div style="height:4px;background:rgba(255,255,255,.7);border-radius:2px;width:22px"></div>
+              </div>
+              <div style="height:18px;background:#111;border:1px solid #2a2a2e;border-radius:4px;padding:0 6px;display:flex;align-items:center">
+                <div style="height:4px;background:#555;border-radius:2px;width:22px"></div>
+              </div>
+            </div>
+            <div style="height:12px;background:#041510;border-radius:99px;width:50%;border:1px solid #083a20;margin-top:4px"></div>
+            <div style="display:flex;align-items:center;gap:4px;margin-top:6px"><div style="height:3px;background:#059669;width:12px;border-radius:2px"></div><div style="height:4px;background:#059669;border-radius:2px;width:35px"></div><div style="flex:1;height:1px;background:#1e1e22"></div></div>
+            <div style="height:4px;background:#0a3a2a;border-radius:2px;width:85%"></div>
+            <div style="height:4px;background:#3a1a1a;border-radius:2px;width:70%;opacity:.7"></div>
+            <div style="height:4px;background:#1e1e22;border-radius:2px;width:80%"></div>
+          </div>`
+      },
+      {
+        id: 'download-badge-section',
+        label: 'Downloads neben dem Badge',
+        desc: 'Die zwei Buttons sitzen direkt neben dem Empfohlen/Grenzfall-Badge oben. Eine Zeile, alles zusammen.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+              <div style="height:16px;background:#041510;border-radius:99px;border:1px solid #083a20;padding:0 8px;display:flex;align-items:center">
+                <div style="height:4px;background:#059669;border-radius:2px;width:40px"></div>
+              </div>
+              <div style="flex:1"></div>
+              <div style="height:16px;background:#059669;border-radius:4px;padding:0 6px;display:flex;align-items:center">
+                <div style="height:4px;background:rgba(255,255,255,.7);border-radius:2px;width:20px"></div>
+              </div>
+              <div style="height:16px;background:#111;border:1px solid #2a2a2e;border-radius:4px;padding:0 6px;display:flex;align-items:center">
+                <div style="height:4px;background:#555;border-radius:2px;width:22px"></div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:4px;margin-top:4px"><div style="height:3px;background:#059669;width:12px;border-radius:2px"></div><div style="height:4px;background:#059669;border-radius:2px;width:35px"></div><div style="flex:1;height:1px;background:#1e1e22"></div></div>
+            <div style="height:4px;background:#0a3a2a;border-radius:2px;width:85%"></div>
+            <div style="height:4px;background:#3a1a1a;border-radius:2px;width:70%;opacity:.7"></div>
+            <div style="height:4px;background:#1e1e22;border-radius:2px;width:80%"></div>
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'history-open',
+    label: 'Neue Anforderung — Verlauf',
+    text: 'Du klickst auf einen Eintrag im Verlauf. Was passiert?',
+    sub: 'Jeder Verlaufs-Eintrag ist eine vergangene Analyse. Klicken soll die vollständige Ansicht öffnen.',
+    cols: 2,
+    options: [
+      {
+        id: 'replace-view',
+        label: 'Vollbild-Ansicht (Navigation)',
+        desc: 'Klick navigiert in eine vollständige Seite — genauso wie direkt nach der Analyse. Back-Button führt zurück zur Verlauf-Liste.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c">
+            <div style="width:42px;background:#080810;border-right:1px solid #1a1a20;display:flex;flex-direction:column;align-items:center;padding:6px 0;gap:5px">
+              <div style="width:24px;height:24px;background:#1e1e22;border-radius:6px"></div>
+              <div style="width:24px;height:24px;background:#041510;border-radius:6px;border:1px solid #059669"></div>
+            </div>
+            <div style="width:35%;background:#0a0a0c;border-right:1px solid #1a1a20;padding:6px;display:flex;flex-direction:column;gap:4px">
+              <div style="height:5px;background:#555;border-radius:2px;width:55%;margin-bottom:2px"></div>
+              <div style="height:14px;background:#111114;border-radius:4px;border:1px solid #222"></div>
+              <div style="flex:1;background:#0f0f12;border-radius:4px;border:1px solid #1a1a1e"></div>
+              <div style="height:14px;background:#059669;border-radius:4px"></div>
+            </div>
+            <div style="flex:1;padding:6px;display:flex;flex-direction:column;gap:4px">
+              <div style="height:12px;background:#041510;border-radius:99px;width:55%;border:1px solid #083a20"></div>
+              <div style="display:flex;align-items:center;gap:4px;margin-top:2px"><div style="height:3px;background:#059669;width:12px;border-radius:2px"></div><div style="height:4px;background:#059669;border-radius:2px;width:30px"></div><div style="flex:1;height:1px;background:#1e1e22"></div></div>
+              <div style="height:4px;background:#0a3a2a;border-radius:2px;width:80%"></div>
+              <div style="height:4px;background:#3a1a1a;border-radius:2px;width:65%;opacity:.7"></div>
+            </div>
+          </div>
+          <div style="position:absolute;top:6px;left:50px;font-size:7px;color:#059669;background:#041510;border:1px solid #083a20;border-radius:3px;padding:1px 5px">← zurück</div>`
+      },
+      {
+        id: 'right-panel',
+        label: 'Ergebnis im rechten Panel',
+        desc: 'Die Verlauf-Liste bleibt links sichtbar. Das Ergebnis der ausgewählten Analyse erscheint rechts daneben.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c">
+            <div style="width:42px;background:#080810;border-right:1px solid #1a1a20;display:flex;flex-direction:column;align-items:center;padding:6px 0;gap:5px">
+              <div style="width:24px;height:24px;background:#1e1e22;border-radius:6px"></div>
+              <div style="width:24px;height:24px;background:#041510;border-radius:6px;border:1px solid #059669"></div>
+            </div>
+            <div style="width:90px;background:#080810;border-right:1px solid #1a1a20;padding:5px;display:flex;flex-direction:column;gap:3px">
+              <div style="height:5px;background:#555;border-radius:2px;width:60%;margin-bottom:3px"></div>
+              <div style="padding:4px 5px;background:#041510;border-radius:5px;border:1px solid #083a20;display:flex;flex-direction:column;gap:2px">
+                <div style="height:4px;background:#059669;border-radius:2px;width:80%"></div>
+                <div style="height:3px;background:#1a3a1a;border-radius:2px;width:60%"></div>
+              </div>
+              <div style="padding:4px 5px;background:#0f0f12;border-radius:5px;border:1px solid #1e1e22;display:flex;flex-direction:column;gap:2px">
+                <div style="height:4px;background:#333;border-radius:2px;width:80%"></div>
+                <div style="height:3px;background:#1e1e22;border-radius:2px;width:60%"></div>
+              </div>
+              <div style="padding:4px 5px;background:#0f0f12;border-radius:5px;border:1px solid #1e1e22;display:flex;flex-direction:column;gap:2px">
+                <div style="height:4px;background:#333;border-radius:2px;width:70%"></div>
+                <div style="height:3px;background:#1e1e22;border-radius:2px;width:55%"></div>
+              </div>
+            </div>
+            <div style="flex:1;padding:6px;display:flex;flex-direction:column;gap:4px">
+              <div style="height:12px;background:#041510;border-radius:99px;width:60%;border:1px solid #083a20"></div>
+              <div style="display:flex;align-items:center;gap:4px"><div style="height:3px;background:#059669;width:12px;border-radius:2px"></div><div style="height:4px;background:#059669;border-radius:2px;width:30px"></div><div style="flex:1;height:1px;background:#1e1e22"></div></div>
+              <div style="height:4px;background:#0a3a2a;border-radius:2px;width:80%"></div>
+              <div style="height:4px;background:#3a1a1a;border-radius:2px;width:65%;opacity:.7"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'modal',
+        label: 'Modal / Overlay',
+        desc: 'Klick öffnet ein großes Overlay über dem aktuellen Bildschirm. X zum Schließen. Verlauf bleibt im Hintergrund.',
+        preview: `
+          <div style="position:relative;height:100%;background:#0a0a0c;overflow:hidden">
+            <div style="display:flex;height:100%;opacity:.3">
+              <div style="width:42px;background:#080810;border-right:1px solid #1a1a20"></div>
+              <div style="flex:1;display:flex;flex-direction:column;gap:4px;padding:8px">
+                <div style="height:16px;background:#0f0f12;border-radius:4px;border:1px solid #1e1e22"></div>
+                <div style="height:16px;background:#0f0f12;border-radius:4px;border:1px solid #1e1e22"></div>
+                <div style="height:16px;background:#0f0f12;border-radius:4px;border:1px solid #1e1e22"></div>
+              </div>
+            </div>
+            <div style="position:absolute;inset:8px;background:#111114;border-radius:10px;border:1px solid #2a2a2e;padding:10px;display:flex;flex-direction:column;gap:5px;box-shadow:0 8px 32px rgba(0,0,0,.6)">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+                <div style="height:6px;background:#059669;border-radius:2px;width:50%"></div>
+                <div style="width:14px;height:14px;background:#1e1e22;border-radius:99px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#555">✕</div>
+              </div>
+              <div style="height:10px;background:#041510;border-radius:99px;width:45%;border:1px solid #083a20"></div>
+              <div style="height:3px;background:#059669;border-radius:2px;width:80%"></div>
+              <div style="height:3px;background:#1e1e22;border-radius:2px;width:65%"></div>
+              <div style="height:3px;background:#3a1a1a;border-radius:2px;width:75%;opacity:.7"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'split-history',
+        label: 'Geteilte Verlauf-Seite',
+        desc: 'Auf der Verlauf-Seite: Liste links (kompakt), vollständiges Ergebnis rechts. Wie ein E-Mail-Client.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c">
+            <div style="width:42px;background:#080810;border-right:1px solid #1a1a20;display:flex;flex-direction:column;align-items:center;padding:6px 0;gap:5px">
+              <div style="width:24px;height:24px;background:#1e1e22;border-radius:6px"></div>
+              <div style="width:24px;height:24px;background:#041510;border-radius:6px;border:1px solid #059669"></div>
+            </div>
+            <div style="width:85px;background:#080810;border-right:1px solid #1a1a20;padding:5px;display:flex;flex-direction:column;gap:3px">
+              <div style="height:5px;background:#555;border-radius:2px;width:60%;margin-bottom:3px"></div>
+              <div style="padding:5px;background:#041510;border-radius:5px;border-left:2px solid #059669">
+                <div style="height:4px;background:#059669;border-radius:2px;width:85%"></div>
+                <div style="height:3px;background:#1a3a1a;border-radius:2px;width:60%;margin-top:2px"></div>
+                <div style="height:3px;background:#333;border-radius:2px;width:45%;margin-top:2px"></div>
+              </div>
+              <div style="padding:5px;background:#0f0f12;border-radius:5px">
+                <div style="height:4px;background:#333;border-radius:2px;width:80%"></div>
+                <div style="height:3px;background:#1e1e22;border-radius:2px;width:55%;margin-top:2px"></div>
+                <div style="height:3px;background:#1e1e22;border-radius:2px;width:40%;margin-top:2px"></div>
+              </div>
+              <div style="padding:5px;background:#0f0f12;border-radius:5px">
+                <div style="height:4px;background:#333;border-radius:2px;width:75%"></div>
+                <div style="height:3px;background:#1e1e22;border-radius:2px;width:50%;margin-top:2px"></div>
+              </div>
+            </div>
+            <div style="flex:1;padding:6px;display:flex;flex-direction:column;gap:4px">
+              <div style="height:11px;background:#041510;border-radius:99px;width:55%;border:1px solid #083a20"></div>
+              <div style="display:flex;align-items:center;gap:4px"><div style="height:3px;background:#059669;width:10px;border-radius:2px"></div><div style="height:3px;background:#059669;border-radius:2px;width:28px"></div><div style="flex:1;height:1px;background:#1e1e22"></div></div>
+              <div style="height:3px;background:#0a3a2a;border-radius:2px;width:85%"></div>
+              <div style="height:3px;background:#3a1a1a;border-radius:2px;width:65%;opacity:.7"></div>
+              <div style="height:3px;background:#1e1e22;border-radius:2px;width:75%"></div>
+            </div>
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'chat-placement',
+    label: 'Neue Anforderung — Follow-up Chat',
+    text: 'Wo befindet sich der Follow-up Chat zu einer Bewerbung?',
+    sub: 'Du willst Folgefragen zur spezifischen Stelle stellen können — z.B. "Welche Lücken sind am kritischsten?" oder "Wie antworte ich auf Frage X?"',
+    cols: 2,
+    options: [
+      {
+        id: 'stacked-section',
+        label: 'Vierte Sektion (gestapelt)',
+        desc: 'Chat ist die letzte Sektion im Ergebnisbereich — unter Score, Diff, Anschreiben. Immer da, kein extra Klick.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:5px;overflow:hidden">
+            <div style="height:11px;background:#041510;border-radius:99px;width:50%;border:1px solid #083a20"></div>
+            <div style="display:flex;align-items:center;gap:4px"><div style="height:3px;background:#059669;width:10px;border-radius:2px"></div><div style="height:3px;background:#059669;border-radius:2px;width:28px"></div><div style="flex:1;height:1px;background:#1e1e22"></div></div>
+            <div style="height:3px;background:#0a3a2a;border-radius:2px;width:80%"></div>
+            <div style="height:3px;background:#3a1a1a;border-radius:2px;width:65%;opacity:.7"></div>
+            <div style="display:flex;align-items:center;gap:4px;margin-top:2px"><div style="height:3px;background:#555;width:10px;border-radius:2px"></div><div style="height:3px;background:#555;border-radius:2px;width:35px"></div><div style="flex:1;height:1px;background:#1e1e22"></div></div>
+            <div style="height:3px;background:#1e1e22;border-radius:2px;width:90%"></div>
+            <div style="height:3px;background:#1e1e22;border-radius:2px;width:70%"></div>
+            <div style="display:flex;align-items:center;gap:4px;margin-top:2px"><div style="height:3px;background:#555;width:10px;border-radius:2px"></div><div style="height:3px;background:#555;border-radius:2px;width:30px"></div><div style="flex:1;height:1px;background:#1e1e22"></div></div>
+            <div style="height:14px;background:#0f0f12;border-radius:5px;border:1px solid #1e3a1e;display:flex;align-items:center;padding:0 6px;gap:4px">
+              <div style="flex:1;height:4px;background:#1e1e22;border-radius:2px"></div>
+              <div style="height:11px;width:11px;background:#059669;border-radius:3px"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'side-drawer',
+        label: 'Seitliches Panel (Drawer)',
+        desc: 'Ein Panel fährt von rechts rein wenn du den Chat öffnest. Schiebt den Ergebnisbereich etwas zusammen.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c;position:relative;overflow:hidden">
+            <div style="flex:1;padding:8px;display:flex;flex-direction:column;gap:4px;opacity:.7">
+              <div style="height:11px;background:#041510;border-radius:99px;width:60%;border:1px solid #083a20"></div>
+              <div style="height:3px;background:#0a3a2a;border-radius:2px;width:80%"></div>
+              <div style="height:3px;background:#3a1a1a;border-radius:2px;width:65%;opacity:.7"></div>
+              <div style="height:3px;background:#1e1e22;border-radius:2px;width:75%"></div>
+            </div>
+            <div style="width:110px;background:#0f0f12;border-left:1px solid #1e3a1e;padding:6px;display:flex;flex-direction:column;gap:4px">
+              <div style="font-size:7px;color:#059669;font-weight:700;margin-bottom:2px">Follow-up</div>
+              <div style="background:#041510;border-radius:4px;padding:4px;border:1px solid #083a20">
+                <div style="height:3px;background:#059669;border-radius:2px;width:90%;margin-bottom:2px"></div>
+                <div style="height:3px;background:#059669;border-radius:2px;width:70%"></div>
+              </div>
+              <div style="background:#1e1e22;border-radius:4px;padding:4px">
+                <div style="height:3px;background:#555;border-radius:2px;width:85%;margin-bottom:2px"></div>
+                <div style="height:3px;background:#555;border-radius:2px;width:60%"></div>
+              </div>
+              <div style="flex:1"></div>
+              <div style="height:14px;background:#0a0a0c;border-radius:4px;border:1px solid #1e3a1e;display:flex;align-items:center;padding:0 4px;gap:3px">
+                <div style="flex:1;height:3px;background:#1e1e22;border-radius:2px"></div>
+                <div style="width:9px;height:9px;background:#059669;border-radius:2px"></div>
+              </div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'chat-tab',
+        label: 'Eigener Tab / eigene Seite',
+        desc: 'In der Verlaufsansicht gibt es einen "Chat"-Tab neben Diff, Anschreiben etc. Klick öffnet den Chat für genau diese Bewerbung.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;display:flex;flex-direction:column">
+            <div style="padding:6px 8px 0;display:flex;gap:1px;border-bottom:1px solid #1e1e22">
+              <div style="padding:3px 8px;font-size:7px;color:#555;font-weight:700">Diff</div>
+              <div style="padding:3px 8px;font-size:7px;color:#555;font-weight:700">Anschreiben</div>
+              <div style="padding:3px 8px;background:#041510;border-radius:4px 4px 0 0;border:1px solid #083a20;border-bottom:none;font-size:7px;color:#059669;font-weight:700">💬 Chat</div>
+            </div>
+            <div style="flex:1;padding:8px;display:flex;flex-direction:column;gap:5px">
+              <div style="background:#041510;border-radius:5px;padding:6px;border:1px solid #083a20">
+                <div style="height:4px;background:#059669;border-radius:2px;width:90%;margin-bottom:2px"></div>
+                <div style="height:4px;background:#059669;border-radius:2px;width:70%"></div>
+              </div>
+              <div style="background:#1e1e22;border-radius:5px;padding:6px;align-self:flex-end;width:80%">
+                <div style="height:4px;background:#555;border-radius:2px;width:90%;margin-bottom:2px"></div>
+                <div style="height:4px;background:#555;border-radius:2px;width:60%"></div>
+              </div>
+              <div style="flex:1"></div>
+              <div style="height:16px;background:#0f0f12;border-radius:5px;border:1px solid #1e3a1e;display:flex;align-items:center;padding:0 6px;gap:4px">
+                <div style="flex:1;height:4px;background:#1e1e22;border-radius:2px"></div>
+                <div style="width:12px;height:12px;background:#059669;border-radius:3px"></div>
+              </div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'floating-chat',
+        label: 'Schwebende Chat-Blase',
+        desc: 'Ein kleines Chat-Icon unten rechts. Klick öffnet ein Popup-Chatfenster über dem Ergebnis.',
+        preview: `
+          <div style="position:relative;background:#0a0a0c;height:100%;padding:10px">
+            <div style="display:flex;flex-direction:column;gap:4px;opacity:.8">
+              <div style="height:11px;background:#041510;border-radius:99px;width:50%;border:1px solid #083a20"></div>
+              <div style="height:3px;background:#0a3a2a;border-radius:2px;width:80%"></div>
+              <div style="height:3px;background:#1e1e22;border-radius:2px;width:65%"></div>
+            </div>
+            <div style="position:absolute;bottom:28px;right:24px;width:90px;background:#111114;border-radius:8px;border:1px solid #1e3a1e;padding:7px;box-shadow:0 4px 20px rgba(0,0,0,.5);display:flex;flex-direction:column;gap:4px">
+              <div style="height:3px;background:#059669;border-radius:2px;width:90%"></div>
+              <div style="height:3px;background:#555;border-radius:2px;width:70%"></div>
+              <div style="height:10px;background:#0a0a0c;border-radius:3px;border:1px solid #1e3a1e;display:flex;align-items:center;padding:0 4px;gap:2px;margin-top:2px">
+                <div style="flex:1;height:3px;background:#1e1e22;border-radius:2px"></div>
+                <div style="width:7px;height:7px;background:#059669;border-radius:2px"></div>
+              </div>
+            </div>
+            <div style="position:absolute;bottom:8px;right:8px;width:18px;height:18px;background:#059669;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px">💬</div>
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'chat-style',
+    label: 'Folgefrage — Chat-Stil',
+    text: 'Wie sehen die Chat-Nachrichten aus?',
+    sub: 'Du stellst eine Frage — wie erscheint die Antwort der KI?',
+    cols: 3,
+    options: [
+      {
+        id: 'bubbles',
+        label: 'Chat-Blasen',
+        desc: 'Deine Frage rechts (grau), KI-Antwort links (grün). Wie WhatsApp/iMessage.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:5px;justify-content:flex-end">
+            <div style="display:flex;justify-content:flex-end">
+              <div style="background:#1e1e22;border-radius:8px 8px 2px 8px;padding:5px 8px;max-width:80%">
+                <div style="height:4px;background:#555;border-radius:2px;width:80%;margin-bottom:2px"></div>
+                <div style="height:4px;background:#555;border-radius:2px;width:55%"></div>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:flex-start">
+              <div style="background:#041510;border:1px solid #083a20;border-radius:2px 8px 8px 8px;padding:5px 8px;max-width:90%">
+                <div style="height:4px;background:#059669;border-radius:2px;width:95%;margin-bottom:2px"></div>
+                <div style="height:4px;background:#059669;border-radius:2px;width:80%;margin-bottom:2px"></div>
+                <div style="height:4px;background:#059669;border-radius:2px;width:65%"></div>
+              </div>
+            </div>
+            <div style="height:16px;background:#0f0f12;border-radius:5px;border:1px solid #1e3a1e;display:flex;align-items:center;padding:0 6px;gap:4px;margin-top:2px">
+              <div style="flex:1;height:4px;background:#1e1e22;border-radius:2px"></div>
+              <div style="width:12px;height:12px;background:#059669;border-radius:3px"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'q-and-a',
+        label: 'Q&A Block',
+        desc: 'Deine Frage als Titel, KI-Antwort als Paragraph darunter. Wie ein FAQ. Klar und lesbar.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:6px">
+            <div>
+              <div style="height:5px;background:#aaa;border-radius:2px;width:70%;margin-bottom:4px"></div>
+              <div style="height:4px;background:#059669;border-radius:2px;width:95%;margin-bottom:2px"></div>
+              <div style="height:4px;background:#059669;border-radius:2px;width:80%;margin-bottom:2px"></div>
+              <div style="height:4px;background:#059669;border-radius:2px;width:55%"></div>
+            </div>
+            <div style="height:1px;background:#1e1e22"></div>
+            <div>
+              <div style="height:5px;background:#aaa;border-radius:2px;width:80%;margin-bottom:4px"></div>
+              <div style="height:4px;background:#059669;border-radius:2px;width:90%;margin-bottom:2px"></div>
+              <div style="height:4px;background:#059669;border-radius:2px;width:70%"></div>
+            </div>
+            <div style="flex:1"></div>
+            <div style="height:16px;background:#0f0f12;border-radius:5px;border:1px solid #1e3a1e;display:flex;align-items:center;padding:0 6px;gap:4px">
+              <div style="flex:1;height:4px;background:#1e1e22;border-radius:2px"></div>
+              <div style="width:12px;height:12px;background:#059669;border-radius:3px"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'inline-doc',
+        label: 'Dokumentartig',
+        desc: 'Antworten erscheinen als fortlaufendes Dokument mit Überschriften. Fragen werden zu Überschriften.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:4px">
+            <div style="height:6px;background:#aaa;border-radius:2px;width:65%;font-weight:700;margin-bottom:2px"></div>
+            <div style="height:4px;background:#059669;border-radius:2px;width:90%;margin-bottom:1px"></div>
+            <div style="height:4px;background:#059669;border-radius:2px;width:80%;margin-bottom:1px"></div>
+            <div style="height:4px;background:#059669;border-radius:2px;width:55%;margin-bottom:5px"></div>
+            <div style="height:6px;background:#aaa;border-radius:2px;width:75%;margin-bottom:2px"></div>
+            <div style="height:4px;background:#059669;border-radius:2px;width:95%;margin-bottom:1px"></div>
+            <div style="height:4px;background:#059669;border-radius:2px;width:70%"></div>
+            <div style="flex:1"></div>
+            <div style="height:16px;background:#0f0f12;border-radius:5px;border:1px solid #1e3a1e;display:flex;align-items:center;padding:0 6px;gap:4px">
+              <div style="flex:1;height:4px;background:#1e1e22;border-radius:2px"></div>
+              <div style="width:12px;height:12px;background:#059669;border-radius:3px"></div>
+            </div>
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'history-list-style',
+    label: 'Folgefrage — Verlauf-Liste',
+    text: 'Wie sehen die Einträge in der Verlauf-Liste aus?',
+    sub: 'Jeder Eintrag ist eine vergangene Bewerbung. Du klickst drauf um alles zu sehen.',
+    cols: 3,
+    options: [
+      {
+        id: 'compact-rows',
+        label: 'Kompakte Zeilen',
+        desc: 'Firmenname + Score-Badge + Datum. Sehr dicht, viele Einträge auf einmal sichtbar.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:3px">
+            <div style="height:5px;background:#555;border-radius:2px;width:40%;margin-bottom:4px"></div>
+            ${[['Google','88','Empfohlen'],['SAP','72','Grenzfall'],['BMW','91','Empfohlen'],['Siemens','45','Nicht']].map(([c,s,t],i)=>{
+              const sel=i===0;
+              const col=s>='80'?'#059669':s>='60'?'#d97706':'#dc2626';
+              return `<div style="display:flex;align-items:center;gap:5px;padding:4px 6px;background:${sel?'#041510':'#0f0f12'};border-radius:5px;border:1px solid ${sel?'#083a20':'#1a1a1e'}">
+                <div style="height:5px;background:#aaa;border-radius:2px;flex:1"></div>
+                <div style="height:12px;background:${col}22;border:1px solid ${col}44;border-radius:99px;padding:0 4px;display:flex;align-items:center"><div style="height:4px;background:${col};border-radius:2px;width:14px"></div></div>
+                <div style="height:4px;background:#333;border-radius:2px;width:20px"></div>
+              </div>`}).join('')}
+          </div>`
+      },
+      {
+        id: 'cards',
+        label: 'Karten mit Vorschau',
+        desc: 'Größere Karten mit Firmenname, Jobtitel, Score und 1-2 Zeilen Diff-Zusammenfassung.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:8px;display:flex;flex-direction:column;gap:5px">
+            <div style="height:5px;background:#555;border-radius:2px;width:40%;margin-bottom:2px"></div>
+            <div style="padding:7px;background:#041510;border-radius:7px;border:1px solid #083a20">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                <div style="height:5px;background:#aaa;border-radius:2px;width:45%"></div>
+                <div style="height:10px;background:#05961922;border:1px solid #05966944;border-radius:99px;padding:0 4px;display:flex;align-items:center"><div style="height:3px;background:#059669;border-radius:2px;width:12px"></div></div>
+              </div>
+              <div style="height:4px;background:#1a3a1a;border-radius:2px;width:90%;margin-bottom:2px"></div>
+              <div style="height:4px;background:#1e1e22;border-radius:2px;width:65%"></div>
+            </div>
+            <div style="padding:7px;background:#0f0f12;border-radius:7px;border:1px solid #1e1e22">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                <div style="height:5px;background:#666;border-radius:2px;width:40%"></div>
+                <div style="height:10px;background:#d9770622;border:1px solid #d9770644;border-radius:99px;padding:0 4px;display:flex;align-items:center"><div style="height:3px;background:#d97706;border-radius:2px;width:12px"></div></div>
+              </div>
+              <div style="height:4px;background:#1e1e22;border-radius:2px;width:85%;margin-bottom:2px"></div>
+              <div style="height:4px;background:#1e1e22;border-radius:2px;width:55%"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'timeline',
+        label: 'Zeitstrahl',
+        desc: 'Einträge chronologisch, nach Monat gruppiert. Jeder Eintrag hat eine Zeitlinie links.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:4px">
+            <div style="height:5px;background:#555;border-radius:2px;width:40%;margin-bottom:4px"></div>
+            <div style="height:4px;background:#333;border-radius:2px;width:30%;margin-bottom:2px"></div>
+            ${[['#059669',85,'#041510','#083a20'],['#059669',80,'#041510','#083a20']].map(([c,s,bg,bo])=>`
+              <div style="display:flex;gap:5px;align-items:flex-start">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:1px;margin-top:3px">
+                  <div style="width:6px;height:6px;background:${c};border-radius:50%"></div>
+                  <div style="width:1px;flex:1;background:#1e1e22;min-height:10px"></div>
+                </div>
+                <div style="flex:1;padding:4px 5px;background:${bg};border-radius:5px;border:1px solid ${bo}">
+                  <div style="height:4px;background:#aaa;border-radius:2px;width:60%;margin-bottom:2px"></div>
+                  <div style="height:3px;background:${c};border-radius:2px;width:75%"></div>
+                </div>
+              </div>`).join('')}
+            <div style="height:4px;background:#333;border-radius:2px;width:25%;margin-top:2px"></div>
+            <div style="display:flex;gap:5px;align-items:flex-start">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:1px;margin-top:3px">
+                <div style="width:6px;height:6px;background:#d97706;border-radius:50%"></div>
+              </div>
+              <div style="flex:1;padding:4px 5px;background:#0f0f12;border-radius:5px;border:1px solid #1e1e22">
+                <div style="height:4px;background:#666;border-radius:2px;width:55%;margin-bottom:2px"></div>
+                <div style="height:3px;background:#d97706;border-radius:2px;width:60%"></div>
+              </div>
+            </div>
+          </div>`
+      }
+    ]
+  }
+];
+
+let current = 0;
+const answers = JSON.parse(localStorage.getItem('design-answers-4') || '{}');
+
+function render() {
+  const q = questions[current];
+  const isSummary = current >= questions.length;
+  document.getElementById('hdr-count').textContent = isSummary ? 'Fertig!' : `${current+1} / ${questions.length}`;
+  document.getElementById('prog').style.width = `${((current+(isSummary?1:0))/questions.length)*100}%`;
+  document.getElementById('btn-back').style.display = (current===0||isSummary)?'none':'';
+  document.getElementById('btn-next').style.display = isSummary?'none':'';
+  if (isSummary) { renderSummary(); return; }
+  const sel = answers[q.id];
+  document.getElementById('nav-info').textContent = sel?'':'Bitte eine Option wählen';
+  document.getElementById('btn-next').disabled = !sel;
+  document.getElementById('summary').classList.remove('visible');
+  document.getElementById('question-area').style.display = '';
+  document.getElementById('question-area').innerHTML = `
+    <div class="q-label">${q.label}</div>
+    <div class="q-text">${q.text}</div>
+    ${q.sub?`<div class="q-sub">${q.sub}</div>`:''}
+    <div class="opts ${q.cols===3?'cols3':''}">
+      ${q.options.map(opt=>`
+        <div class="opt ${sel===opt.id?'selected':''}" onclick="selectOpt('${q.id}','${opt.id}',this)">
+          <div class="opt-preview">${opt.preview}</div>
+          <div class="opt-label">${opt.label}</div>
+          <div class="opt-desc">${opt.desc}</div>
+        </div>`).join('')}
+    </div>`;
+}
+function selectOpt(qid,oid,el){
+  answers[qid]=oid;
+  localStorage.setItem('design-answers-4',JSON.stringify(answers));
+  document.querySelectorAll('.opt').forEach(e=>e.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('btn-next').disabled=false;
+  document.getElementById('nav-info').textContent='';
+}
+function goNext(){current++;render();window.scrollTo(0,0);}
+function goBack(){if(current>0){current--;render();window.scrollTo(0,0);}}
+function renderSummary(){
+  document.getElementById('question-area').style.display='none';
+  const sumEl=document.getElementById('summary');
+  sumEl.classList.add('visible');
+  let rows='';
+  questions.forEach(q=>{
+    const aid=answers[q.id];
+    const opt=q.options.find(o=>o.id===aid);
+    if(!opt)return;
+    rows+=`<div class="summary-item"><div class="summary-preview">${opt.preview}</div><div><div class="summary-q">${q.label}</div><div class="summary-a">${opt.label}</div><div style="font-size:.75rem;color:#555;margin-top:.15rem">${opt.desc}</div></div></div>`;
+  });
+  sumEl.innerHTML=`<div class="done-msg"><h2>✅ Runde 4 fertig!</h2><p>Wird gespeichert…</p></div>${rows}
+    <button class="btn btn-primary" style="width:100%;margin-top:1rem;padding:.9rem" onclick="submit()">Absenden →</button>`;
+  fetch('/api/design-answers-4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(answers)})
+    .then(r=>r.json()).then(()=>{document.querySelector('.done-msg p').textContent='✅ Gespeichert!';}).catch(()=>{});
+}
+function submit(){
+  fetch('/api/design-answers-4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(answers)})
+    .then(r=>r.json()).then(()=>{document.querySelector('.done-msg p').textContent='✅ Gespeichert!';});
+}
+render();
+</script>
+</body>
+</html>

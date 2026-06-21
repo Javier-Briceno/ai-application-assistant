@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design Interview — Runde 2</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0a0c;color:#e8e8ea;font-family:system-ui,sans-serif;min-height:100vh}
+#shell{max-width:960px;margin:0 auto;padding:2rem 1.5rem 6rem}
+.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:2.5rem}
+.hdr-title{font-size:.85rem;font-weight:600;color:#555;letter-spacing:.08em;text-transform:uppercase}
+.hdr-count{font-size:.85rem;color:#555}
+.prog-wrap{height:3px;background:#1e1e22;border-radius:99px;margin-bottom:2.5rem;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,#10b981,#059669);border-radius:99px;transition:width .4s ease}
+.q-label{font-size:.75rem;font-weight:600;color:#10b981;text-transform:uppercase;letter-spacing:.1em;margin-bottom:.6rem}
+.q-text{font-size:1.5rem;font-weight:700;line-height:1.3;margin-bottom:.5rem}
+.q-sub{font-size:.9rem;color:#666;margin-bottom:2rem}
+.opts{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}
+.opts.cols3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:600px){.opts,.opts.cols3{grid-template-columns:1fr}}
+.opt{border:2px solid #1e1e22;border-radius:12px;overflow:hidden;cursor:pointer;transition:border-color .15s,transform .15s;background:#0f0f12}
+.opt:hover{border-color:#10b981;transform:translateY(-2px)}
+.opt.selected{border-color:#10b981;background:#051a10}
+.opt-preview{width:100%;height:160px;overflow:hidden;position:relative;background:#16161a}
+.opt-label{padding:.75rem 1rem;font-size:.875rem;font-weight:600}
+.opt-desc{padding:0 1rem .75rem;font-size:.75rem;color:#666;line-height:1.4}
+.nav{position:fixed;bottom:0;left:0;right:0;background:#0a0a0c;border-top:1px solid #1e1e22;padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center}
+.nav-info{font-size:.8rem;color:#444}
+.btn{padding:.6rem 1.4rem;border-radius:8px;font-size:.875rem;font-weight:600;cursor:pointer;border:none;transition:background .15s}
+.btn-primary{background:#10b981;color:#fff}
+.btn-primary:hover{background:#059669}
+.btn-primary:disabled{background:#0a2a1a;color:#2a5a3a;cursor:not-allowed}
+.btn-ghost{background:transparent;color:#666;border:1px solid #2a2a2e}
+.btn-ghost:hover{border-color:#555;color:#aaa}
+.summary-wrap{display:none}
+.summary-wrap.visible{display:block}
+.summary-item{display:flex;gap:1rem;align-items:flex-start;padding:1rem;border:1px solid #1e1e22;border-radius:10px;margin-bottom:.75rem;background:#0f0f12}
+.summary-q{font-size:.75rem;color:#666;margin-bottom:.2rem}
+.summary-a{font-size:.9rem;font-weight:600}
+.summary-preview{width:80px;height:50px;border-radius:6px;overflow:hidden;flex-shrink:0}
+.done-msg{text-align:center;padding:2rem 0 1.5rem}
+.done-msg h2{font-size:1.6rem;font-weight:700;margin-bottom:.5rem}
+.done-msg p{color:#666;margin-bottom:2rem}
+/* Context banner */
+.context{background:#051a10;border:1px solid #0a3a20;border-radius:10px;padding:1rem 1.25rem;margin-bottom:2rem;font-size:.8rem;color:#4ade80}
+.context strong{color:#6ee7b7}
+.context-row{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.5rem}
+.tag{padding:2px 8px;background:#0a3a20;border-radius:99px;font-size:.75rem;color:#6ee7b7}
+</style>
+</head>
+<body>
+<div id="shell">
+  <div class="hdr">
+    <span class="hdr-title">Design Interview — Runde 2</span>
+    <span class="hdr-count" id="hdr-count"></span>
+  </div>
+  <div class="prog-wrap"><div class="prog-fill" id="prog"></div></div>
+
+  <div class="context">
+    <strong>Deine bisherigen Entscheidungen:</strong>
+    <div class="context-row">
+      <span class="tag">Schmale Seitenleiste</span>
+      <span class="tag">Fast schwarz</span>
+      <span class="tag">Grün (Emerald)</span>
+      <span class="tag">Icons + Labels</span>
+      <span class="tag">Dropdown</span>
+      <span class="tag">Nur Balkengrafik</span>
+      <span class="tag">Gestapelt</span>
+      <span class="tag">Farbige Zeilen (Diff)</span>
+    </div>
+  </div>
+
+  <div id="question-area"></div>
+  <div class="summary-wrap" id="summary"></div>
+</div>
+
+<div class="nav">
+  <button class="btn btn-ghost" id="btn-back" onclick="goBack()">← Zurück</button>
+  <span class="nav-info" id="nav-info"></span>
+  <button class="btn btn-primary" id="btn-next" onclick="goNext()" disabled>Weiter →</button>
+</div>
+
+<script>
+const questions = [
+  {
+    id: 'sidebar-content',
+    label: 'Folgefrage — Seitenleiste',
+    text: 'Was passiert in der Seitenleiste?',
+    sub: 'Du hast eine schmale Seitenleiste mit Icon-Navigation gewählt. Aber die App braucht auch Profil-Auswahl und Eingabebereich. Wo leben die?',
+    cols: 2,
+    options: [
+      {
+        id: 'nav-only',
+        label: 'Sidebar = nur Navigation',
+        desc: 'Die Sidebar hat NUR Analyse/Verlauf-Icons. Profil-Dropdown und Textfeld sind oben im Hauptbereich.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c">
+            <div style="width:52px;background:#080810;border-right:1px solid #1a1a20;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:6px">
+              <div style="width:28px;height:28px;background:#051a10;border-radius:7px;margin-bottom:4px;border:1px solid #10b981"></div>
+              <div style="width:28px;height:28px;background:#1e1e22;border-radius:7px"></div>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;padding:8px;gap:5px">
+              <div style="display:flex;gap:5px;align-items:center">
+                <div style="height:22px;background:#111114;border-radius:5px;border:1px solid #222;flex:1;display:flex;align-items:center;padding:0 7px">
+                  <div style="height:5px;background:#333;border-radius:2px;width:50%"></div>
+                </div>
+                <div style="height:22px;width:55px;background:#10b981;border-radius:5px;display:flex;align-items:center;justify-content:center">
+                  <div style="height:5px;background:rgba(255,255,255,0.6);border-radius:2px;width:70%"></div>
+                </div>
+              </div>
+              <div style="flex:1;background:#111114;border-radius:5px;border:1px solid #222;padding:6px;display:flex;flex-direction:column;gap:3px">
+                <div style="height:5px;background:#1a3a2a;border-radius:2px;width:80%"></div>
+                <div style="height:5px;background:#1e1e22;border-radius:2px;width:90%"></div>
+                <div style="height:5px;background:#1e1e22;border-radius:2px;width:65%"></div>
+              </div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'nav-and-profile',
+        label: 'Sidebar = Nav + Profil',
+        desc: 'Sidebar hat oben das Profil-Avatar/Dropdown, darunter die Nav-Icons. Input-Bereich ist im Hauptbereich.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c">
+            <div style="width:52px;background:#080810;border-right:1px solid #1a1a20;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:6px">
+              <div style="width:32px;height:32px;background:#10b981;border-radius:50%;margin-bottom:6px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff">J</div>
+              <div style="width:28px;height:28px;background:#051a10;border-radius:7px;border:1px solid #10b981"></div>
+              <div style="width:28px;height:28px;background:#1e1e22;border-radius:7px"></div>
+              <div style="flex:1"></div>
+              <div style="width:28px;height:28px;background:#1e1e22;border-radius:50%"></div>
+            </div>
+            <div style="flex:1;padding:8px;display:flex;flex-direction:column;gap:5px">
+              <div style="height:7px;background:#1e1e22;border-radius:3px;width:50%"></div>
+              <div style="flex:1;background:#111114;border-radius:5px;border:1px solid #222;padding:6px;display:flex;flex-direction:column;gap:3px">
+                <div style="height:5px;background:#222;border-radius:2px;width:90%"></div>
+                <div style="height:5px;background:#222;border-radius:2px;width:70%"></div>
+                <div style="height:5px;background:#222;border-radius:2px;width:80%"></div>
+              </div>
+              <div style="height:18px;background:#10b981;border-radius:5px;width:45%"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'wide-sidebar',
+        label: 'Breitere Sidebar mit allem',
+        desc: 'Etwas breitere Sidebar (~200px) mit Profil, Nav-Links als Text und dem Analyse-Button. Hauptbereich = reines Ergebnis.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c">
+            <div style="width:90px;background:#080810;border-right:1px solid #1a1a20;padding:8px;display:flex;flex-direction:column;gap:5px">
+              <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px">
+                <div style="width:18px;height:18px;background:#10b981;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:800;color:#fff">J</div>
+                <div style="height:5px;background:#333;border-radius:2px;flex:1"></div>
+              </div>
+              <div style="height:14px;background:#051a10;border-radius:5px;border:1px solid #10b981;display:flex;align-items:center;padding:0 5px">
+                <div style="height:4px;background:#10b981;border-radius:2px;width:70%"></div>
+              </div>
+              <div style="height:14px;background:#1e1e22;border-radius:5px;display:flex;align-items:center;padding:0 5px">
+                <div style="height:4px;background:#333;border-radius:2px;width:60%"></div>
+              </div>
+              <div style="flex:1;background:#0a0a0c;border-radius:4px;border:1px solid #1a1a1e;margin-top:2px;padding:4px;display:flex;flex-direction:column;gap:2px">
+                <div style="height:4px;background:#1e1e22;border-radius:2px;width:90%"></div>
+                <div style="height:4px;background:#1e1e22;border-radius:2px;width:70%"></div>
+              </div>
+              <div style="height:14px;background:#10b981;border-radius:4px;display:flex;align-items:center;justify-content:center">
+                <div style="height:4px;background:rgba(255,255,255,0.5);border-radius:2px;width:60%"></div>
+              </div>
+            </div>
+            <div style="flex:1;padding:8px;display:flex;flex-direction:column;gap:4px">
+              <div style="height:6px;background:#1e1e22;border-radius:3px;width:45%"></div>
+              <div style="flex:1;background:#0a3a2a;border-radius:5px;border:1px solid #1a4a3a;padding:5px">
+                <div style="height:4px;background:#1a5a3a;border-radius:2px;width:80%;margin-bottom:3px"></div>
+                <div style="height:4px;background:#1a5a3a;border-radius:2px;width:70%"></div>
+              </div>
+              <div style="flex:1;background:#111114;border-radius:5px;border:1px solid #222;padding:5px">
+                <div style="height:4px;background:#222;border-radius:2px;width:90%;margin-bottom:3px"></div>
+                <div style="height:4px;background:#222;border-radius:2px;width:75%"></div>
+              </div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'split-main',
+        label: 'Sidebar Nav + geteilter Hauptbereich',
+        desc: 'Sidebar = nur Icons. Hauptbereich = links Input, rechts Ergebnis (dein originaler Split, aber mit Icon-Sidebar links dazu).',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c">
+            <div style="width:44px;background:#080810;border-right:1px solid #1a1a20;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:6px">
+              <div style="width:26px;height:26px;background:#051a10;border-radius:6px;border:1px solid #10b981"></div>
+              <div style="width:26px;height:26px;background:#1e1e22;border-radius:6px"></div>
+            </div>
+            <div style="width:90px;background:#0a0a0c;border-right:1px solid #1a1a20;padding:6px;display:flex;flex-direction:column;gap:4px">
+              <div style="height:5px;background:#333;border-radius:2px;width:60%"></div>
+              <div style="height:18px;background:#111114;border-radius:4px;border:1px solid #222"></div>
+              <div style="flex:1;background:#0a0a0c;border-radius:4px;border:1px solid #1a1a1e;padding:4px;display:flex;flex-direction:column;gap:2px">
+                <div style="height:3px;background:#1e1e22;border-radius:2px;width:90%"></div>
+                <div style="height:3px;background:#1e1e22;border-radius:2px;width:70%"></div>
+              </div>
+              <div style="height:12px;background:#10b981;border-radius:4px"></div>
+            </div>
+            <div style="flex:1;padding:6px;display:flex;flex-direction:column;gap:3px">
+              <div style="height:5px;background:#1e1e22;border-radius:2px;width:50%"></div>
+              <div style="height:5px;background:#0a3a2a;border-radius:2px;width:80%"></div>
+              <div style="height:5px;background:#1e1e22;border-radius:2px;width:65%"></div>
+              <div style="height:5px;background:#1e1e22;border-radius:2px;width:75%"></div>
+            </div>
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'score-number',
+    label: 'Folgefrage — Score',
+    text: 'Du willst nur Balken — zeigen wir die Gesamtzahl trotzdem irgendwo?',
+    sub: 'Du hast "nur Balkengrafik" gewählt (kein großes Score-Display). Aber 88/100 ist trotzdem eine wichtige Information.',
+    cols: 3,
+    options: [
+      {
+        id: 'no-number',
+        label: 'Gar keine Zahl',
+        desc: 'Nur die fünf Dimensionsbalken. Der Score ergibt sich aus den Balken zusammen.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:12px;display:flex;flex-direction:column;gap:5px;justify-content:center">
+            <div style="font-size:8px;color:#555;margin-bottom:2px">ERGEBNIS</div>
+            ${['Technisch','Anforderungen','Rollenfit','Standort','Strategisch'].map((l,i) => {
+              const vals=[38,22,16,8,4], max=[40,25,20,10,5];
+              const pct=vals[i]/max[i]*100;
+              const c=pct>=80?'#10b981':pct>=60?'#f59e0b':'#f87171';
+              return `<div style="display:flex;align-items:center;gap:5px">
+                <div style="width:55px;font-size:7px;color:#666;text-align:right;flex-shrink:0">${l}</div>
+                <div style="flex:1;height:6px;background:#1e1e22;border-radius:99px;overflow:hidden"><div style="height:100%;background:${c};width:${pct}%;border-radius:99px"></div></div>
+                <div style="width:18px;font-size:7px;color:${c};font-weight:700;flex-shrink:0">${vals[i]}</div>
+              </div>`}).join('')}
+          </div>`
+      },
+      {
+        id: 'small-number',
+        label: 'Kleine Zahl oben',
+        desc: 'Kompakter Score (klein) + Label über den Balken. Nicht dominant, aber sichtbar.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:12px;display:flex;flex-direction:column;gap:4px">
+            <div style="display:flex;align-items:baseline;gap:4px;margin-bottom:4px">
+              <div style="font-size:22px;font-weight:800;color:#10b981;line-height:1">88</div>
+              <div style="font-size:9px;color:#555">/100</div>
+              <div style="margin-left:auto;font-size:8px;background:#051a10;color:#10b981;padding:2px 7px;border-radius:99px;border:1px solid #0a3a20">✅ Empfohlen</div>
+            </div>
+            ${['Technisch','Anforderungen','Rollenfit','Standort','Strategisch'].map((l,i) => {
+              const vals=[38,22,16,8,4], max=[40,25,20,10,5];
+              const pct=vals[i]/max[i]*100;
+              return `<div style="display:flex;align-items:center;gap:5px">
+                <div style="width:55px;font-size:7px;color:#666;text-align:right;flex-shrink:0">${l}</div>
+                <div style="flex:1;height:5px;background:#1e1e22;border-radius:99px;overflow:hidden"><div style="height:100%;background:#10b981;width:${pct}%;border-radius:99px"></div></div>
+                <div style="width:18px;font-size:7px;color:#10b981;font-weight:700;flex-shrink:0">${vals[i]}</div>
+              </div>`}).join('')}
+          </div>`
+      },
+      {
+        id: 'badge-only',
+        label: 'Nur Badge',
+        desc: 'Kein Zahl, aber ein farbiges Label: Empfohlen / Grenzfall / Nicht empfohlen.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:12px;display:flex;flex-direction:column;gap:5px">
+            <div style="margin-bottom:4px">
+              <div style="display:inline-flex;align-items:center;gap:5px;background:#051a10;border:1px solid #0a3a20;border-radius:99px;padding:3px 10px">
+                <div style="width:6px;height:6px;background:#10b981;border-radius:50%"></div>
+                <div style="font-size:9px;color:#10b981;font-weight:700">Empfohlen</div>
+              </div>
+            </div>
+            ${['Technisch','Anforderungen','Rollenfit','Standort','Strategisch'].map((l,i) => {
+              const vals=[38,22,16,8,4], max=[40,25,20,10,5];
+              const pct=vals[i]/max[i]*100;
+              return `<div style="display:flex;align-items:center;gap:5px">
+                <div style="width:55px;font-size:7px;color:#666;text-align:right;flex-shrink:0">${l}</div>
+                <div style="flex:1;height:6px;background:#1e1e22;border-radius:99px;overflow:hidden"><div style="height:100%;background:#10b981;width:${pct}%;border-radius:99px"></div></div>
+                <div style="width:18px;font-size:7px;color:#10b981;font-weight:700;flex-shrink:0">${vals[i]}</div>
+              </div>`}).join('')}
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'stacked-headers',
+    label: 'Folgefrage — Gestapelte Sektionen',
+    text: 'Wie erkennst du wo eine Sektion beginnt?',
+    sub: 'Du hast "gestapelt" gewählt: Score, dann Diff, dann Anschreiben — übereinander. Wie werden sie getrennt?',
+    cols: 3,
+    options: [
+      {
+        id: 'card-headers',
+        label: 'Karten mit Titel',
+        desc: 'Jede Sektion ist eine Karte mit einem Titel oben.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:8px;display:flex;flex-direction:column;gap:5px">
+            <div style="background:#0f0f12;border:1px solid #1e1e22;border-radius:8px;overflow:hidden;flex:1">
+              <div style="padding:5px 8px;border-bottom:1px solid #1e1e22;background:#0a0a0c">
+                <div style="height:6px;background:#10b981;border-radius:2px;width:50%"></div>
+              </div>
+              <div style="padding:6px 8px;display:flex;flex-direction:column;gap:3px">
+                <div style="height:4px;background:#0a3a2a;border-radius:2px;width:80%"></div>
+                <div style="height:4px;background:#1e1e22;border-radius:2px;width:70%"></div>
+              </div>
+            </div>
+            <div style="background:#0f0f12;border:1px solid #1e1e22;border-radius:8px;overflow:hidden;flex:1">
+              <div style="padding:5px 8px;border-bottom:1px solid #1e1e22;background:#0a0a0c">
+                <div style="height:6px;background:#555;border-radius:2px;width:65%"></div>
+              </div>
+              <div style="padding:6px 8px;display:flex;flex-direction:column;gap:3px">
+                <div style="height:4px;background:#1a3a1a;border-radius:2px;width:75%"></div>
+                <div style="height:4px;background:#3a1a1a;border-radius:2px;width:60%;opacity:.7"></div>
+              </div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'divider-label',
+        label: 'Trennlinie + Label',
+        desc: 'Kein Box/Karte-Rahmen. Nur eine Trennlinie mit Label. Fließender, weniger Kästen.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:8px">
+            <div>
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+                <div style="height:4px;background:#10b981;border-radius:2px;width:20px"></div>
+                <div style="height:5px;background:#10b981;border-radius:2px;width:40px"></div>
+                <div style="flex:1;height:1px;background:#1e1e22"></div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:3px">
+                <div style="height:5px;background:#0a3a2a;border-radius:2px;width:80%"></div>
+                <div style="height:5px;background:#1e1e22;border-radius:2px;width:65%"></div>
+              </div>
+            </div>
+            <div>
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+                <div style="height:4px;background:#555;border-radius:2px;width:20px"></div>
+                <div style="height:5px;background:#555;border-radius:2px;width:55px"></div>
+                <div style="flex:1;height:1px;background:#1e1e22"></div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:3px">
+                <div style="height:5px;background:#1a3a1a;border-radius:2px;width:90%"></div>
+                <div style="height:5px;background:#3a1a1a;border-radius:2px;width:70%;opacity:.7"></div>
+              </div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'no-dividers',
+        label: 'Kein Trenner',
+        desc: 'Sektionen fließen direkt. Nur Abstand trennt sie. Sehr minimalistisch.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:12px;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <div style="height:5px;background:#0a3a2a;border-radius:2px;width:80%"></div>
+              <div style="height:5px;background:#0a3a2a;border-radius:2px;width:70%"></div>
+              <div style="height:5px;background:#1e1e22;border-radius:2px;width:85%"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <div style="height:5px;background:#1a3a1a;border-radius:2px;width:75%"></div>
+              <div style="height:5px;background:#3a1a1a;border-radius:2px;width:60%;opacity:.7"></div>
+              <div style="height:5px;background:#1a3a1a;border-radius:2px;width:80%"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <div style="height:5px;background:#1e1e22;border-radius:2px;width:90%"></div>
+              <div style="height:5px;background:#1e1e22;border-radius:2px;width:65%"></div>
+            </div>
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'emerald-shade',
+    label: 'Folgefrage — Grünton',
+    text: 'Welches Grün?',
+    sub: 'Emerald hat verschiedene Nuancen. Wähle das Grün das dich am meisten anspricht.',
+    cols: 3,
+    options: [
+      {
+        id: 'vivid',
+        label: 'Leuchtend',
+        desc: '#10b981 — klar, lebendig. Standard Tailwind Emerald.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:14px;display:flex;flex-direction:column;gap:7px;justify-content:center">
+            <div style="height:28px;background:#10b981;border-radius:6px;display:flex;align-items:center;justify-content:center">
+              <div style="height:7px;background:rgba(255,255,255,0.7);border-radius:3px;width:50%"></div>
+            </div>
+            <div style="display:flex;align-items:baseline;gap:4px">
+              <div style="font-size:28px;font-weight:800;color:#10b981;line-height:1">88</div>
+              <div style="font-size:10px;color:#555">/100</div>
+            </div>
+            <div style="height:6px;background:#1e1e22;border-radius:99px;overflow:hidden">
+              <div style="height:100%;background:#10b981;width:88%;border-radius:99px"></div>
+            </div>
+            <div style="height:6px;background:#1e1e22;border-radius:99px;overflow:hidden">
+              <div style="height:100%;background:#10b981;width:70%;border-radius:99px"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'muted',
+        label: 'Gedämpft',
+        desc: '#059669 — etwas dunkler, ruhiger. Weniger neon.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:14px;display:flex;flex-direction:column;gap:7px;justify-content:center">
+            <div style="height:28px;background:#059669;border-radius:6px;display:flex;align-items:center;justify-content:center">
+              <div style="height:7px;background:rgba(255,255,255,0.7);border-radius:3px;width:50%"></div>
+            </div>
+            <div style="display:flex;align-items:baseline;gap:4px">
+              <div style="font-size:28px;font-weight:800;color:#059669;line-height:1">88</div>
+              <div style="font-size:10px;color:#555">/100</div>
+            </div>
+            <div style="height:6px;background:#1e1e22;border-radius:99px;overflow:hidden">
+              <div style="height:100%;background:#059669;width:88%;border-radius:99px"></div>
+            </div>
+            <div style="height:6px;background:#1e1e22;border-radius:99px;overflow:hidden">
+              <div style="height:100%;background:#059669;width:70%;border-radius:99px"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'mint',
+        label: 'Mint / Hell',
+        desc: '#34d399 — heller, fast türkis. Frisch und auffällig.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:14px;display:flex;flex-direction:column;gap:7px;justify-content:center">
+            <div style="height:28px;background:#34d399;border-radius:6px;display:flex;align-items:center;justify-content:center">
+              <div style="height:7px;background:rgba(0,0,0,0.3);border-radius:3px;width:50%"></div>
+            </div>
+            <div style="display:flex;align-items:baseline;gap:4px">
+              <div style="font-size:28px;font-weight:800;color:#34d399;line-height:1">88</div>
+              <div style="font-size:10px;color:#555">/100</div>
+            </div>
+            <div style="height:6px;background:#1e1e22;border-radius:99px;overflow:hidden">
+              <div style="height:100%;background:#34d399;width:88%;border-radius:99px"></div>
+            </div>
+            <div style="height:6px;background:#1e1e22;border-radius:99px;overflow:hidden">
+              <div style="height:100%;background:#34d399;width:70%;border-radius:99px"></div>
+            </div>
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'analyze-button',
+    label: 'Folgefrage — Analysieren-Button',
+    text: 'Wo ist der "Analysieren"-Button?',
+    sub: 'Du hast Sidebar + Icon-Nav gewählt. Der Button muss irgendwo sitzen.',
+    cols: 3,
+    options: [
+      {
+        id: 'below-textarea',
+        label: 'Unter dem Textfeld',
+        desc: 'Direkt unter dem Eingabebereich. Logische Reihenfolge: ausfüllen → klicken.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:6px">
+            <div style="height:7px;background:#555;border-radius:2px;width:50%"></div>
+            <div style="flex:1;background:#0f0f12;border-radius:6px;border:1px solid #222;padding:6px;display:flex;flex-direction:column;gap:3px">
+              <div style="height:4px;background:#1e1e22;border-radius:2px;width:90%"></div>
+              <div style="height:4px;background:#1e1e22;border-radius:2px;width:75%"></div>
+              <div style="height:4px;background:#1e1e22;border-radius:2px;width:80%"></div>
+            </div>
+            <div style="height:24px;background:#10b981;border-radius:6px;display:flex;align-items:center;justify-content:center">
+              <div style="height:6px;background:rgba(255,255,255,0.7);border-radius:2px;width:50%"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'sticky-bottom',
+        label: 'Fixiert unten',
+        desc: 'Button immer am unteren Rand des Eingabebereichs, auch wenn der Text lang ist.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;display:flex;flex-direction:column">
+            <div style="flex:1;padding:10px;display:flex;flex-direction:column;gap:5px">
+              <div style="height:7px;background:#555;border-radius:2px;width:50%"></div>
+              <div style="flex:1;background:#0f0f12;border-radius:6px;border:1px solid #222;padding:6px;display:flex;flex-direction:column;gap:3px">
+                <div style="height:4px;background:#1e1e22;border-radius:2px;width:90%"></div>
+                <div style="height:4px;background:#1e1e22;border-radius:2px;width:75%"></div>
+              </div>
+            </div>
+            <div style="padding:8px;border-top:1px solid #1e1e22;background:#080810">
+              <div style="height:24px;background:#10b981;border-radius:6px;display:flex;align-items:center;justify-content:center">
+                <div style="height:6px;background:rgba(255,255,255,0.7);border-radius:2px;width:50%"></div>
+              </div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'in-sidebar',
+        label: 'Unten in der Sidebar',
+        desc: 'Der Button sitzt unten in der Icon-Sidebar. Sidebar hat also: Icon-Nav oben + Analyse-Button unten.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c">
+            <div style="width:52px;background:#080810;border-right:1px solid #1a1a20;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:6px">
+              <div style="width:28px;height:28px;background:#051a10;border-radius:7px;border:1px solid #10b981"></div>
+              <div style="width:28px;height:28px;background:#1e1e22;border-radius:7px"></div>
+              <div style="flex:1"></div>
+              <div style="width:36px;height:36px;background:#10b981;border-radius:8px;display:flex;align-items:center;justify-content:center">
+                <div style="width:14px;height:14px;background:rgba(255,255,255,0.8);border-radius:50%"></div>
+              </div>
+            </div>
+            <div style="flex:1;padding:10px;display:flex;flex-direction:column;gap:5px">
+              <div style="height:7px;background:#555;border-radius:2px;width:50%"></div>
+              <div style="flex:1;background:#0f0f12;border-radius:6px;border:1px solid #222;padding:6px;display:flex;flex-direction:column;gap:3px">
+                <div style="height:4px;background:#1e1e22;border-radius:2px;width:90%"></div>
+                <div style="height:4px;background:#1e1e22;border-radius:2px;width:75%"></div>
+              </div>
+            </div>
+          </div>`
+      }
+    ]
+  }
+];
+
+let current = 0;
+const answers = JSON.parse(localStorage.getItem('design-answers-2') || '{}');
+
+function render() {
+  const q = questions[current];
+  const isSummary = current >= questions.length;
+
+  document.getElementById('hdr-count').textContent = isSummary ? 'Fertig!' : `${current+1} / ${questions.length}`;
+  document.getElementById('prog').style.width = `${((current + (isSummary?1:0)) / questions.length) * 100}%`;
+  document.getElementById('btn-back').style.display = (current === 0 || isSummary) ? 'none' : '';
+  document.getElementById('btn-next').style.display = isSummary ? 'none' : '';
+
+  if (isSummary) { renderSummary(); return; }
+
+  const sel = answers[q.id];
+  document.getElementById('nav-info').textContent = sel ? '' : 'Bitte eine Option wählen';
+  document.getElementById('btn-next').disabled = !sel;
+  document.getElementById('summary').classList.remove('visible');
+  document.getElementById('question-area').style.display = '';
+  document.getElementById('question-area').innerHTML = `
+    <div class="q-label">${q.label}</div>
+    <div class="q-text">${q.text}</div>
+    ${q.sub ? `<div class="q-sub">${q.sub}</div>` : ''}
+    <div class="opts ${q.cols===3?'cols3':''}">
+      ${q.options.map(opt => `
+        <div class="opt ${sel===opt.id?'selected':''}" onclick="selectOpt('${q.id}','${opt.id}',this)">
+          <div class="opt-preview">${opt.preview}</div>
+          <div class="opt-label">${opt.label}</div>
+          <div class="opt-desc">${opt.desc}</div>
+        </div>`).join('')}
+    </div>`;
+}
+
+function selectOpt(qid, oid, el) {
+  answers[qid] = oid;
+  localStorage.setItem('design-answers-2', JSON.stringify(answers));
+  document.querySelectorAll('.opt').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('btn-next').disabled = false;
+  document.getElementById('nav-info').textContent = '';
+}
+
+function goNext() { current++; render(); window.scrollTo(0,0); }
+function goBack() { if(current>0){current--;render();window.scrollTo(0,0);} }
+
+function renderSummary() {
+  document.getElementById('question-area').style.display = 'none';
+  document.getElementById('nav-info').textContent = '';
+  const sumEl = document.getElementById('summary');
+  sumEl.classList.add('visible');
+
+  let rows = '';
+  questions.forEach(q => {
+    const aid = answers[q.id];
+    const opt = q.options.find(o => o.id === aid);
+    if (!opt) return;
+    rows += `<div class="summary-item">
+      <div class="summary-preview">${opt.preview}</div>
+      <div>
+        <div class="summary-q">${q.label}</div>
+        <div class="summary-a">${opt.label}</div>
+        <div style="font-size:.75rem;color:#555;margin-top:.15rem">${opt.desc}</div>
+      </div>
+    </div>`;
+  });
+
+  sumEl.innerHTML = `
+    <div class="done-msg">
+      <h2>✅ Runde 2 fertig!</h2>
+      <p>Antworten werden gespeichert…</p>
+    </div>
+    ${rows}
+    <button class="btn btn-primary" style="width:100%;margin-top:1rem;padding:.9rem" onclick="submit()">
+      Absenden →
+    </button>`;
+
+  fetch('/api/design-answers-2', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(answers)
+  }).then(r=>r.json()).then(()=>{
+    document.querySelector('.done-msg p').textContent='✅ Gespeichert!';
+  }).catch(()=>{
+    document.querySelector('.done-msg p').textContent='Fehler. Bitte Screenshot machen.';
+  });
+}
+function submit() {
+  fetch('/api/design-answers-2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(answers)})
+    .then(r=>r.json()).then(()=>{ document.querySelector('.done-msg p').textContent='✅ Gespeichert!'; });
+}
+
+render();
+</script>
+</body>
+</html>

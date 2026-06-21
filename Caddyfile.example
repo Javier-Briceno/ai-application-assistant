@@ -1,0 +1,32 @@
+# ── Caddy cutover: cv.javierbriceno.com → port 8000 ──────────────────────────
+#
+# Current (before cutover):
+#   cv.javierbriceno.com {
+#       root * /opt/cv-assistant
+#       file_server
+#   }
+#
+# After cutover (swap the static file_server block for this):
+#
+cv.javierbriceno.com {
+    reverse_proxy localhost:8000
+}
+#
+# Steps:
+#   1. Start the Python app:
+#        cd /opt/cv-assistant
+#        docker compose up -d --build
+#
+#   2. Verify health:
+#        curl http://localhost:8000/api/health   # → {"status":"ok"}
+#
+#   3. Swap the Caddyfile block above into your live Caddyfile.
+#
+#   4. Reload Caddy (zero-downtime):
+#        caddy reload --config /etc/caddy/Caddyfile
+#        # or: systemctl reload caddy
+#
+#   5. Confirm HTTPS is working:
+#        curl https://cv.javierbriceno.com/api/health
+#
+#   6. (Optional) Remove the old JS frontend once satisfied with the new UI.

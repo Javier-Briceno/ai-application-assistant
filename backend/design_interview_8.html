@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design Interview — Runde 8</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0a0c;color:#e8e8ea;font-family:system-ui,sans-serif;min-height:100vh}
+#shell{max-width:960px;margin:0 auto;padding:2rem 1.5rem 6rem}
+.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:2.5rem}
+.hdr-title{font-size:.85rem;font-weight:600;color:#555;letter-spacing:.08em;text-transform:uppercase}
+.hdr-count{font-size:.85rem;color:#555}
+.prog-wrap{height:3px;background:#1e1e22;border-radius:99px;margin-bottom:2.5rem;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,#059669,#10b981);border-radius:99px;transition:width .4s ease}
+.q-label{font-size:.75rem;font-weight:600;color:#059669;text-transform:uppercase;letter-spacing:.1em;margin-bottom:.6rem}
+.q-text{font-size:1.5rem;font-weight:700;line-height:1.3;margin-bottom:.5rem}
+.q-sub{font-size:.9rem;color:#666;margin-bottom:2rem}
+.opts{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}
+.opts.cols3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:600px){.opts,.opts.cols3{grid-template-columns:1fr}}
+.opt{border:2px solid #1e1e22;border-radius:12px;overflow:hidden;cursor:pointer;transition:border-color .15s,transform .15s;background:#0f0f12}
+.opt:hover{border-color:#059669;transform:translateY(-2px)}
+.opt.selected{border-color:#059669;background:#041510}
+.opt-preview{width:100%;height:160px;overflow:hidden;position:relative;background:#16161a}
+.opt-label{padding:.75rem 1rem;font-size:.875rem;font-weight:600}
+.opt-desc{padding:0 1rem .75rem;font-size:.75rem;color:#666;line-height:1.4}
+.nav{position:fixed;bottom:0;left:0;right:0;background:#0a0a0c;border-top:1px solid #1e1e22;padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center}
+.nav-info{font-size:.8rem;color:#444}
+.btn{padding:.6rem 1.4rem;border-radius:8px;font-size:.875rem;font-weight:600;cursor:pointer;border:none;transition:background .15s}
+.btn-primary{background:#059669;color:#fff}
+.btn-primary:hover{background:#047857}
+.btn-primary:disabled{background:#09261a;color:#2a5a3a;cursor:not-allowed}
+.btn-ghost{background:transparent;color:#666;border:1px solid #2a2a2e}
+.btn-ghost:hover{border-color:#555;color:#aaa}
+.summary-wrap{display:none}
+.summary-wrap.visible{display:block}
+.summary-item{display:flex;gap:1rem;align-items:flex-start;padding:1rem;border:1px solid #1e1e22;border-radius:10px;margin-bottom:.75rem;background:#0f0f12}
+.summary-q{font-size:.75rem;color:#666;margin-bottom:.2rem}
+.summary-a{font-size:.9rem;font-weight:600}
+.summary-preview{width:80px;height:50px;border-radius:6px;overflow:hidden;flex-shrink:0;position:relative}
+.done-msg{text-align:center;padding:2rem 0 1.5rem}
+.done-msg h2{font-size:1.6rem;font-weight:700;margin-bottom:.5rem}
+.done-msg p{color:#666;margin-bottom:2rem}
+.context{background:#041510;border:1px solid #083a20;border-radius:10px;padding:1rem 1.25rem;margin-bottom:2rem;font-size:.8rem;color:#34d399}
+.context-row{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.5rem}
+.tag{padding:2px 8px;background:#083a20;border-radius:99px;font-size:.75rem;color:#6ee7b7}
+</style>
+</head>
+<body>
+<div id="shell">
+  <div class="hdr">
+    <span class="hdr-title">Design Interview — Runde 8</span>
+    <span class="hdr-count" id="hdr-count"></span>
+  </div>
+  <div class="prog-wrap"><div class="prog-fill" id="prog"></div></div>
+  <div class="context">
+    <strong>Implementierungsdetails — diese Antworten gehen direkt in den React-Code.</strong>
+    <div class="context-row">
+      <span class="tag">Balken: Farbe nach Score</span>
+      <span class="tag">Chat: KI-Begrüßung</span>
+      <span class="tag">Icons: Duotone</span>
+      <span class="tag">Sidebar: Hover-Expand</span>
+      <span class="tag">Scroll: unabhängig</span>
+    </div>
+  </div>
+  <div id="question-area"></div>
+  <div class="summary-wrap" id="summary"></div>
+</div>
+<div class="nav">
+  <button class="btn btn-ghost" id="btn-back" onclick="goBack()">← Zurück</button>
+  <span class="nav-info" id="nav-info"></span>
+  <button class="btn btn-primary" id="btn-next" onclick="goNext()" disabled>Weiter →</button>
+</div>
+
+<script>
+const questions = [
+  {
+    id: 'sidebar-expand-mode',
+    label: 'Frage 1 — Sidebar Expand',
+    text: 'Wenn die Sidebar aufklappt — verschiebt sie den Inhalt oder legt sie sich drüber?',
+    sub: 'Die Sidebar zeigt Icons + Labels wenn du mit der Maus drüber gehst.',
+    cols: 3,
+    options: [
+      {
+        id: 'push',
+        label: 'Schiebt den Inhalt',
+        desc: 'Die Sidebar wird breiter, der Hauptinhalt rückt nach rechts. Layout-Shift, aber kein Overlay.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c;transition:all .3s">
+            <div style="width:48px;background:#080810;border-right:1px solid #1a1a20;display:flex;flex-direction:column;gap:10px;padding:10px 0;align-items:center;flex-shrink:0">
+              <div style="width:20px;height:20px;background:#1a2a1a;border-radius:4px;border:1px solid #059669;position:relative">
+                <div style="position:absolute;inset:4px;background:#059669;border-radius:2px;opacity:.4"></div>
+              </div>
+              <div style="width:20px;height:20px;background:#111;border-radius:4px;border:1px solid #222"></div>
+            </div>
+            <div style="width:90px;background:#0b0b10;border-right:1px solid #1a1a20;display:flex;flex-direction:column;gap:10px;padding:10px 6px;flex-shrink:0">
+              <div style="display:flex;align-items:center;gap:5px">
+                <div style="width:16px;height:16px;background:#1a2a1a;border-radius:3px;border:1px solid #059669;flex-shrink:0"></div>
+                <div style="height:4px;background:#059669;border-radius:2px;flex:1;opacity:.7"></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:5px">
+                <div style="width:16px;height:16px;background:#111;border-radius:3px;border:1px solid #222;flex-shrink:0"></div>
+                <div style="height:4px;background:#333;border-radius:2px;flex:1"></div>
+              </div>
+            </div>
+            <div style="flex:1;padding:6px;display:flex;flex-direction:column;gap:3px">
+              <div style="height:5px;background:#444;border-radius:2px;width:60%"></div>
+              <div style="height:30px;background:#111114;border-radius:4px;border:1px solid #1a1a1e;flex:1"></div>
+              <div style="height:12px;background:#059669;border-radius:4px;width:50%"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'overlay',
+        label: 'Legt sich drüber',
+        desc: 'Der Inhalt bleibt wo er ist. Die Sidebar klappt auf und überdeckt einen Teil. Kein Layout-Shift.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c;position:relative;overflow:hidden">
+            <div style="width:44px;background:#080810;border-right:1px solid #1a1a20;display:flex;flex-direction:column;gap:10px;padding:10px 0;align-items:center;flex-shrink:0;position:relative;z-index:2">
+              <div style="width:20px;height:20px;background:#1a2a1a;border-radius:4px;border:1px solid #059669"></div>
+              <div style="width:20px;height:20px;background:#111;border-radius:4px;border:1px solid #222"></div>
+            </div>
+            <div style="position:absolute;left:44px;top:0;bottom:0;width:96px;background:#0c0c14;border-right:1px solid #2a2a36;z-index:3;display:flex;flex-direction:column;gap:10px;padding:10px 6px;box-shadow:4px 0 16px rgba(0,0,0,.6)">
+              <div style="display:flex;align-items:center;gap:5px">
+                <div style="width:16px;height:16px;background:#1a2a1a;border-radius:3px;border:1px solid #059669;flex-shrink:0"></div>
+                <div style="height:4px;background:#059669;border-radius:2px;flex:1;opacity:.7"></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:5px">
+                <div style="width:16px;height:16px;background:#111;border-radius:3px;border:1px solid #222;flex-shrink:0"></div>
+                <div style="height:4px;background:#333;border-radius:2px;flex:1"></div>
+              </div>
+            </div>
+            <div style="flex:1;padding:6px;display:flex;flex-direction:column;gap:3px;margin-left:0">
+              <div style="height:5px;background:#444;border-radius:2px;width:60%"></div>
+              <div style="height:30px;background:#111114;border-radius:4px;border:1px solid #1a1a1e;flex:1"></div>
+              <div style="height:12px;background:#059669;border-radius:4px;width:50%"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'fixed-width',
+        label: 'Sidebar fest breit',
+        desc: 'Die Sidebar ist immer ~160px breit und zeigt Icons + Labels dauerhaft. Kein Hover-Expand nötig.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c">
+            <div style="width:110px;background:#080810;border-right:1px solid #1a1a20;display:flex;flex-direction:column;gap:10px;padding:10px 8px;flex-shrink:0">
+              <div style="display:flex;align-items:center;gap:6px">
+                <div style="width:16px;height:16px;background:#1a2a1a;border-radius:3px;border:1px solid #059669;flex-shrink:0"></div>
+                <div style="height:4px;background:#059669;border-radius:2px;flex:1;opacity:.8"></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <div style="width:16px;height:16px;background:#111;border-radius:3px;border:1px solid #222;flex-shrink:0"></div>
+                <div style="height:4px;background:#333;border-radius:2px;flex:1"></div>
+              </div>
+            </div>
+            <div style="flex:1;padding:6px;display:flex;flex-direction:column;gap:3px">
+              <div style="height:5px;background:#444;border-radius:2px;width:60%"></div>
+              <div style="height:30px;background:#111114;border-radius:4px;border:1px solid #1a1a1e;flex:1"></div>
+              <div style="height:12px;background:#059669;border-radius:4px;width:50%"></div>
+            </div>
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'loading-step-style',
+    label: 'Frage 2 — Lade-Schritt Stil',
+    text: 'Wie sehen die Schritte während der Analyse aus?',
+    sub: 'Schritte erscheinen nacheinander: "Stelle analysiert" → "CV verglichen" → "Anschreiben erstellt"',
+    cols: 3,
+    options: [
+      {
+        id: 'numbered-spinner',
+        label: 'Nummer + Spinner',
+        desc: 'Nummerierte Schritte. Aktiver Schritt hat einen rotierenden Spinner. Erledigte Schritte zeigen grüne Zahl.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:14px;display:flex;flex-direction:column;gap:8px;justify-content:center">
+            ${[['1','Stelle analysiert',true,false],['2','CV verglichen',false,true],['3','Anschreiben erstellt',false,false]].map(([n,l,done,active])=>`
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="width:20px;height:20px;border-radius:50%;background:${done?'#059669':active?'transparent':'#1a1a1e'};border:${active?'2px solid #059669':done?'none':'2px solid #2a2a2e'};display:flex;align-items:center;justify-content:center;flex-shrink:0;${active?'animation:spin 1s linear infinite':''}">
+                  ${done?`<span style="font-size:9px;color:#fff;font-weight:700">${n}</span>`:active?`<div style="width:8px;height:8px;border-radius:50%;border:2px solid #059669;border-top-color:transparent"></div>`:`<span style="font-size:9px;color:#333;font-weight:700">${n}</span>`}
+                </div>
+                <div style="height:4px;border-radius:2px;flex:1;background:${done?'#059669':active?'#1e3a1e':'#1a1a1e'}"></div>
+              </div>`).join('')}
+          </div>`
+      },
+      {
+        id: 'checkmarks',
+        label: 'Kreis → Haken',
+        desc: 'Offener Kreis → pulsierender Kreis (aktiv) → grüner Haken (erledigt). Schlicht und klar.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:14px;display:flex;flex-direction:column;gap:8px;justify-content:center">
+            ${[['Stelle analysiert',true,false],['CV verglichen',false,true],['Anschreiben erstellt',false,false]].map(([l,done,active])=>`
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="width:18px;height:18px;border-radius:50%;background:${done?'#059669':'transparent'};border:2px solid ${done?'#059669':active?'#059669':'#2a2a2e'};display:flex;align-items:center;justify-content:center;flex-shrink:0;${active?'box-shadow:0 0 0 3px rgba(5,150,105,.2)':''}">
+                  ${done?`<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3L9 1" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`:''}
+                </div>
+                <div style="height:4px;border-radius:2px;flex:1;background:${done?'#059669':active?'#1e3a1e':'#1a1a1e'}"></div>
+              </div>`).join('')}
+          </div>`
+      },
+      {
+        id: 'progress-bar-steps',
+        label: 'Balken-Schritte',
+        desc: 'Jeder Schritt ist ein horizontaler Balken der sich von links nach rechts füllt. Einer nach dem anderen.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:14px;display:flex;flex-direction:column;gap:10px;justify-content:center">
+            ${[['Stelle analysiert',100],['CV verglichen',55],['Anschreiben erstellt',0]].map(([l,p])=>`
+              <div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+                  <div style="height:4px;background:${p>0?'#059669':'#333'};border-radius:2px;width:60%"></div>
+                  <div style="height:4px;background:#333;border-radius:2px;width:15%"></div>
+                </div>
+                <div style="height:5px;background:#1a1a1e;border-radius:99px;overflow:hidden">
+                  <div style="height:100%;background:#059669;width:${p}%;border-radius:99px;transition:width 1s ease"></div>
+                </div>
+              </div>`).join('')}
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'dimension-score-number',
+    label: 'Frage 3 — Dimensionswert sichtbar?',
+    text: 'Zeigen die Dimensions-Balken einen Prozentwert?',
+    sub: 'Die 5 Balken zeigen Technisch, Anforderungen, Rollenfit usw. Die Balkenfarbe ändert sich schon nach Score.',
+    cols: 3,
+    options: [
+      {
+        id: 'bar-only',
+        label: 'Nur Balken',
+        desc: 'Kein Prozentwert. Die Balkenlänge und -farbe sagen alles. Ruhiger, weniger Zahlen.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:12px;display:flex;flex-direction:column;gap:6px;justify-content:center">
+            ${[['Technisch',92,'#059669'],['Anforderungen',85,'#059669'],['Rollenfit',61,'#f59e0b'],['Standort',48,'#f59e0b'],['Strategisch',28,'#b91c1c']].map(([l,p,c])=>`
+              <div style="display:flex;align-items:center;gap:6px">
+                <div style="width:58px;font-size:7px;color:#555;text-align:right;flex-shrink:0">${l}</div>
+                <div style="flex:1;height:6px;background:#1e1e22;border-radius:99px;overflow:hidden">
+                  <div style="height:100%;background:${c};width:${p}%;border-radius:99px"></div>
+                </div>
+              </div>`).join('')}
+          </div>`
+      },
+      {
+        id: 'bar-and-number',
+        label: 'Balken + Zahl',
+        desc: 'Rechts neben dem Balken steht der genaue Wert (z.B. 92%). Präzise für Detail-Nerds.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:12px;display:flex;flex-direction:column;gap:6px;justify-content:center">
+            ${[['Technisch',92,'#059669'],['Anforderungen',85,'#059669'],['Rollenfit',61,'#f59e0b'],['Standort',48,'#f59e0b'],['Strategisch',28,'#b91c1c']].map(([l,p,c])=>`
+              <div style="display:flex;align-items:center;gap:6px">
+                <div style="width:52px;font-size:7px;color:#555;text-align:right;flex-shrink:0">${l}</div>
+                <div style="flex:1;height:6px;background:#1e1e22;border-radius:99px;overflow:hidden">
+                  <div style="height:100%;background:${c};width:${p}%;border-radius:99px"></div>
+                </div>
+                <div style="width:22px;font-size:7px;color:${c};font-weight:700;flex-shrink:0">${p}%</div>
+              </div>`).join('')}
+          </div>`
+      },
+      {
+        id: 'bar-hover-number',
+        label: 'Zahl bei Hover',
+        desc: 'Standardmäßig nur Balken. Wenn du mit der Maus drüber fährst, erscheint ein Tooltip mit dem Wert.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:12px;display:flex;flex-direction:column;gap:6px;justify-content:center">
+            ${[['Technisch',92,'#059669',true],['Anforderungen',85,'#059669',false],['Rollenfit',61,'#f59e0b',false],['Standort',48,'#f59e0b',false],['Strategisch',28,'#b91c1c',false]].map(([l,p,c,hov])=>`
+              <div style="display:flex;align-items:center;gap:6px;position:relative">
+                <div style="width:58px;font-size:7px;color:#555;text-align:right;flex-shrink:0">${l}</div>
+                <div style="flex:1;height:6px;background:#1e1e22;border-radius:99px;overflow:hidden;position:relative">
+                  <div style="height:100%;background:${c};width:${p}%;border-radius:99px"></div>
+                </div>
+                ${hov?`<div style="position:absolute;right:0;top:-18px;background:#111;border:1px solid #059669;border-radius:4px;padding:1px 5px;font-size:7px;color:#059669;font-weight:700;white-space:nowrap">${p}%</div>`:''}
+              </div>`).join('')}
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'section-header-style',
+    label: 'Frage 4 — Ergebnis-Abschnittstitel',
+    text: 'Wie sehen die Überschriften zwischen den Ergebnis-Abschnitten aus?',
+    sub: 'Vor CV-Diff, Anschreiben usw. steht eine Überschrift die den Abschnitt trennt.',
+    cols: 3,
+    options: [
+      {
+        id: 'label-line',
+        label: 'Text + dünne Linie',
+        desc: 'Kleiner Text, darunter eine 1px Linie. Minimal. Der Fokus liegt auf dem Inhalt, nicht der Navigation.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:14px;display:flex;flex-direction:column;gap:10px;justify-content:center">
+            <div>
+              <div style="height:5px;background:#555;border-radius:2px;width:45%;margin-bottom:5px"></div>
+              <div style="height:1px;background:#1e1e22"></div>
+            </div>
+            <div style="height:25px;background:#111114;border-radius:4px;border:1px solid #1a1a1e"></div>
+            <div>
+              <div style="height:5px;background:#555;border-radius:2px;width:40%;margin-bottom:5px"></div>
+              <div style="height:1px;background:#1e1e22"></div>
+            </div>
+            <div style="height:30px;background:#111114;border-radius:4px;border:1px solid #1a1a1e"></div>
+          </div>`
+      },
+      {
+        id: 'bold-uppercase-icon',
+        label: 'Fett + Großbuchstaben + Icon',
+        desc: 'Uppercased Label in Grün, kleines Icon links, breite Divider-Linie. Klare visuelle Trennung.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:14px;display:flex;flex-direction:column;gap:10px;justify-content:center">
+            <div>
+              <div style="display:flex;align-items:center;gap:5px;margin-bottom:5px">
+                <div style="width:12px;height:12px;background:#1a2a1a;border-radius:2px;border:1px solid #059669"></div>
+                <div style="height:5px;background:#059669;border-radius:2px;width:40%;opacity:.8"></div>
+                <div style="flex:1;height:1px;background:#083a20"></div>
+              </div>
+            </div>
+            <div style="height:22px;background:#111114;border-radius:4px;border:1px solid #1a1a1e"></div>
+            <div>
+              <div style="display:flex;align-items:center;gap:5px;margin-bottom:5px">
+                <div style="width:12px;height:12px;background:#1a2a1a;border-radius:2px;border:1px solid #059669"></div>
+                <div style="height:5px;background:#059669;border-radius:2px;width:35%;opacity:.8"></div>
+                <div style="flex:1;height:1px;background:#083a20"></div>
+              </div>
+            </div>
+            <div style="height:28px;background:#111114;border-radius:4px;border:1px solid #1a1a1e"></div>
+          </div>`
+      },
+      {
+        id: 'centered-label-line',
+        label: 'Zentriert zwischen Linien',
+        desc: 'Die Überschrift steht zentriert, links und rechts davon eine Linie. Klassischer "rule" Stil.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:14px;display:flex;flex-direction:column;gap:10px;justify-content:center">
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="flex:1;height:1px;background:#1e1e22"></div>
+              <div style="height:4px;background:#555;border-radius:2px;width:40px"></div>
+              <div style="flex:1;height:1px;background:#1e1e22"></div>
+            </div>
+            <div style="height:22px;background:#111114;border-radius:4px;border:1px solid #1a1a1e"></div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="flex:1;height:1px;background:#1e1e22"></div>
+              <div style="height:4px;background:#555;border-radius:2px;width:55px"></div>
+              <div style="flex:1;height:1px;background:#1e1e22"></div>
+            </div>
+            <div style="height:28px;background:#111114;border-radius:4px;border:1px solid #1a1a1e"></div>
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'anschreiben-editable',
+    label: 'Frage 5 — Anschreiben bearbeitbar?',
+    text: 'Kannst du den Anschreiben-Text direkt im Browser bearbeiten?',
+    sub: 'Das Anschreiben erscheint in einem Textbereich. Der Copy-Button und der Download-Button (↓) sind immer da.',
+    cols: 2,
+    options: [
+      {
+        id: 'read-only',
+        label: 'Nur lesen, kopieren, laden',
+        desc: 'Schreibgeschützt. Du kannst kopieren oder herunterladen, aber nicht direkt darin tippen. Einfacher, weniger Bugs.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:5px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div style="height:5px;background:#555;border-radius:2px;width:40%"></div>
+              <div style="display:flex;gap:4px">
+                <div style="width:18px;height:14px;background:#083a20;border-radius:3px;border:1px solid #059669;display:flex;align-items:center;justify-content:center;font-size:7px;color:#059669">⎘</div>
+                <div style="width:14px;height:14px;background:#083a20;border-radius:3px;border:1px solid #059669;display:flex;align-items:center;justify-content:center;font-size:7px;color:#059669">↓</div>
+              </div>
+            </div>
+            <div style="flex:1;background:#0d1a11;border:1px solid #1a3a1a;border-radius:6px;padding:6px;display:flex;flex-direction:column;gap:3px;cursor:not-allowed;position:relative">
+              ${Array(5).fill(0).map((_,i)=>`<div style="height:4px;background:#1a3a1a;border-radius:2px;width:${[95,88,75,92,60][i]}%"></div>`).join('')}
+              <div style="position:absolute;right:4px;bottom:4px;font-size:7px;color:#2a4a2a">readonly</div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'editable',
+        label: 'Bearbeitbar',
+        desc: 'Du kannst direkt im Textfeld tippen und den Text anpassen, bevor du kopierst oder herunterlädst.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:5px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div style="height:5px;background:#555;border-radius:2px;width:40%"></div>
+              <div style="display:flex;gap:4px">
+                <div style="width:18px;height:14px;background:#083a20;border-radius:3px;border:1px solid #059669;display:flex;align-items:center;justify-content:center;font-size:7px;color:#059669">⎘</div>
+                <div style="width:14px;height:14px;background:#083a20;border-radius:3px;border:1px solid #059669;display:flex;align-items:center;justify-content:center;font-size:7px;color:#059669">↓</div>
+              </div>
+            </div>
+            <div style="flex:1;background:#0d1a11;border:2px solid #059669;border-radius:6px;padding:6px;display:flex;flex-direction:column;gap:3px;cursor:text;position:relative">
+              ${Array(4).fill(0).map((_,i)=>`<div style="height:4px;background:#1a3a1a;border-radius:2px;width:${[95,88,75,92][i]}%"></div>`).join('')}
+              <div style="display:inline-block;width:2px;height:10px;background:#059669;margin-top:1px;animation:blink 1s step-end infinite"></div>
+            </div>
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'show-more-style',
+    label: 'Frage 6 — "Mehr anzeigen" Button',
+    text: 'Wie sieht der "Mehr anzeigen" Button beim CV-Diff aus?',
+    sub: 'Standard: 8 Diff-Zeilen. Darunter kommt ein Steuerelement um den Rest zu sehen.',
+    cols: 3,
+    options: [
+      {
+        id: 'text-link',
+        label: 'Textlink',
+        desc: '"+ 12 weitere Zeilen" als klickbarer grüner Textlink. Minimalistisch, nimmt kaum Platz.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:2px;justify-content:center">
+            ${[['#0a3a2a','92%'],['#3a1a1a','65%'],['#1a1a1e','80%'],['#0a3a2a','88%'],['#1a1a1e','70%']].map(([bg,w])=>`
+              <div style="height:5px;background:${bg};border-radius:2px;width:${w}"></div>`).join('')}
+            <div style="margin-top:6px;height:4px;background:#059669;border-radius:2px;width:60%;opacity:.8;text-decoration:underline"></div>
+            <div style="height:3px;background:#083a20;border-radius:2px;width:35%"></div>
+          </div>`
+      },
+      {
+        id: 'ghost-button',
+        label: 'Ghost-Button',
+        desc: 'Ein Outlined-Button "Alle Änderungen anzeigen". Klarer als ein Textlink, gehört optisch zum Block.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:2px;justify-content:center">
+            ${[['#0a3a2a','92%'],['#3a1a1a','65%'],['#1a1a1e','80%'],['#0a3a2a','88%'],['#1a1a1e','70%']].map(([bg,w])=>`
+              <div style="height:5px;background:${bg};border-radius:2px;width:${w}"></div>`).join('')}
+            <div style="margin-top:8px;height:22px;border:1px solid #1e3a1e;border-radius:5px;display:flex;align-items:center;justify-content:center;gap:4px">
+              <div style="height:4px;background:#059669;border-radius:2px;width:55%;opacity:.7"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'chevron-expand',
+        label: 'Pfeil nach unten',
+        desc: 'Ein dezentes Pfeil-Icon (▼) mit Anzahl der verbleibenden Zeilen. Klicken klappt aus, nochmal klicken klappt ein.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:2px;justify-content:center">
+            ${[['#0a3a2a','92%'],['#3a1a1a','65%'],['#1a1a1e','80%'],['#0a3a2a','88%'],['#1a1a1e','70%']].map(([bg,w])=>`
+              <div style="height:5px;background:${bg};border-radius:2px;width:${w}"></div>`).join('')}
+            <div style="margin-top:6px;display:flex;align-items:center;justify-content:center;gap:4px">
+              <div style="height:3px;background:#2a4a2a;border-radius:2px;width:30%"></div>
+              <div style="font-size:9px;color:#059669;line-height:1">▼</div>
+              <div style="height:3px;background:#2a4a2a;border-radius:2px;width:30%"></div>
+            </div>
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'new-analysis-trigger',
+    label: 'Frage 7 — Neue Analyse starten',
+    text: 'Wie startest du eine neue Analyse nachdem du die Ergebnisse siehst?',
+    sub: 'Du hast gerade Ergebnisse für eine Stelle. Jetzt willst du eine neue Stelle analysieren.',
+    cols: 3,
+    options: [
+      {
+        id: 'overwrite-textarea',
+        label: 'Einfach überschreiben',
+        desc: 'Du schreibst einfach in die Textarea einen neuen Text. Die Ergebnisse bleiben rechts bis du auf "Analysieren" klickst. Kein Reset nötig.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c;overflow:hidden">
+            <div style="width:38px;background:#080810;border-right:1px solid #1a1a20"></div>
+            <div style="width:38%;background:#0a0a0c;border-right:1px solid #1a1a20;padding:6px;display:flex;flex-direction:column;gap:4px">
+              <div style="height:8px;background:#0f2a18;border-radius:4px;border:1px solid #1a3a20;display:flex;align-items:center;padding:0 4px">
+                <div style="height:4px;background:#1a4a28;border-radius:2px;width:70%"></div>
+              </div>
+              <div style="flex:1;background:#111114;border-radius:4px;border:2px solid #059669;min-height:50px;padding:4px;display:flex;flex-direction:column;gap:2px">
+                <div style="height:3px;background:#1e3a1e;border-radius:2px;width:90%"></div>
+                <div style="height:3px;background:#1e3a1e;border-radius:2px;width:75%"></div>
+                <div style="display:inline-block;width:2px;height:8px;background:#059669;margin-top:1px"></div>
+              </div>
+              <div style="height:14px;background:#059669;border-radius:4px"></div>
+            </div>
+            <div style="flex:1;padding:6px;display:flex;flex-direction:column;gap:3px;opacity:.4">
+              <div style="height:10px;background:#083a20;border-radius:99px;width:50%;border:1px solid #1a4a2a"></div>
+              <div style="height:4px;background:#0a3a2a;border-radius:2px;width:90%"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'clear-button',
+        label: '"Zurücksetzen" Button',
+        desc: 'Ein sichtbarer Button "Zurücksetzen" oder "×" leert Textarea und Ergebnisse gleichzeitig. Explizit.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c;overflow:hidden">
+            <div style="width:38px;background:#080810;border-right:1px solid #1a1a20"></div>
+            <div style="width:38%;background:#0a0a0c;border-right:1px solid #1a1a20;padding:6px;display:flex;flex-direction:column;gap:4px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+                <div style="height:4px;background:#555;border-radius:2px;width:40%"></div>
+                <div style="height:14px;width:40px;background:transparent;border:1px solid #2a2a2e;border-radius:4px;display:flex;align-items:center;justify-content:center">
+                  <div style="height:4px;background:#555;border-radius:2px;width:65%"></div>
+                </div>
+              </div>
+              <div style="flex:1;background:#111114;border-radius:4px;border:1px solid #1a1a1e;padding:4px;display:flex;flex-direction:column;gap:2px;min-height:50px">
+                <div style="height:3px;background:#1e1e22;border-radius:2px;width:90%"></div>
+                <div style="height:3px;background:#1e1e22;border-radius:2px;width:70%"></div>
+              </div>
+              <div style="height:14px;background:#059669;border-radius:4px"></div>
+            </div>
+            <div style="flex:1;padding:6px;display:flex;flex-direction:column;gap:3px">
+              <div style="height:10px;background:#083a20;border-radius:99px;width:50%;border:1px solid #1a4a2a"></div>
+              <div style="height:4px;background:#0a3a2a;border-radius:2px;width:90%"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'neue-analyse-banner',
+        label: '"Neue Analyse" oben',
+        desc: 'Oben im Ergebnis-Panel erscheint ein Banner: "Neue Analyse starten →". Klicken scrollt zurück zum Input.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c;overflow:hidden">
+            <div style="width:38px;background:#080810;border-right:1px solid #1a1a20"></div>
+            <div style="width:38%;background:#0a0a0c;border-right:1px solid #1a1a20;padding:6px;display:flex;flex-direction:column;gap:4px">
+              <div style="flex:1;background:#111114;border-radius:4px;border:1px solid #1a1a1e;min-height:50px"></div>
+              <div style="height:14px;background:#059669;border-radius:4px"></div>
+            </div>
+            <div style="flex:1;padding:6px;display:flex;flex-direction:column;gap:3px">
+              <div style="height:18px;background:#041510;border:1px solid #083a20;border-radius:5px;display:flex;align-items:center;padding:0 6px;gap:4px;margin-bottom:2px">
+                <div style="height:4px;background:#059669;border-radius:2px;width:55%;opacity:.8"></div>
+                <div style="height:4px;background:#059669;border-radius:2px;width:10%;opacity:.8">→</div>
+              </div>
+              <div style="height:10px;background:#083a20;border-radius:99px;width:50%;border:1px solid #1a4a2a"></div>
+              <div style="height:4px;background:#0a3a2a;border-radius:2px;width:90%"></div>
+            </div>
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'error-state',
+    label: 'Frage 8 — Fehlerdarstellung',
+    text: 'Was passiert wenn die Analyse fehlschlägt?',
+    sub: 'Netzwerkfehler, API-Timeout, oder kein gültiger Stellentext eingegeben.',
+    cols: 3,
+    options: [
+      {
+        id: 'toast',
+        label: 'Toast oben rechts',
+        desc: 'Eine rote Toast-Meldung erscheint kurz oben rechts und verschwindet nach 5 Sekunden. Nicht-invasiv.',
+        preview: `
+          <div style="position:relative;background:#0a0a0c;height:100%;overflow:hidden">
+            <div style="position:absolute;top:8px;right:8px;width:120px;background:#1a0808;border:1px solid #b91c1c;border-radius:7px;padding:5px 7px;display:flex;gap:5px;align-items:flex-start">
+              <div style="width:10px;height:10px;border-radius:50%;background:#b91c1c;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;font-size:6px;color:#fff;font-weight:700">✕</div>
+              <div>
+                <div style="height:4px;background:#b91c1c;border-radius:2px;width:70%;margin-bottom:2px;opacity:.8"></div>
+                <div style="height:3px;background:#5a1a1a;border-radius:2px;width:90%"></div>
+              </div>
+            </div>
+            <div style="padding:20px 12px 12px;display:flex;flex-direction:column;gap:4px">
+              <div style="flex:1;background:#111114;border-radius:5px;height:80px;border:1px solid #1a1a1e"></div>
+              <div style="height:14px;background:#2a2a2e;border-radius:4px;opacity:.5"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'inline-error',
+        label: 'Inline im Ergebnis-Panel',
+        desc: 'Das Ergebnis-Panel zeigt einen roten Fehler-Block mit Fehlermeldung und Retry-Button. Klar und persistiert.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c;overflow:hidden">
+            <div style="width:38px;background:#080810;border-right:1px solid #1a1a20"></div>
+            <div style="width:36%;background:#0a0a0c;border-right:1px solid #1a1a20;padding:6px;display:flex;flex-direction:column;gap:4px">
+              <div style="flex:1;background:#111114;border-radius:4px;border:1px solid #1a1a1e;min-height:60px"></div>
+              <div style="height:14px;background:#2a2a2e;border-radius:4px;opacity:.5"></div>
+            </div>
+            <div style="flex:1;padding:6px;display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center">
+              <div style="width:100%;background:#1a0808;border:1px solid #b91c1c;border-radius:7px;padding:8px;display:flex;flex-direction:column;gap:4px;align-items:center">
+                <div style="width:18px;height:18px;border-radius:50%;background:#b91c1c;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;font-weight:700">!</div>
+                <div style="height:4px;background:#5a1a1a;border-radius:2px;width:75%"></div>
+                <div style="height:3px;background:#4a1a1a;border-radius:2px;width:90%"></div>
+                <div style="height:16px;background:#b91c1c;border-radius:4px;width:50%;margin-top:2px;opacity:.8"></div>
+              </div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'step-list-error',
+        label: 'Schritt wird rot',
+        desc: 'In der Schrittliste wird der fehlgeschlagene Schritt rot markiert mit einer kurzen Fehlermeldung. Retry direkt darunter.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:14px;display:flex;flex-direction:column;gap:8px;justify-content:center">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="width:18px;height:18px;border-radius:50%;background:#059669;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3L9 1" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <div style="height:4px;background:#059669;border-radius:2px;flex:1"></div>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:8px">
+              <div style="width:18px;height:18px;border-radius:50%;background:#b91c1c;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px;color:#fff;font-weight:700">✕</div>
+              <div style="flex:1">
+                <div style="height:4px;background:#b91c1c;border-radius:2px;width:70%;opacity:.8;margin-bottom:3px"></div>
+                <div style="height:3px;background:#5a1a1a;border-radius:2px;width:90%;margin-bottom:4px"></div>
+                <div style="height:14px;background:#b91c1c;border-radius:3px;width:40%;opacity:.7;display:flex;align-items:center;justify-content:center">
+                  <div style="height:3px;background:#fff;border-radius:2px;width:55%;opacity:.5"></div>
+                </div>
+              </div>
+            </div>
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'keyboard-shortcut',
+    label: 'Frage 9 — Tastaturkürzel',
+    text: 'Soll Ctrl+Enter die Analyse starten?',
+    sub: 'Du hast den Stellentext eingegeben. Statt auf den Button zu klicken — Tastenkürzel?',
+    cols: 3,
+    options: [
+      {
+        id: 'ctrl-enter',
+        label: 'Ja, Ctrl+Enter',
+        desc: 'Ctrl+Enter (Mac: Cmd+Enter) startet die Analyse. Ein kleiner Hinweis im Button-Label zeigt das an.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:14px;display:flex;flex-direction:column;gap:6px;justify-content:flex-end">
+            <div style="flex:1;background:#111114;border-radius:6px;border:1px solid #1a1a1e"></div>
+            <div style="height:28px;background:#059669;border-radius:6px;display:flex;align-items:center;justify-content:center;gap:6px">
+              <div style="height:5px;background:rgba(255,255,255,.8);border-radius:2px;width:45%"></div>
+              <div style="height:14px;border:1px solid rgba(255,255,255,.4);border-radius:3px;padding:0 4px;display:flex;align-items:center">
+                <div style="height:4px;background:rgba(255,255,255,.5);border-radius:1px;width:20px"></div>
+              </div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'button-only',
+        label: 'Nein, nur Button',
+        desc: 'Kein Tastaturkürzel. Nur der Button. Keine Überraschungen für Power-User und Anfänger gleichermaßen.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:14px;display:flex;flex-direction:column;gap:6px;justify-content:flex-end">
+            <div style="flex:1;background:#111114;border-radius:6px;border:1px solid #1a1a1e"></div>
+            <div style="height:28px;background:#059669;border-radius:6px;display:flex;align-items:center;justify-content:center">
+              <div style="height:5px;background:rgba(255,255,255,.8);border-radius:2px;width:45%"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'enter-only',
+        label: 'Enter (ohne Ctrl)',
+        desc: 'Nur Enter zum Absenden. Einfacher, aber riskant: in einer Textarea bedeutet Enter normalerweise neue Zeile.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:14px;display:flex;flex-direction:column;gap:6px;justify-content:flex-end">
+            <div style="flex:1;background:#111114;border-radius:6px;border:2px solid #059669;position:relative">
+              <div style="position:absolute;bottom:4px;right:6px;height:14px;border:1px solid #059669;border-radius:3px;padding:0 4px;display:flex;align-items:center">
+                <div style="height:4px;background:#059669;border-radius:1px;width:16px;opacity:.6"></div>
+              </div>
+            </div>
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'score-badge-in-history',
+    label: 'Frage 10 — Score-Badge in der Timeline',
+    text: 'Wie zeigt die Verlauf-Timeline den Score für jeden Eintrag?',
+    sub: 'Jeder Timeline-Eintrag hat: Firma + Score + Datum. Wie genau sieht der Score-Teil aus?',
+    cols: 3,
+    options: [
+      {
+        id: 'word-badge',
+        label: 'Nur Wort-Badge',
+        desc: '"Empfohlen" / "Grenzfall" / "Nicht empfohlen" als farbige Pille. Kein Prozentwert.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:5px;justify-content:center">
+            ${[['Google GmbH','#059669','Empfohlen','12. Jun'],['SAP SE','#f59e0b','Grenzfall','8. Jun'],['BMW AG','#b91c1c','Nicht emp.','3. Jun']].map(([n,c,l,d],i)=>`
+              <div style="display:flex;gap:5px;align-items:center">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:1px;flex-shrink:0">
+                  <div style="width:7px;height:7px;background:${c};border-radius:50%"></div>
+                  ${i<2?'<div style="width:1px;height:14px;background:#1e1e22"></div>':''}
+                </div>
+                <div style="flex:1;padding:4px 6px;background:#0f0f12;border-radius:5px;border:1px solid #1a1a1e;display:flex;align-items:center;justify-content:space-between;gap:4px">
+                  <div style="height:4px;background:#555;border-radius:2px;flex:1"></div>
+                  <div style="height:14px;padding:0 5px;background:${c}22;border:1px solid ${c}55;border-radius:99px;display:flex;align-items:center">
+                    <div style="height:3px;background:${c};border-radius:2px;width:28px"></div>
+                  </div>
+                  <div style="height:3px;background:#333;border-radius:2px;width:18px"></div>
+                </div>
+              </div>`).join('')}
+          </div>`
+      },
+      {
+        id: 'percent-badge',
+        label: 'Prozentzahl + Farbe',
+        desc: '"87%" in grüner Pille. Direkter Vergleich zwischen Bewerbungen — du siehst sofort wo du besser warst.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:5px;justify-content:center">
+            ${[['Google GmbH','#059669','87%','12. Jun'],['SAP SE','#f59e0b','61%','8. Jun'],['BMW AG','#b91c1c','31%','3. Jun']].map(([n,c,l,d],i)=>`
+              <div style="display:flex;gap:5px;align-items:center">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:1px;flex-shrink:0">
+                  <div style="width:7px;height:7px;background:${c};border-radius:50%"></div>
+                  ${i<2?'<div style="width:1px;height:14px;background:#1e1e22"></div>':''}
+                </div>
+                <div style="flex:1;padding:4px 6px;background:#0f0f12;border-radius:5px;border:1px solid #1a1a1e;display:flex;align-items:center;justify-content:space-between;gap:4px">
+                  <div style="height:4px;background:#555;border-radius:2px;flex:1"></div>
+                  <div style="height:14px;padding:0 5px;background:${c}22;border:1px solid ${c}55;border-radius:99px;display:flex;align-items:center">
+                    <div style="height:3px;background:${c};border-radius:2px;width:16px"></div>
+                  </div>
+                  <div style="height:3px;background:#333;border-radius:2px;width:18px"></div>
+                </div>
+              </div>`).join('')}
+          </div>`
+      },
+      {
+        id: 'color-dot-only',
+        label: 'Nur Farbpunkt',
+        desc: 'Kein Badge. Der farbige Punkt auf der Timeline-Linie ist der Score-Indikator. Maximal kompakt.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:5px;justify-content:center">
+            ${[['#059669','12. Jun'],['#f59e0b','8. Jun'],['#b91c1c','3. Jun']].map(([c,d],i)=>`
+              <div style="display:flex;gap:5px;align-items:center">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:1px;flex-shrink:0">
+                  <div style="width:9px;height:9px;background:${c};border-radius:50%;border:2px solid ${c}88"></div>
+                  ${i<2?'<div style="width:1px;height:12px;background:#1e1e22"></div>':''}
+                </div>
+                <div style="flex:1;padding:4px 6px;background:#0f0f12;border-radius:5px;border:1px solid #1a1a1e;display:flex;align-items:center;justify-content:space-between;gap:4px">
+                  <div style="height:4px;background:#555;border-radius:2px;flex:1"></div>
+                  <div style="height:3px;background:#333;border-radius:2px;width:20px"></div>
+                </div>
+              </div>`).join('')}
+          </div>`
+      }
+    ]
+  }
+];
+
+let current = 0;
+const answers = JSON.parse(localStorage.getItem('design-answers-8') || '{}');
+
+function render() {
+  const q = questions[current];
+  const isSummary = current >= questions.length;
+  document.getElementById('hdr-count').textContent = isSummary ? 'Fertig!' : `${current+1} / ${questions.length}`;
+  document.getElementById('prog').style.width = `${((current+(isSummary?1:0))/questions.length)*100}%`;
+  document.getElementById('btn-back').style.display = (current===0||isSummary)?'none':'';
+  document.getElementById('btn-next').style.display = isSummary?'none':'';
+  if (isSummary) { renderSummary(); return; }
+  const sel = answers[q.id];
+  document.getElementById('nav-info').textContent = sel?'':'Bitte eine Option wählen';
+  document.getElementById('btn-next').disabled = !sel;
+  document.getElementById('summary').classList.remove('visible');
+  document.getElementById('question-area').style.display = '';
+  document.getElementById('question-area').innerHTML = `
+    <div class="q-label">${q.label}</div>
+    <div class="q-text">${q.text}</div>
+    ${q.sub?`<div class="q-sub">${q.sub}</div>`:''}
+    <div class="opts ${q.cols===3?'cols3':''}">
+      ${q.options.map(opt=>`
+        <div class="opt ${sel===opt.id?'selected':''}" onclick="selectOpt('${q.id}','${opt.id}',this)">
+          <div class="opt-preview">${opt.preview}</div>
+          <div class="opt-label">${opt.label}</div>
+          <div class="opt-desc">${opt.desc}</div>
+        </div>`).join('')}
+    </div>`;
+}
+function selectOpt(qid,oid,el){
+  answers[qid]=oid;
+  localStorage.setItem('design-answers-8',JSON.stringify(answers));
+  document.querySelectorAll('.opt').forEach(e=>e.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('btn-next').disabled=false;
+  document.getElementById('nav-info').textContent='';
+}
+function goNext(){current++;render();window.scrollTo(0,0);}
+function goBack(){if(current>0){current--;render();window.scrollTo(0,0);}}
+function renderSummary(){
+  document.getElementById('question-area').style.display='none';
+  const sumEl=document.getElementById('summary');
+  sumEl.classList.add('visible');
+  let rows='';
+  questions.forEach(q=>{
+    const aid=answers[q.id];
+    const opt=q.options.find(o=>o.id===aid);
+    if(!opt)return;
+    rows+=`<div class="summary-item"><div class="summary-preview">${opt.preview}</div><div><div class="summary-q">${q.label}</div><div class="summary-a">${opt.label}</div><div style="font-size:.75rem;color:#555;margin-top:.15rem">${opt.desc}</div></div></div>`;
+  });
+  sumEl.innerHTML=`<div class="done-msg"><h2>✅ Runde 8 abgeschlossen!</h2><p>Diese Details fließen direkt in den React-Build ein.</p></div>${rows}
+    <button class="btn btn-primary" style="width:100%;margin-top:1rem;padding:.9rem" onclick="submit()">Absenden →</button>`;
+  fetch('/api/design-answers-8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(answers)})
+    .then(r=>r.json()).then(()=>{document.querySelector('.done-msg p').textContent='✅ Gespeichert! Claude baut jetzt die React-UI.';}).catch(()=>{});
+}
+function submit(){
+  fetch('/api/design-answers-8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(answers)})
+    .then(r=>r.json()).then(()=>{document.querySelector('.done-msg p').textContent='✅ Gespeichert!';});
+}
+render();
+</script>
+</body>
+</html>

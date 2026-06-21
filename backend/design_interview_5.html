@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design Interview — Runde 5</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0a0c;color:#e8e8ea;font-family:system-ui,sans-serif;min-height:100vh}
+#shell{max-width:960px;margin:0 auto;padding:2rem 1.5rem 6rem}
+.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:2.5rem}
+.hdr-title{font-size:.85rem;font-weight:600;color:#555;letter-spacing:.08em;text-transform:uppercase}
+.hdr-count{font-size:.85rem;color:#555}
+.prog-wrap{height:3px;background:#1e1e22;border-radius:99px;margin-bottom:2.5rem;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,#059669,#10b981);border-radius:99px;transition:width .4s ease}
+.q-label{font-size:.75rem;font-weight:600;color:#059669;text-transform:uppercase;letter-spacing:.1em;margin-bottom:.6rem}
+.q-text{font-size:1.5rem;font-weight:700;line-height:1.3;margin-bottom:.5rem}
+.q-sub{font-size:.9rem;color:#666;margin-bottom:2rem}
+.opts{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}
+.opts.cols3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:600px){.opts,.opts.cols3{grid-template-columns:1fr}}
+.opt{border:2px solid #1e1e22;border-radius:12px;overflow:hidden;cursor:pointer;transition:border-color .15s,transform .15s;background:#0f0f12}
+.opt:hover{border-color:#059669;transform:translateY(-2px)}
+.opt.selected{border-color:#059669;background:#041510}
+.opt-preview{width:100%;height:160px;overflow:hidden;position:relative;background:#16161a}
+.opt-label{padding:.75rem 1rem;font-size:.875rem;font-weight:600}
+.opt-desc{padding:0 1rem .75rem;font-size:.75rem;color:#666;line-height:1.4}
+.nav{position:fixed;bottom:0;left:0;right:0;background:#0a0a0c;border-top:1px solid #1e1e22;padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center}
+.nav-info{font-size:.8rem;color:#444}
+.btn{padding:.6rem 1.4rem;border-radius:8px;font-size:.875rem;font-weight:600;cursor:pointer;border:none;transition:background .15s}
+.btn-primary{background:#059669;color:#fff}
+.btn-primary:hover{background:#047857}
+.btn-primary:disabled{background:#09261a;color:#2a5a3a;cursor:not-allowed}
+.btn-ghost{background:transparent;color:#666;border:1px solid #2a2a2e}
+.btn-ghost:hover{border-color:#555;color:#aaa}
+.summary-wrap{display:none}
+.summary-wrap.visible{display:block}
+.summary-item{display:flex;gap:1rem;align-items:flex-start;padding:1rem;border:1px solid #1e1e22;border-radius:10px;margin-bottom:.75rem;background:#0f0f12}
+.summary-q{font-size:.75rem;color:#666;margin-bottom:.2rem}
+.summary-a{font-size:.9rem;font-weight:600}
+.summary-preview{width:80px;height:50px;border-radius:6px;overflow:hidden;flex-shrink:0}
+.done-msg{text-align:center;padding:2rem 0 1.5rem}
+.done-msg h2{font-size:1.6rem;font-weight:700;margin-bottom:.5rem}
+.done-msg p{color:#666;margin-bottom:2rem}
+.context{background:#041510;border:1px solid #083a20;border-radius:10px;padding:1rem 1.25rem;margin-bottom:2rem;font-size:.8rem;color:#34d399}
+.context strong{color:#6ee7b7}
+.context-row{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.5rem}
+.tag{padding:2px 8px;background:#083a20;border-radius:99px;font-size:.75rem;color:#6ee7b7}
+</style>
+</head>
+<body>
+<div id="shell">
+  <div class="hdr">
+    <span class="hdr-title">Design Interview — Runde 5</span>
+    <span class="hdr-count" id="hdr-count"></span>
+  </div>
+  <div class="prog-wrap"><div class="prog-fill" id="prog"></div></div>
+  <div class="context">
+    <strong>Letzte Entscheidungen:</strong>
+    <div class="context-row">
+      <span class="tag">Download je Sektion</span>
+      <span class="tag">Verlauf → rechtes Panel</span>
+      <span class="tag">Chat = schwebende Blase</span>
+      <span class="tag">Chat-Blasen-Stil</span>
+      <span class="tag">Verlauf = Zeitstrahl</span>
+    </div>
+  </div>
+  <div id="question-area"></div>
+  <div class="summary-wrap" id="summary"></div>
+</div>
+<div class="nav">
+  <button class="btn btn-ghost" id="btn-back" onclick="goBack()">← Zurück</button>
+  <span class="nav-info" id="nav-info"></span>
+  <button class="btn btn-primary" id="btn-next" onclick="goNext()" disabled>Weiter →</button>
+</div>
+
+<script>
+const questions = [
+  {
+    id: 'chat-popup-size',
+    label: 'Folgefrage — Chat-Popup',
+    text: 'Wie groß ist das Chat-Fenster wenn du die Blase klickst?',
+    sub: 'Die schwebende Blase unten rechts öffnet ein Chatfenster. Wie groß?',
+    cols: 3,
+    options: [
+      {
+        id: 'small-corner',
+        label: 'Kleines Eck-Popup',
+        desc: 'Kompaktes Fenster (~320×420px) bleibt in der unteren Ecke. Ergebnis bleibt sichtbar dahinter.',
+        preview: `
+          <div style="position:relative;background:#0a0a0c;height:100%;overflow:hidden">
+            <div style="padding:10px;display:flex;flex-direction:column;gap:4px;opacity:.5">
+              <div style="height:11px;background:#041510;border-radius:99px;width:50%;border:1px solid #083a20"></div>
+              <div style="height:3px;background:#0a3a2a;border-radius:2px;width:80%"></div>
+              <div style="height:3px;background:#3a1a1a;border-radius:2px;width:65%"></div>
+              <div style="height:3px;background:#1e1e22;border-radius:2px;width:75%"></div>
+            </div>
+            <div style="position:absolute;bottom:0;right:0;width:105px;height:110px;background:#111114;border-radius:8px 0 0 0;border:1px solid #1e3a1e;border-right:none;border-bottom:none;padding:7px;display:flex;flex-direction:column;gap:4px;box-shadow:-4px -4px 20px rgba(0,0,0,.5)">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div style="height:4px;background:#059669;border-radius:2px;width:40%"></div>
+                <div style="font-size:8px;color:#555">✕</div>
+              </div>
+              <div style="display:flex;justify-content:flex-end"><div style="background:#1e1e22;border-radius:5px 5px 1px 5px;padding:3px 5px;max-width:75%"><div style="height:3px;background:#555;border-radius:2px;width:50px"></div></div></div>
+              <div style="display:flex;justify-content:flex-start"><div style="background:#041510;border:1px solid #083a20;border-radius:1px 5px 5px 5px;padding:3px 5px;max-width:85%"><div style="height:3px;background:#059669;border-radius:2px;width:60px;margin-bottom:1px"></div><div style="height:3px;background:#059669;border-radius:2px;width:40px"></div></div></div>
+              <div style="flex:1"></div>
+              <div style="height:12px;background:#0a0a0c;border-radius:4px;border:1px solid #1e3a1e;display:flex;align-items:center;padding:0 4px;gap:3px"><div style="flex:1;height:3px;background:#1e1e22;border-radius:2px"></div><div style="width:8px;height:8px;background:#059669;border-radius:2px"></div></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'half-panel',
+        label: 'Halbes Panel (rechts)',
+        desc: 'Chat schiebt sich als ~40% breites Panel von rechts rein. Ergebnis wird schmaler aber bleibt sichtbar.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c;overflow:hidden">
+            <div style="flex:1;padding:8px;display:flex;flex-direction:column;gap:4px;opacity:.7">
+              <div style="height:11px;background:#041510;border-radius:99px;width:60%;border:1px solid #083a20"></div>
+              <div style="height:3px;background:#0a3a2a;border-radius:2px;width:80%"></div>
+              <div style="height:3px;background:#3a1a1a;border-radius:2px;width:65%;opacity:.7"></div>
+              <div style="height:3px;background:#1e1e22;border-radius:2px;width:75%"></div>
+            </div>
+            <div style="width:100px;background:#0f0f12;border-left:1px solid #1e3a1e;padding:7px;display:flex;flex-direction:column;gap:4px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+                <div style="height:4px;background:#059669;border-radius:2px;width:40%"></div>
+                <div style="font-size:8px;color:#555">✕</div>
+              </div>
+              <div style="display:flex;justify-content:flex-end"><div style="background:#1e1e22;border-radius:5px 5px 1px 5px;padding:3px 5px"><div style="height:3px;background:#555;border-radius:2px;width:45px"></div></div></div>
+              <div style="display:flex;justify-content:flex-start"><div style="background:#041510;border:1px solid #083a20;border-radius:1px 5px 5px 5px;padding:3px 5px"><div style="height:3px;background:#059669;border-radius:2px;width:55px;margin-bottom:1px"></div><div style="height:3px;background:#059669;border-radius:2px;width:40px"></div></div></div>
+              <div style="flex:1"></div>
+              <div style="height:12px;background:#0a0a0c;border-radius:4px;border:1px solid #1e3a1e;display:flex;align-items:center;padding:0 4px;gap:3px"><div style="flex:1;height:3px;background:#1e1e22;border-radius:2px"></div><div style="width:8px;height:8px;background:#059669;border-radius:2px"></div></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'fullscreen-chat',
+        label: 'Vollbild-Chat',
+        desc: 'Chat öffnet sich komplett — ersetzt die aktuelle Ansicht. Zurück-Pfeil führt zum Ergebnis zurück.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;display:flex;flex-direction:column">
+            <div style="padding:6px 10px;border-bottom:1px solid #1e3a1e;display:flex;align-items:center;gap:6px;background:#080810">
+              <div style="font-size:8px;color:#059669">←</div>
+              <div style="height:4px;background:#059669;border-radius:2px;width:40%"></div>
+            </div>
+            <div style="flex:1;padding:10px;display:flex;flex-direction:column;gap:5px;justify-content:flex-end">
+              <div style="display:flex;justify-content:flex-end"><div style="background:#1e1e22;border-radius:8px 8px 2px 8px;padding:5px 7px"><div style="height:4px;background:#555;border-radius:2px;width:80px;margin-bottom:2px"></div><div style="height:4px;background:#555;border-radius:2px;width:55px"></div></div></div>
+              <div style="display:flex;justify-content:flex-start"><div style="background:#041510;border:1px solid #083a20;border-radius:2px 8px 8px 8px;padding:5px 7px"><div style="height:4px;background:#059669;border-radius:2px;width:90px;margin-bottom:2px"></div><div style="height:4px;background:#059669;border-radius:2px;width:70px;margin-bottom:2px"></div><div style="height:4px;background:#059669;border-radius:2px;width:50px"></div></div></div>
+            </div>
+            <div style="padding:8px;border-top:1px solid #1e1e22;display:flex;gap:5px">
+              <div style="flex:1;height:18px;background:#0f0f12;border-radius:5px;border:1px solid #1e3a1e"></div>
+              <div style="width:18px;height:18px;background:#059669;border-radius:5px"></div>
+            </div>
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'history-width',
+    label: 'Folgefrage — Verlauf-Seite Layout',
+    text: 'Auf der Verlauf-Seite: wie breit ist die Zeitstrahl-Liste links?',
+    sub: 'Icon-Sidebar (schmal) + Zeitstrahl-Liste + Ergebnis-Panel rechts. Wie ist das aufgeteilt?',
+    cols: 3,
+    options: [
+      {
+        id: 'narrow-list',
+        label: 'Schmale Liste',
+        desc: '~220px für den Zeitstrahl. Viel Platz für das Ergebnis rechts.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c">
+            <div style="width:38px;background:#080810;border-right:1px solid #1a1a20;display:flex;flex-direction:column;align-items:center;padding:5px 0;gap:5px">
+              <div style="width:22px;height:22px;background:#1e1e22;border-radius:5px"></div>
+              <div style="width:22px;height:22px;background:#041510;border-radius:5px;border:1px solid #059669"></div>
+            </div>
+            <div style="width:80px;background:#080810;border-right:1px solid #1a1a20;padding:6px;display:flex;flex-direction:column;gap:3px;overflow:hidden">
+              <div style="height:5px;background:#333;border-radius:2px;width:50%;margin-bottom:3px"></div>
+              <div style="height:4px;background:#555;border-radius:2px;width:55%"></div>
+              ${[1,2,3].map(i=>`
+                <div style="display:flex;gap:4px;align-items:flex-start">
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:1px;padding-top:2px">
+                    <div style="width:5px;height:5px;background:${i===1?'#059669':'#333'};border-radius:50%"></div>
+                    <div style="width:1px;height:10px;background:#1e1e22"></div>
+                  </div>
+                  <div style="flex:1;padding:3px 4px;background:${i===1?'#041510':'#0f0f12'};border-radius:4px;border:1px solid ${i===1?'#083a20':'#1a1a1e'}">
+                    <div style="height:3px;background:${i===1?'#059669':'#333'};border-radius:2px;width:80%;margin-bottom:2px"></div>
+                    <div style="height:3px;background:${i===1?'#1a3a1a':'#1e1e22'};border-radius:2px;width:55%"></div>
+                  </div>
+                </div>`).join('')}
+            </div>
+            <div style="flex:1;padding:7px;display:flex;flex-direction:column;gap:4px">
+              <div style="height:10px;background:#041510;border-radius:99px;width:55%;border:1px solid #083a20"></div>
+              <div style="display:flex;align-items:center;gap:3px;margin-top:2px"><div style="height:2px;background:#059669;width:10px;border-radius:2px"></div><div style="height:3px;background:#059669;border-radius:2px;width:25px"></div><div style="flex:1;height:1px;background:#1e1e22"></div></div>
+              <div style="height:3px;background:#0a3a2a;border-radius:2px;width:85%"></div>
+              <div style="height:3px;background:#3a1a1a;border-radius:2px;width:60%;opacity:.7"></div>
+              <div style="height:3px;background:#1e1e22;border-radius:2px;width:75%"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'medium-list',
+        label: 'Mittlere Liste',
+        desc: '~300px für den Zeitstrahl. Mehr Platz für Firmenname und Jobtitel in der Liste.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c">
+            <div style="width:38px;background:#080810;border-right:1px solid #1a1a20;display:flex;flex-direction:column;align-items:center;padding:5px 0;gap:5px">
+              <div style="width:22px;height:22px;background:#1e1e22;border-radius:5px"></div>
+              <div style="width:22px;height:22px;background:#041510;border-radius:5px;border:1px solid #059669"></div>
+            </div>
+            <div style="width:115px;background:#080810;border-right:1px solid #1a1a20;padding:6px;display:flex;flex-direction:column;gap:3px;overflow:hidden">
+              <div style="height:5px;background:#333;border-radius:2px;width:50%;margin-bottom:3px"></div>
+              <div style="height:4px;background:#555;border-radius:2px;width:45%"></div>
+              ${[1,2,3].map(i=>`
+                <div style="display:flex;gap:4px;align-items:flex-start">
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:1px;padding-top:2px">
+                    <div style="width:5px;height:5px;background:${i===1?'#059669':'#333'};border-radius:50%"></div>
+                    <div style="width:1px;height:14px;background:#1e1e22"></div>
+                  </div>
+                  <div style="flex:1;padding:4px 5px;background:${i===1?'#041510':'#0f0f12'};border-radius:4px;border:1px solid ${i===1?'#083a20':'#1a1a1e'}">
+                    <div style="height:4px;background:${i===1?'#aaa':'#555'};border-radius:2px;width:80%;margin-bottom:2px"></div>
+                    <div style="height:3px;background:${i===1?'#059669':'#333'};border-radius:2px;width:60%;margin-bottom:2px"></div>
+                    <div style="height:3px;background:${i===1?'#1a3a1a':'#1e1e22'};border-radius:2px;width:45%"></div>
+                  </div>
+                </div>`).join('')}
+            </div>
+            <div style="flex:1;padding:7px;display:flex;flex-direction:column;gap:3px">
+              <div style="height:10px;background:#041510;border-radius:99px;width:60%;border:1px solid #083a20"></div>
+              <div style="display:flex;align-items:center;gap:3px;margin-top:2px"><div style="height:2px;background:#059669;width:10px;border-radius:2px"></div><div style="height:3px;background:#059669;border-radius:2px;width:25px"></div><div style="flex:1;height:1px;background:#1e1e22"></div></div>
+              <div style="height:3px;background:#0a3a2a;border-radius:2px;width:85%"></div>
+              <div style="height:3px;background:#1e1e22;border-radius:2px;width:70%"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'equal-split',
+        label: 'Gleich aufgeteilt (50/50)',
+        desc: 'Liste und Ergebnis teilen sich den Platz gleich. Großzügig für beide Seiten.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c">
+            <div style="width:38px;background:#080810;border-right:1px solid #1a1a20;display:flex;flex-direction:column;align-items:center;padding:5px 0;gap:5px">
+              <div style="width:22px;height:22px;background:#1e1e22;border-radius:5px"></div>
+              <div style="width:22px;height:22px;background:#041510;border-radius:5px;border:1px solid #059669"></div>
+            </div>
+            <div style="flex:1;background:#080810;border-right:1px solid #1a1a20;padding:6px;display:flex;flex-direction:column;gap:3px;overflow:hidden">
+              <div style="height:5px;background:#333;border-radius:2px;width:40%;margin-bottom:3px"></div>
+              <div style="height:4px;background:#555;border-radius:2px;width:35%"></div>
+              ${[1,2].map(i=>`
+                <div style="display:flex;gap:4px;align-items:flex-start">
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:1px;padding-top:2px">
+                    <div style="width:5px;height:5px;background:${i===1?'#059669':'#333'};border-radius:50%"></div>
+                    <div style="width:1px;height:16px;background:#1e1e22"></div>
+                  </div>
+                  <div style="flex:1;padding:4px 5px;background:${i===1?'#041510':'#0f0f12'};border-radius:5px;border:1px solid ${i===1?'#083a20':'#1a1a1e'}">
+                    <div style="height:4px;background:${i===1?'#aaa':'#555'};border-radius:2px;width:80%;margin-bottom:2px"></div>
+                    <div style="height:3px;background:${i===1?'#059669':'#333'};border-radius:2px;width:65%;margin-bottom:2px"></div>
+                    <div style="height:3px;background:${i===1?'#1a3a1a':'#1e1e22'};border-radius:2px;width:50%"></div>
+                  </div>
+                </div>`).join('')}
+            </div>
+            <div style="flex:1;padding:7px;display:flex;flex-direction:column;gap:3px">
+              <div style="height:10px;background:#041510;border-radius:99px;width:60%;border:1px solid #083a20"></div>
+              <div style="display:flex;align-items:center;gap:3px;margin-top:2px"><div style="height:2px;background:#059669;width:10px;border-radius:2px"></div><div style="height:3px;background:#059669;border-radius:2px;width:22px"></div><div style="flex:1;height:1px;background:#1e1e22"></div></div>
+              <div style="height:3px;background:#0a3a2a;border-radius:2px;width:85%"></div>
+              <div style="height:3px;background:#1e1e22;border-radius:2px;width:70%"></div>
+            </div>
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'download-label',
+    label: 'Folgefrage — Download-Button',
+    text: 'Wie sieht der Download-Button in der Sektion aus?',
+    sub: 'Er sitzt im Header der Sektion (Diff / Anschreiben), rechts neben dem Trennstrich-Label.',
+    cols: 3,
+    options: [
+      {
+        id: 'icon-only',
+        label: 'Nur Icon',
+        desc: 'Ein kleiner Pfeil-nach-unten-Icon. Minimal, kein Text. Hover zeigt Tooltip.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:12px;display:flex;flex-direction:column;gap:6px;justify-content:center">
+            <div style="display:flex;align-items:center;gap:5px">
+              <div style="height:3px;background:#059669;width:12px;border-radius:2px"></div>
+              <div style="height:4px;background:#059669;border-radius:2px;width:60px"></div>
+              <div style="flex:1;height:1px;background:#1e1e22"></div>
+              <div style="width:18px;height:18px;background:#0f0f12;border-radius:4px;border:1px solid #1e1e22;display:flex;align-items:center;justify-content:center">
+                <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                  <path d="M4 1v5M1.5 4.5L4 7l2.5-2.5" stroke="#059669" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+              </div>
+            </div>
+            <div style="height:4px;background:#0a3a2a;border-radius:2px;width:85%"></div>
+            <div style="height:4px;background:#3a1a1a;border-radius:2px;width:70%;opacity:.7"></div>
+            <div style="height:4px;background:#1e1e22;border-radius:2px;width:80%"></div>
+            <div style="display:flex;align-items:center;gap:5px;margin-top:6px">
+              <div style="height:3px;background:#555;width:12px;border-radius:2px"></div>
+              <div style="height:4px;background:#555;border-radius:2px;width:70px"></div>
+              <div style="flex:1;height:1px;background:#1e1e22"></div>
+              <div style="width:18px;height:18px;background:#0f0f12;border-radius:4px;border:1px solid #1e1e22;display:flex;align-items:center;justify-content:center">
+                <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                  <path d="M4 1v5M1.5 4.5L4 7l2.5-2.5" stroke="#555" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+              </div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'icon-text',
+        label: 'Icon + kurzer Text',
+        desc: '↓ CV  und  ↓ Anschreiben — Icon plus kompakter Beschriftung.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:12px;display:flex;flex-direction:column;gap:6px;justify-content:center">
+            <div style="display:flex;align-items:center;gap:5px">
+              <div style="height:3px;background:#059669;width:12px;border-radius:2px"></div>
+              <div style="height:4px;background:#059669;border-radius:2px;width:60px"></div>
+              <div style="flex:1;height:1px;background:#1e1e22"></div>
+              <div style="height:16px;background:#0f0f12;border-radius:4px;border:1px solid #1e3a1e;padding:0 6px;display:flex;align-items:center;gap:3px">
+                <svg width="7" height="7" viewBox="0 0 8 8" fill="none"><path d="M4 1v5M1.5 4.5L4 7l2.5-2.5" stroke="#059669" stroke-width="1.5" stroke-linecap="round"/></svg>
+                <div style="height:4px;background:#059669;border-radius:2px;width:14px"></div>
+              </div>
+            </div>
+            <div style="height:4px;background:#0a3a2a;border-radius:2px;width:85%"></div>
+            <div style="height:4px;background:#3a1a1a;border-radius:2px;width:70%;opacity:.7"></div>
+            <div style="height:4px;background:#1e1e22;border-radius:2px;width:80%"></div>
+            <div style="display:flex;align-items:center;gap:5px;margin-top:6px">
+              <div style="height:3px;background:#555;width:12px;border-radius:2px"></div>
+              <div style="height:4px;background:#555;border-radius:2px;width:70px"></div>
+              <div style="flex:1;height:1px;background:#1e1e22"></div>
+              <div style="height:16px;background:#0f0f12;border-radius:4px;border:1px solid #2a2a2e;padding:0 6px;display:flex;align-items:center;gap:3px">
+                <svg width="7" height="7" viewBox="0 0 8 8" fill="none"><path d="M4 1v5M1.5 4.5L4 7l2.5-2.5" stroke="#555" stroke-width="1.5" stroke-linecap="round"/></svg>
+                <div style="height:4px;background:#555;border-radius:2px;width:22px"></div>
+              </div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'full-button',
+        label: 'Voller Button-Text',
+        desc: '"CV herunterladen" und "Anschreiben herunterladen" — langer Button, kein Rätselraten.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:12px;display:flex;flex-direction:column;gap:6px;justify-content:center">
+            <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+              <div style="height:3px;background:#059669;width:12px;border-radius:2px"></div>
+              <div style="height:4px;background:#059669;border-radius:2px;width:55px"></div>
+              <div style="flex:1;height:1px;background:#1e1e22;min-width:10px"></div>
+              <div style="height:16px;background:#059669;border-radius:4px;padding:0 6px;display:flex;align-items:center">
+                <div style="height:4px;background:rgba(255,255,255,.7);border-radius:2px;width:50px"></div>
+              </div>
+            </div>
+            <div style="height:4px;background:#0a3a2a;border-radius:2px;width:85%"></div>
+            <div style="height:4px;background:#3a1a1a;border-radius:2px;width:70%;opacity:.7"></div>
+            <div style="height:4px;background:#1e1e22;border-radius:2px;width:80%"></div>
+            <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:4px">
+              <div style="height:3px;background:#555;width:12px;border-radius:2px"></div>
+              <div style="height:4px;background:#555;border-radius:2px;width:65px"></div>
+              <div style="flex:1;height:1px;background:#1e1e22;min-width:10px"></div>
+              <div style="height:16px;background:#111;border-radius:4px;border:1px solid #2a2a2e;padding:0 6px;display:flex;align-items:center">
+                <div style="height:4px;background:#555;border-radius:2px;width:55px"></div>
+              </div>
+            </div>
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'chat-context',
+    label: 'Folgefrage — Chat-Kontext',
+    text: 'Weiß der Chat welche Stelle du gerade betrachtest?',
+    sub: 'Du schaust dir ein Ergebnis für "Software Engineer @ Google" an und öffnest den Chat. Was steht im Chat-Header?',
+    cols: 3,
+    options: [
+      {
+        id: 'no-context',
+        label: 'Nur "Chat"',
+        desc: 'Kein Kontext im Header. Der Chat kennt die Stelle intern, zeigt es aber nicht an.',
+        preview: `
+          <div style="position:absolute;bottom:0;right:0;width:130px;height:120px;background:#111114;border-radius:8px 0 0 0;border:1px solid #1e3a1e;border-right:none;border-bottom:none;padding:8px;display:flex;flex-direction:column;gap:4px;box-shadow:-4px -4px 20px rgba(0,0,0,.5)">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div style="display:flex;align-items:center;gap:4px">
+                <div style="width:6px;height:6px;background:#059669;border-radius:50%"></div>
+                <div style="height:4px;background:#059669;border-radius:2px;width:22px"></div>
+              </div>
+              <div style="font-size:8px;color:#555">✕</div>
+            </div>
+            <div style="display:flex;justify-content:flex-end"><div style="background:#1e1e22;border-radius:5px 5px 1px 5px;padding:3px 5px"><div style="height:3px;background:#555;border-radius:2px;width:55px"></div></div></div>
+            <div style="display:flex;justify-content:flex-start"><div style="background:#041510;border:1px solid #083a20;border-radius:1px 5px 5px 5px;padding:3px 5px"><div style="height:3px;background:#059669;border-radius:2px;width:70px;margin-bottom:2px"></div><div style="height:3px;background:#059669;border-radius:2px;width:50px"></div></div></div>
+            <div style="flex:1"></div>
+            <div style="height:14px;background:#0a0a0c;border-radius:4px;border:1px solid #1e3a1e;display:flex;align-items:center;padding:0 4px;gap:3px"><div style="flex:1;height:3px;background:#1e1e22;border-radius:2px"></div><div style="width:9px;height:9px;background:#059669;border-radius:2px"></div></div>
+          </div>`
+      },
+      {
+        id: 'company-title',
+        label: 'Firma + Jobtitel',
+        desc: 'Header zeigt "Software Engineer @ Google". Du weißt sofort welche Bewerbung der Chat gehört.',
+        preview: `
+          <div style="position:absolute;bottom:0;right:0;width:130px;height:120px;background:#111114;border-radius:8px 0 0 0;border:1px solid #1e3a1e;border-right:none;border-bottom:none;padding:8px;display:flex;flex-direction:column;gap:4px;box-shadow:-4px -4px 20px rgba(0,0,0,.5)">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div style="display:flex;flex-direction:column;gap:1px">
+                <div style="height:4px;background:#059669;border-radius:2px;width:55px"></div>
+                <div style="height:3px;background:#1a3a1a;border-radius:2px;width:40px"></div>
+              </div>
+              <div style="font-size:8px;color:#555">✕</div>
+            </div>
+            <div style="height:1px;background:#1e3a1e;margin:1px 0"></div>
+            <div style="display:flex;justify-content:flex-end"><div style="background:#1e1e22;border-radius:5px 5px 1px 5px;padding:3px 5px"><div style="height:3px;background:#555;border-radius:2px;width:55px"></div></div></div>
+            <div style="display:flex;justify-content:flex-start"><div style="background:#041510;border:1px solid #083a20;border-radius:1px 5px 5px 5px;padding:3px 5px"><div style="height:3px;background:#059669;border-radius:2px;width:70px;margin-bottom:2px"></div><div style="height:3px;background:#059669;border-radius:2px;width:45px"></div></div></div>
+            <div style="flex:1"></div>
+            <div style="height:14px;background:#0a0a0c;border-radius:4px;border:1px solid #1e3a1e;display:flex;align-items:center;padding:0 4px;gap:3px"><div style="flex:1;height:3px;background:#1e1e22;border-radius:2px"></div><div style="width:9px;height:9px;background:#059669;border-radius:2px"></div></div>
+          </div>`
+      },
+      {
+        id: 'context-with-score',
+        label: 'Firma + Score-Badge',
+        desc: 'Header zeigt Firma und das Empfohlen-Badge. Sofortiger Überblick ohne die Ergebnisseite zu scrollen.',
+        preview: `
+          <div style="position:absolute;bottom:0;right:0;width:130px;height:120px;background:#111114;border-radius:8px 0 0 0;border:1px solid #1e3a1e;border-right:none;border-bottom:none;padding:8px;display:flex;flex-direction:column;gap:4px;box-shadow:-4px -4px 20px rgba(0,0,0,.5)">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <div style="height:4px;background:#059669;border-radius:2px;width:50px"></div>
+                <div style="height:10px;background:#041510;border-radius:99px;border:1px solid #083a20;padding:0 4px;display:flex;align-items:center;width:fit-content">
+                  <div style="height:3px;background:#059669;border-radius:2px;width:30px"></div>
+                </div>
+              </div>
+              <div style="font-size:8px;color:#555">✕</div>
+            </div>
+            <div style="height:1px;background:#1e3a1e;margin:1px 0"></div>
+            <div style="display:flex;justify-content:flex-end"><div style="background:#1e1e22;border-radius:5px 5px 1px 5px;padding:3px 5px"><div style="height:3px;background:#555;border-radius:2px;width:50px"></div></div></div>
+            <div style="display:flex;justify-content:flex-start"><div style="background:#041510;border:1px solid #083a20;border-radius:1px 5px 5px 5px;padding:3px 5px"><div style="height:3px;background:#059669;border-radius:2px;width:65px;margin-bottom:2px"></div><div style="height:3px;background:#059669;border-radius:2px;width:45px"></div></div></div>
+            <div style="flex:1"></div>
+            <div style="height:14px;background:#0a0a0c;border-radius:4px;border:1px solid #1e3a1e;display:flex;align-items:center;padding:0 4px;gap:3px"><div style="flex:1;height:3px;background:#1e1e22;border-radius:2px"></div><div style="width:9px;height:9px;background:#059669;border-radius:2px"></div></div>
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'history-autoselect',
+    label: 'Folgefrage — Verlauf-Startauswahl',
+    text: 'Wenn du auf "Verlauf" klickst — was ist zuerst ausgewählt?',
+    sub: 'Du wechselst zum Verlauf-Bereich. Rechts ist noch nichts ausgewählt. Was passiert?',
+    cols: 3,
+    options: [
+      {
+        id: 'auto-latest',
+        label: 'Neueste automatisch',
+        desc: 'Das neueste Ergebnis wird sofort rechts angezeigt. Du musst nichts anklicken.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c">
+            <div style="width:38px;background:#080810;border-right:1px solid #1a1a20;display:flex;flex-direction:column;align-items:center;padding:5px 0;gap:5px">
+              <div style="width:22px;height:22px;background:#041510;border-radius:5px;border:1px solid #059669"></div>
+            </div>
+            <div style="width:85px;background:#080810;border-right:1px solid #1a1a20;padding:5px;display:flex;flex-direction:column;gap:3px">
+              <div style="height:4px;background:#555;border-radius:2px;width:40%;margin-bottom:2px"></div>
+              <div style="display:flex;gap:3px;align-items:flex-start">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:1px;padding-top:2px"><div style="width:5px;height:5px;background:#059669;border-radius:50%"></div><div style="width:1px;height:12px;background:#1e1e22"></div></div>
+                <div style="flex:1;padding:3px 4px;background:#041510;border-radius:4px;border:1px solid #083a20">
+                  <div style="height:3px;background:#aaa;border-radius:2px;width:80%;margin-bottom:2px"></div>
+                  <div style="height:3px;background:#059669;border-radius:2px;width:60%"></div>
+                </div>
+              </div>
+              <div style="display:flex;gap:3px;align-items:flex-start">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:1px;padding-top:2px"><div style="width:5px;height:5px;background:#333;border-radius:50%"></div></div>
+                <div style="flex:1;padding:3px 4px;background:#0f0f12;border-radius:4px;border:1px solid #1a1a1e">
+                  <div style="height:3px;background:#555;border-radius:2px;width:70%;margin-bottom:2px"></div>
+                  <div style="height:3px;background:#333;border-radius:2px;width:50%"></div>
+                </div>
+              </div>
+            </div>
+            <div style="flex:1;padding:6px;display:flex;flex-direction:column;gap:3px">
+              <div style="height:10px;background:#041510;border-radius:99px;width:55%;border:1px solid #083a20"></div>
+              <div style="height:3px;background:#0a3a2a;border-radius:2px;width:80%"></div>
+              <div style="height:3px;background:#3a1a1a;border-radius:2px;width:65%;opacity:.7"></div>
+              <div style="height:3px;background:#1e1e22;border-radius:2px;width:75%"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'blank-right',
+        label: 'Leer bis du klickst',
+        desc: 'Der rechte Bereich ist leer. Du wählst bewusst einen Eintrag aus der Timeline.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c">
+            <div style="width:38px;background:#080810;border-right:1px solid #1a1a20;display:flex;flex-direction:column;align-items:center;padding:5px 0;gap:5px">
+              <div style="width:22px;height:22px;background:#041510;border-radius:5px;border:1px solid #059669"></div>
+            </div>
+            <div style="width:85px;background:#080810;border-right:1px solid #1a1a20;padding:5px;display:flex;flex-direction:column;gap:3px">
+              <div style="height:4px;background:#555;border-radius:2px;width:40%;margin-bottom:2px"></div>
+              ${[1,2,3].map(i=>`
+                <div style="display:flex;gap:3px;align-items:flex-start">
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:1px;padding-top:2px"><div style="width:5px;height:5px;background:#333;border-radius:50%"></div>${i<3?'<div style="width:1px;height:10px;background:#1e1e22"></div>':''}</div>
+                  <div style="flex:1;padding:3px 4px;background:#0f0f12;border-radius:4px;border:1px solid #1a1a1e">
+                    <div style="height:3px;background:#444;border-radius:2px;width:75%;margin-bottom:2px"></div>
+                    <div style="height:3px;background:#2a2a2a;border-radius:2px;width:50%"></div>
+                  </div>
+                </div>`).join('')}
+            </div>
+            <div style="flex:1;display:flex;align-items:center;justify-content:center">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+                <div style="height:4px;background:#1e1e22;border-radius:2px;width:80px"></div>
+                <div style="height:3px;background:#1a1a1e;border-radius:2px;width:55px"></div>
+              </div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'highlight-hover',
+        label: 'Vorschau beim Hover',
+        desc: 'Wenn du mit der Maus über einen Eintrag fährst, erscheint eine Schnellvorschau rechts. Klick für die Vollansicht.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c">
+            <div style="width:38px;background:#080810;border-right:1px solid #1a1a20;display:flex;flex-direction:column;align-items:center;padding:5px 0;gap:5px">
+              <div style="width:22px;height:22px;background:#041510;border-radius:5px;border:1px solid #059669"></div>
+            </div>
+            <div style="width:85px;background:#080810;border-right:1px solid #1a1a20;padding:5px;display:flex;flex-direction:column;gap:3px">
+              <div style="height:4px;background:#555;border-radius:2px;width:40%;margin-bottom:2px"></div>
+              <div style="display:flex;gap:3px;align-items:flex-start">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:1px;padding-top:2px"><div style="width:5px;height:5px;background:#059669;border-radius:50%"></div><div style="width:1px;height:12px;background:#1e1e22"></div></div>
+                <div style="flex:1;padding:3px 4px;background:#061a10;border-radius:4px;border:1px solid #0a3a1a;box-shadow:0 0 0 1px #059669">
+                  <div style="height:3px;background:#aaa;border-radius:2px;width:80%;margin-bottom:2px"></div>
+                  <div style="height:3px;background:#059669;border-radius:2px;width:55%"></div>
+                </div>
+              </div>
+              <div style="display:flex;gap:3px;align-items:flex-start">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:1px;padding-top:2px"><div style="width:5px;height:5px;background:#333;border-radius:50%"></div></div>
+                <div style="flex:1;padding:3px 4px;background:#0f0f12;border-radius:4px;border:1px solid #1a1a1e">
+                  <div style="height:3px;background:#444;border-radius:2px;width:70%;margin-bottom:2px"></div>
+                  <div style="height:3px;background:#333;border-radius:2px;width:45%"></div>
+                </div>
+              </div>
+            </div>
+            <div style="flex:1;padding:6px;display:flex;flex-direction:column;gap:3px;opacity:.7">
+              <div style="height:10px;background:#041510;border-radius:99px;width:55%;border:1px solid #083a20"></div>
+              <div style="height:3px;background:#0a3a2a;border-radius:2px;width:80%"></div>
+              <div style="height:3px;background:#1e1e22;border-radius:2px;width:65%"></div>
+              <div style="font-size:7px;color:#059669;margin-top:3px">Klick für Vollansicht</div>
+            </div>
+          </div>`
+      }
+    ]
+  }
+];
+
+let current = 0;
+const answers = JSON.parse(localStorage.getItem('design-answers-5') || '{}');
+
+function render() {
+  const q = questions[current];
+  const isSummary = current >= questions.length;
+  document.getElementById('hdr-count').textContent = isSummary ? 'Fertig!' : `${current+1} / ${questions.length}`;
+  document.getElementById('prog').style.width = `${((current+(isSummary?1:0))/questions.length)*100}%`;
+  document.getElementById('btn-back').style.display = (current===0||isSummary)?'none':'';
+  document.getElementById('btn-next').style.display = isSummary?'none':'';
+  if (isSummary) { renderSummary(); return; }
+  const sel = answers[q.id];
+  document.getElementById('nav-info').textContent = sel?'':'Bitte eine Option wählen';
+  document.getElementById('btn-next').disabled = !sel;
+  document.getElementById('summary').classList.remove('visible');
+  document.getElementById('question-area').style.display = '';
+  document.getElementById('question-area').innerHTML = `
+    <div class="q-label">${q.label}</div>
+    <div class="q-text">${q.text}</div>
+    ${q.sub?`<div class="q-sub">${q.sub}</div>`:''}
+    <div class="opts ${q.cols===3?'cols3':''}">
+      ${q.options.map(opt=>`
+        <div class="opt ${sel===opt.id?'selected':''}" onclick="selectOpt('${q.id}','${opt.id}',this)">
+          <div class="opt-preview">${opt.preview}</div>
+          <div class="opt-label">${opt.label}</div>
+          <div class="opt-desc">${opt.desc}</div>
+        </div>`).join('')}
+    </div>`;
+}
+function selectOpt(qid,oid,el){
+  answers[qid]=oid;
+  localStorage.setItem('design-answers-5',JSON.stringify(answers));
+  document.querySelectorAll('.opt').forEach(e=>e.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('btn-next').disabled=false;
+  document.getElementById('nav-info').textContent='';
+}
+function goNext(){current++;render();window.scrollTo(0,0);}
+function goBack(){if(current>0){current--;render();window.scrollTo(0,0);}}
+function renderSummary(){
+  document.getElementById('question-area').style.display='none';
+  const sumEl=document.getElementById('summary');
+  sumEl.classList.add('visible');
+  let rows='';
+  questions.forEach(q=>{
+    const aid=answers[q.id];
+    const opt=q.options.find(o=>o.id===aid);
+    if(!opt)return;
+    rows+=`<div class="summary-item"><div class="summary-preview" style="position:relative">${opt.preview}</div><div><div class="summary-q">${q.label}</div><div class="summary-a">${opt.label}</div><div style="font-size:.75rem;color:#555;margin-top:.15rem">${opt.desc}</div></div></div>`;
+  });
+  sumEl.innerHTML=`<div class="done-msg"><h2>✅ Runde 5 fertig!</h2><p>Wird gespeichert…</p></div>${rows}
+    <button class="btn btn-primary" style="width:100%;margin-top:1rem;padding:.9rem" onclick="submit()">Absenden →</button>`;
+  fetch('/api/design-answers-5',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(answers)})
+    .then(r=>r.json()).then(()=>{document.querySelector('.done-msg p').textContent='✅ Gespeichert!';}).catch(()=>{});
+}
+function submit(){
+  fetch('/api/design-answers-5',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(answers)})
+    .then(r=>r.json()).then(()=>{document.querySelector('.done-msg p').textContent='✅ Gespeichert!';});
+}
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design Interview — Runde 9</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0a0c;color:#e8e8ea;font-family:system-ui,sans-serif;min-height:100vh}
+#shell{max-width:960px;margin:0 auto;padding:2rem 1.5rem 6rem}
+.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:2.5rem}
+.hdr-title{font-size:.85rem;font-weight:600;color:#555;letter-spacing:.08em;text-transform:uppercase}
+.hdr-count{font-size:.85rem;color:#555}
+.prog-wrap{height:3px;background:#1e1e22;border-radius:99px;margin-bottom:2.5rem;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,#059669,#10b981);border-radius:99px;transition:width .4s ease}
+.q-label{font-size:.75rem;font-weight:600;color:#059669;text-transform:uppercase;letter-spacing:.1em;margin-bottom:.6rem}
+.q-text{font-size:1.5rem;font-weight:700;line-height:1.3;margin-bottom:.5rem}
+.q-sub{font-size:.9rem;color:#666;margin-bottom:2rem}
+.opts{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}
+.opts.cols3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:600px){.opts,.opts.cols3{grid-template-columns:1fr}}
+.opt{border:2px solid #1e1e22;border-radius:12px;overflow:hidden;cursor:pointer;transition:border-color .15s,transform .15s;background:#0f0f12}
+.opt:hover{border-color:#059669;transform:translateY(-2px)}
+.opt.selected{border-color:#059669;background:#041510}
+.opt-preview{width:100%;height:160px;overflow:hidden;position:relative;background:#16161a}
+.opt-label{padding:.75rem 1rem;font-size:.875rem;font-weight:600}
+.opt-desc{padding:0 1rem .75rem;font-size:.75rem;color:#666;line-height:1.4}
+.nav{position:fixed;bottom:0;left:0;right:0;background:#0a0a0c;border-top:1px solid #1e1e22;padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center}
+.nav-info{font-size:.8rem;color:#444}
+.btn{padding:.6rem 1.4rem;border-radius:8px;font-size:.875rem;font-weight:600;cursor:pointer;border:none;transition:background .15s}
+.btn-primary{background:#059669;color:#fff}
+.btn-primary:hover{background:#047857}
+.btn-primary:disabled{background:#09261a;color:#2a5a3a;cursor:not-allowed}
+.btn-ghost{background:transparent;color:#666;border:1px solid #2a2a2e}
+.btn-ghost:hover{border-color:#555;color:#aaa}
+.summary-wrap{display:none}
+.summary-wrap.visible{display:block}
+.summary-item{display:flex;gap:1rem;align-items:flex-start;padding:1rem;border:1px solid #1e1e22;border-radius:10px;margin-bottom:.75rem;background:#0f0f12}
+.summary-q{font-size:.75rem;color:#666;margin-bottom:.2rem}
+.summary-a{font-size:.9rem;font-weight:600}
+.summary-preview{width:80px;height:50px;border-radius:6px;overflow:hidden;flex-shrink:0;position:relative}
+.done-msg{text-align:center;padding:2rem 0 1.5rem}
+.done-msg h2{font-size:1.6rem;font-weight:700;margin-bottom:.5rem}
+.done-msg p{color:#666;margin-bottom:2rem}
+</style>
+</head>
+<body>
+<div id="shell">
+  <div class="hdr">
+    <span class="hdr-title">Design Interview — Runde 9</span>
+    <span class="hdr-count" id="hdr-count"></span>
+  </div>
+  <div class="prog-wrap"><div class="prog-fill" id="prog"></div></div>
+  <div id="question-area"></div>
+  <div class="summary-wrap" id="summary"></div>
+</div>
+<div class="nav">
+  <button class="btn btn-ghost" id="btn-back" onclick="goBack()">← Zurück</button>
+  <span class="nav-info" id="nav-info"></span>
+  <button class="btn btn-primary" id="btn-next" onclick="goNext()" disabled>Weiter →</button>
+</div>
+
+<script>
+const questions = [
+  {
+    id: 'analyse-button-label',
+    label: 'Frage 1 — Analyse-Button Text',
+    text: 'Was steht auf dem Analysieren-Button?',
+    sub: 'Der Button sitzt unterhalb der Textarea.',
+    cols: 3,
+    options: [
+      {
+        id: 'analysieren',
+        label: '"Analysieren"',
+        desc: 'Klar, direkt, ein Wort. Standard-Deutsch für diese Art Aktion.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;display:flex;align-items:flex-end;padding:20px">
+            <div style="width:100%;height:36px;background:#059669;border-radius:8px;display:flex;align-items:center;justify-content:center">
+              <span style="font-size:11px;font-weight:700;color:#fff;letter-spacing:.02em">Analysieren</span>
+            </div>
+          </div>`
+      },
+      {
+        id: 'bewerbung-analysieren',
+        label: '"Bewerbung analysieren"',
+        desc: 'Etwas ausführlicher — macht deutlich was genau analysiert wird.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;display:flex;align-items:flex-end;padding:20px">
+            <div style="width:100%;height:36px;background:#059669;border-radius:8px;display:flex;align-items:center;justify-content:center">
+              <span style="font-size:10px;font-weight:700;color:#fff;letter-spacing:.02em">Bewerbung analysieren</span>
+            </div>
+          </div>`
+      },
+      {
+        id: 'analyse-starten',
+        label: '"Analyse starten →"',
+        desc: 'Mit Pfeil-Icon. Signalisiert dass etwas startet — aktiv und handlungsorientiert.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;display:flex;align-items:flex-end;padding:20px">
+            <div style="width:100%;height:36px;background:#059669;border-radius:8px;display:flex;align-items:center;justify-content:center;gap:6px">
+              <span style="font-size:10px;font-weight:700;color:#fff">Analyse starten</span>
+              <span style="font-size:12px;color:rgba(255,255,255,.8)">→</span>
+            </div>
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'textarea-height',
+    label: 'Frage 2 — Textarea Höhe',
+    text: 'Wie groß ist die Textarea für die Stellenausschreibung?',
+    sub: 'Stellenausschreibungen sind oft lang — mehrere hundert Wörter.',
+    cols: 3,
+    options: [
+      {
+        id: 'auto-resize',
+        label: 'Auto-Resize',
+        desc: 'Startet klein (~4 Zeilen), wächst mit dem eingefügten Text. Kein Scroll in der Textarea.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:6px">
+            <div style="height:6px;background:#555;border-radius:2px;width:55%"></div>
+            <div style="height:35px;background:#111114;border-radius:6px;border:1px solid #1a1a1e;padding:5px;display:flex;flex-direction:column;gap:3px">
+              <div style="height:3px;background:#1e3a1e;border-radius:2px;width:90%"></div>
+              <div style="height:3px;background:#1e3a1e;border-radius:2px;width:75%"></div>
+            </div>
+            <div style="font-size:8px;color:#2a4a2a;text-align:center">↕ wächst mit Inhalt</div>
+            <div style="flex:1"></div>
+            <div style="height:28px;background:#059669;border-radius:6px"></div>
+          </div>`
+      },
+      {
+        id: 'fixed-tall',
+        label: 'Fest groß (~12 Zeilen)',
+        desc: 'Die Textarea füllt den größten Teil des linken Panels. Viel Platz — du siehst den Text beim Einfügen.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:6px">
+            <div style="height:6px;background:#555;border-radius:2px;width:55%"></div>
+            <div style="flex:1;background:#111114;border-radius:6px;border:1px solid #1a1a1e;padding:5px;display:flex;flex-direction:column;gap:3px;min-height:0">
+              ${Array(7).fill(0).map((_,i)=>`<div style="height:3px;background:#1e3a1e;border-radius:2px;width:${[92,78,85,60,88,72,45][i]}%"></div>`).join('')}
+            </div>
+            <div style="height:28px;background:#059669;border-radius:6px"></div>
+          </div>`
+      },
+      {
+        id: 'fixed-medium',
+        label: 'Fest mittel (~6 Zeilen)',
+        desc: 'Kompakter Input-Bereich. Du scrollst innerhalb der Textarea wenn der Text länger ist.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:6px">
+            <div style="height:6px;background:#555;border-radius:2px;width:55%"></div>
+            <div style="height:55px;background:#111114;border-radius:6px;border:1px solid #1a1a1e;padding:5px;display:flex;flex-direction:column;gap:3px;overflow:hidden">
+              ${Array(4).fill(0).map((_,i)=>`<div style="height:3px;background:#1e3a1e;border-radius:2px;width:${[92,78,85,60][i]}%"></div>`).join('')}
+            </div>
+            <div style="flex:1"></div>
+            <div style="height:28px;background:#059669;border-radius:6px"></div>
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'empty-right-panel',
+    label: 'Frage 3 — Leerer Ergebnis-Bereich',
+    text: 'Was siehst du rechts bevor du die erste Analyse startest?',
+    sub: 'Du hast die App geöffnet. Links ist das Input-Panel. Was zeigt der rechte Bereich?',
+    cols: 3,
+    options: [
+      {
+        id: 'hint-text',
+        label: 'Zentrierter Hinweistext',
+        desc: 'Mittig: ein Icon + "Stelle einfügen und Analysieren klicken". Klar was zu tun ist.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;padding:20px">
+            <div style="width:32px;height:32px;border-radius:50%;border:2px dashed #1e3a1e;display:flex;align-items:center;justify-content:center">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2a4a2a" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg>
+            </div>
+            <div style="height:4px;background:#1e3a1e;border-radius:2px;width:70%"></div>
+            <div style="height:3px;background:#0f2a18;border-radius:2px;width:55%"></div>
+          </div>`
+      },
+      {
+        id: 'skeleton-preview',
+        label: 'Skeleton-Vorschau',
+        desc: 'Ausgegraute Platzhalter zeigen wie das Ergebnis aussehen wird: Badge-Form, Balken-Formen, Textblock.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:6px">
+            <div style="height:20px;background:#0f1810;border-radius:99px;width:45%;border:1px solid #0a2510;opacity:.6"></div>
+            <div style="display:flex;align-items:center;gap:5px;margin-top:2px">
+              <div style="height:4px;background:#0f2a18;border-radius:2px;width:40px"></div>
+              <div style="flex:1;height:4px;background:#0a1a0f;border-radius:99px"></div>
+            </div>
+            ${Array(3).fill(0).map((_,i)=>`
+              <div style="display:flex;align-items:center;gap:4px">
+                <div style="height:3px;background:#0f1810;border-radius:2px;width:${[50,45,55][i]}px"></div>
+                <div style="flex:1;height:4px;background:#0a1a0f;border-radius:99px"></div>
+              </div>`).join('')}
+            <div style="height:1px;background:#0a1a0f;margin-top:4px"></div>
+            ${Array(4).fill(0).map((_,i)=>`<div style="height:3px;background:#0a1a0f;border-radius:2px;width:${[90,75,85,60][i]}%"></div>`).join('')}
+          </div>`
+      },
+      {
+        id: 'completely-blank',
+        label: 'Leer / Dunkel',
+        desc: 'Der rechte Bereich ist einfach dunkel und leer. Keine Ablenkung — der Fokus liegt auf dem Input.',
+        preview: `
+          <div style="background:#080810;height:100%;display:flex;align-items:center;justify-content:center">
+            <div style="width:2px;height:40px;background:#0f0f14;border-radius:99px"></div>
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'profile-selector-placement',
+    label: 'Frage 4 — Profil-Auswahl Position',
+    text: 'Wo befindet sich der Profil-Selektor?',
+    sub: 'Du hast mehrere Profile (z.B. Javier DE, Javier ES). Wo wählst du das aktive aus?',
+    cols: 3,
+    options: [
+      {
+        id: 'top-of-left-panel',
+        label: 'Oben im Input-Panel',
+        desc: 'Das Profil-Dropdown ist das erste Element links, über der Textarea. Logisch: erst Profil, dann Stelle.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c;overflow:hidden">
+            <div style="width:36px;background:#080810;border-right:1px solid #1a1a20"></div>
+            <div style="flex:1;padding:8px;display:flex;flex-direction:column;gap:5px">
+              <div style="height:22px;background:#111114;border-radius:6px;border:1px solid #1e3a1e;display:flex;align-items:center;padding:0 7px;justify-content:space-between">
+                <div style="display:flex;align-items:center;gap:5px">
+                  <div style="width:12px;height:12px;background:#059669;border-radius:50%"></div>
+                  <div style="height:4px;background:#888;border-radius:2px;width:50px"></div>
+                </div>
+                <div style="font-size:8px;color:#555">▼</div>
+              </div>
+              <div style="flex:1;background:#111114;border-radius:6px;border:1px solid #1a1a1e;min-height:0"></div>
+              <div style="height:22px;background:#059669;border-radius:6px"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'sidebar-bottom',
+        label: 'Unten in der Sidebar',
+        desc: 'Ein Avatar/Initialen-Button ganz unten in der Icon-Sidebar. Hover zeigt den Profilnamen. Klick öffnet die Auswahl.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c;overflow:hidden">
+            <div style="width:44px;background:#080810;border-right:1px solid #1a1a20;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:10px">
+              <div style="width:22px;height:22px;background:#1a2a1a;border-radius:5px;border:1px solid #059669"></div>
+              <div style="width:22px;height:22px;background:#111;border-radius:5px;border:1px solid #222"></div>
+              <div style="flex:1"></div>
+              <div style="width:26px;height:26px;background:#1e3a1e;border-radius:50%;border:2px solid #059669;display:flex;align-items:center;justify-content:center;font-size:8px;color:#059669;font-weight:700">J</div>
+            </div>
+            <div style="flex:1;padding:8px;display:flex;flex-direction:column;gap:5px">
+              <div style="flex:1;background:#111114;border-radius:6px;border:1px solid #1a1a1e;min-height:0"></div>
+              <div style="height:22px;background:#059669;border-radius:6px"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'top-bar',
+        label: 'In einer fixen Kopfzeile',
+        desc: 'Eine schmale Leiste ganz oben über allem — Profilname links, App-Titel mitte, evtl. Settings rechts.',
+        preview: `
+          <div style="display:flex;flex-direction:column;height:100%;background:#0a0a0c;overflow:hidden">
+            <div style="height:28px;background:#080810;border-bottom:1px solid #1a1a20;display:flex;align-items:center;padding:0 8px;gap:8px;flex-shrink:0">
+              <div style="display:flex;align-items:center;gap:4px">
+                <div style="width:14px;height:14px;background:#1e3a1e;border-radius:50%;border:1px solid #059669;display:flex;align-items:center;justify-content:center;font-size:6px;color:#059669;font-weight:700">J</div>
+                <div style="height:4px;background:#888;border-radius:2px;width:35px"></div>
+                <div style="font-size:8px;color:#444">▼</div>
+              </div>
+              <div style="flex:1;display:flex;justify-content:center">
+                <div style="height:4px;background:#333;border-radius:2px;width:40px"></div>
+              </div>
+            </div>
+            <div style="flex:1;display:flex;overflow:hidden">
+              <div style="width:36px;background:#080810;border-right:1px solid #1a1a20"></div>
+              <div style="flex:1;padding:6px;display:flex;flex-direction:column;gap:4px">
+                <div style="flex:1;background:#111114;border-radius:5px;border:1px solid #1a1a1e"></div>
+                <div style="height:20px;background:#059669;border-radius:5px"></div>
+              </div>
+            </div>
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'download-format',
+    label: 'Frage 5 — Download-Format',
+    text: 'In welchem Format werden CV und Anschreiben heruntergeladen?',
+    sub: 'Der ↓ Button in jedem Abschnittstitel löst den Download aus.',
+    cols: 3,
+    options: [
+      {
+        id: 'docx-only',
+        label: 'Nur .docx (Word)',
+        desc: 'Ein Klick → sofort .docx Download. Kein Dialog, keine Auswahl. Einfach.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px">
+            <div style="width:50px;height:65px;background:#111114;border-radius:6px;border:1px solid #1e3a1e;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;position:relative">
+              <div style="position:absolute;top:0;right:0;width:14px;height:14px;background:#059669;border-radius:0 6px 0 6px;clip-path:polygon(100% 0,100% 100%,0 100%)"></div>
+              <div style="height:4px;background:#059669;border-radius:2px;width:65%;opacity:.7"></div>
+              <div style="height:3px;background:#1e3a1e;border-radius:2px;width:75%"></div>
+              <div style="height:3px;background:#1e3a1e;border-radius:2px;width:55%"></div>
+              <div style="font-size:7px;color:#059669;font-weight:700;margin-top:2px">.docx</div>
+            </div>
+            <div style="height:3px;background:#059669;border-radius:2px;width:50px;opacity:.5"></div>
+          </div>`
+      },
+      {
+        id: 'pdf-only',
+        label: 'Nur .pdf',
+        desc: 'Ein Klick → sofort .pdf Download. PDF ist universell lesbar, sieht überall gleich aus.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px">
+            <div style="width:50px;height:65px;background:#111114;border-radius:6px;border:1px solid #3a1a1e;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;position:relative">
+              <div style="position:absolute;top:0;right:0;width:14px;height:14px;background:#b91c1c;border-radius:0 6px 0 6px;clip-path:polygon(100% 0,100% 100%,0 100%)"></div>
+              <div style="height:4px;background:#b91c1c;border-radius:2px;width:65%;opacity:.7"></div>
+              <div style="height:3px;background:#3a1a1e;border-radius:2px;width:75%"></div>
+              <div style="height:3px;background:#3a1a1e;border-radius:2px;width:55%"></div>
+              <div style="font-size:7px;color:#b91c1c;font-weight:700;margin-top:2px">.pdf</div>
+            </div>
+            <div style="height:3px;background:#b91c1c;border-radius:2px;width:50px;opacity:.5"></div>
+          </div>`
+      },
+      {
+        id: 'both-choice',
+        label: 'Beides wählbar',
+        desc: 'Klick auf ↓ öffnet ein kleines Menü: "Word (.docx)" und "PDF". Flexibel.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;display:flex;align-items:center;justify-content:center;position:relative">
+            <div style="position:absolute;top:20px;right:20px;background:#111114;border:1px solid #1e3a1e;border-radius:7px;overflow:hidden;width:100px">
+              <div style="padding:5px 8px;display:flex;align-items:center;gap:5px;border-bottom:1px solid #0a2a0f">
+                <div style="height:4px;background:#059669;border-radius:2px;width:55%;opacity:.8"></div>
+                <div style="font-size:8px;color:#444">.docx</div>
+              </div>
+              <div style="padding:5px 8px;display:flex;align-items:center;gap:5px">
+                <div style="height:4px;background:#b91c1c;border-radius:2px;width:40%;opacity:.8"></div>
+                <div style="font-size:8px;color:#444">.pdf</div>
+              </div>
+            </div>
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'chat-bubble-look',
+    label: 'Frage 6 — Chat-Bubble Aussehen',
+    text: 'Wie sieht die schwebende Chat-Blase unten rechts aus?',
+    sub: 'Wenn du auf die Blase klickst, öffnet sich das Chat-Popup.',
+    cols: 3,
+    options: [
+      {
+        id: 'round-icon',
+        label: 'Runder grüner Kreis',
+        desc: 'Ein 48px grüner Kreis mit einem Chat-Icon in der Mitte. Klassisches FAB-Design.',
+        preview: `
+          <div style="position:relative;background:#0a0a0c;height:100%;overflow:hidden">
+            <div style="position:absolute;bottom:16px;right:16px;width:44px;height:44px;background:#059669;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(5,150,105,.4)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.37 5.07L2 22l4.93-1.37A9.95 9.95 0 0 0 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2z" fill="rgba(255,255,255,.9)"/>
+              </svg>
+            </div>
+          </div>`
+      },
+      {
+        id: 'round-icon-dot',
+        label: 'Kreis + Benachrichtigungs-Dot',
+        desc: 'Gleicher grüner Kreis, aber mit einem kleinen roten Punkt wenn ein KI-Hinweis verfügbar ist.',
+        preview: `
+          <div style="position:relative;background:#0a0a0c;height:100%;overflow:hidden">
+            <div style="position:absolute;bottom:16px;right:16px;width:44px;height:44px;background:#059669;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(5,150,105,.4)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.37 5.07L2 22l4.93-1.37A9.95 9.95 0 0 0 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2z" fill="rgba(255,255,255,.9)"/>
+              </svg>
+              <div style="position:absolute;top:1px;right:1px;width:12px;height:12px;background:#b91c1c;border-radius:50%;border:2px solid #0a0a0c;display:flex;align-items:center;justify-content:center;font-size:6px;color:#fff;font-weight:700">1</div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'pill-button',
+        label: 'Pille "Frage stellen"',
+        desc: 'Kein runder Button — eine breitere grüne Pille mit Text "Frage stellen ↗". Klarer Call-to-Action.',
+        preview: `
+          <div style="position:relative;background:#0a0a0c;height:100%;overflow:hidden">
+            <div style="position:absolute;bottom:16px;right:16px;height:36px;background:#059669;border-radius:99px;display:flex;align-items:center;padding:0 14px;gap:6px;box-shadow:0 4px 16px rgba(5,150,105,.4)">
+              <span style="font-size:9px;font-weight:700;color:#fff;white-space:nowrap">Frage stellen</span>
+              <span style="font-size:10px;color:rgba(255,255,255,.8)">↗</span>
+            </div>
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'timeline-selected-highlight',
+    label: 'Frage 7 — Ausgewählter Timeline-Eintrag',
+    text: 'Wie sieht ein angeklickter Eintrag in der Verlauf-Timeline aus?',
+    sub: 'Du klickst auf "Google GmbH — Empfohlen — 12. Jun". Die Ergebnisse erscheinen rechts.',
+    cols: 3,
+    options: [
+      {
+        id: 'left-border-accent',
+        label: 'Linker Akzentbalken',
+        desc: 'Ein 3px grüner Balken links am Eintrag + leicht hellerer Hintergrund. Dezent, klar.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:5px;justify-content:center">
+            ${[['Google GmbH',true],['SAP SE',false],['BMW AG',false]].map(([n,sel],i)=>`
+              <div style="display:flex;gap:5px;align-items:center">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:1px;flex-shrink:0">
+                  <div style="width:7px;height:7px;background:${sel?'#059669':'#333'};border-radius:50%"></div>
+                  ${i<2?'<div style="width:1px;height:14px;background:#1e1e22"></div>':''}
+                </div>
+                <div style="flex:1;padding:5px 7px;background:${sel?'#0a1f12':'#0f0f12'};border-radius:5px;border:1px solid ${sel?'#1e4a2a':'#1a1a1e'};border-left:${sel?'3px solid #059669':'1px solid #1a1a1e'}">
+                  <div style="height:4px;background:${sel?'#888':'#444'};border-radius:2px;width:70%"></div>
+                </div>
+              </div>`).join('')}
+          </div>`
+      },
+      {
+        id: 'full-green-bg',
+        label: 'Grüner Hintergrund',
+        desc: 'Der ausgewählte Eintrag bekommt einen satten grünen Hintergrund. Sehr klar welcher aktiv ist.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:5px;justify-content:center">
+            ${[['Google GmbH',true],['SAP SE',false],['BMW AG',false]].map(([n,sel],i)=>`
+              <div style="display:flex;gap:5px;align-items:center">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:1px;flex-shrink:0">
+                  <div style="width:7px;height:7px;background:${sel?'#059669':'#333'};border-radius:50%"></div>
+                  ${i<2?'<div style="width:1px;height:14px;background:#1e1e22"></div>':''}
+                </div>
+                <div style="flex:1;padding:5px 7px;background:${sel?'#083a20':'#0f0f12'};border-radius:5px;border:1px solid ${sel?'#059669':'#1a1a1e'}">
+                  <div style="height:4px;background:${sel?'#6ee7b7':'#444'};border-radius:2px;width:70%"></div>
+                </div>
+              </div>`).join('')}
+          </div>`
+      },
+      {
+        id: 'boxed-raised',
+        label: 'Umrahmt / Erhaben',
+        desc: 'Der Eintrag wirkt wie eine Karte die nach vorne kommt: stärkerer Border, leichter box-shadow.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:5px;justify-content:center">
+            ${[['Google GmbH',true],['SAP SE',false],['BMW AG',false]].map(([n,sel],i)=>`
+              <div style="display:flex;gap:5px;align-items:center">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:1px;flex-shrink:0">
+                  <div style="width:7px;height:7px;background:${sel?'#059669':'#333'};border-radius:50%"></div>
+                  ${i<2?'<div style="width:1px;height:14px;background:#1e1e22"></div>':''}
+                </div>
+                <div style="flex:1;padding:5px 7px;background:${sel?'#0e1a14':'#0f0f12'};border-radius:7px;border:${sel?'2px solid #059669':'1px solid #1a1a1e'};${sel?'box-shadow:0 2px 10px rgba(5,150,105,.2)':''}">
+                  <div style="height:4px;background:${sel?'#777':'#444'};border-radius:2px;width:70%"></div>
+                </div>
+              </div>`).join('')}
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'result-section-labels',
+    label: 'Frage 8 — Ergebnis-Abschnittsbezeichnungen',
+    text: 'Wie heißen die Abschnitte im Ergebnis-Panel?',
+    sub: 'Nach der Analyse erscheinen mehrere Abschnitte. Was steht in den Überschriften?',
+    cols: 3,
+    options: [
+      {
+        id: 'german-formal',
+        label: 'Formell Deutsch',
+        desc: '"Bewertung" · "Lebenslauf-Änderungen" · "Anschreiben". Sachlich, professionell.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:7px">
+            ${['BEWERTUNG','LEBENSLAUF-ÄNDERUNGEN','ANSCHREIBEN'].map(l=>`
+              <div>
+                <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">
+                  <div style="width:10px;height:10px;background:#1a2a1a;border-radius:2px;border:1px solid #059669;flex-shrink:0"></div>
+                  <div style="height:4px;background:#059669;border-radius:2px;width:${l.length*4}px;opacity:.7"></div>
+                  <div style="flex:1;height:1px;background:#083a20"></div>
+                </div>
+                <div style="height:14px;background:#0f0f12;border-radius:4px;border:1px solid #1a1a1e"></div>
+              </div>`).join('')}
+          </div>`
+      },
+      {
+        id: 'short-english',
+        label: 'Kurz Englisch',
+        desc: '"Score" · "CV Changes" · "Cover Letter". Kürzer, internationaler Stil.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:7px">
+            ${['SCORE','CV CHANGES','COVER LETTER'].map(l=>`
+              <div>
+                <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">
+                  <div style="width:10px;height:10px;background:#1a2a1a;border-radius:2px;border:1px solid #059669;flex-shrink:0"></div>
+                  <div style="height:4px;background:#059669;border-radius:2px;width:${l.length*4.5}px;opacity:.7"></div>
+                  <div style="flex:1;height:1px;background:#083a20"></div>
+                </div>
+                <div style="height:14px;background:#0f0f12;border-radius:4px;border:1px solid #1a1a1e"></div>
+              </div>`).join('')}
+          </div>`
+      },
+      {
+        id: 'mixed-branded',
+        label: 'Gemischt / Gebrandmarkt',
+        desc: '"Match Score" · "CV Optimierung" · "Anschreiben". Mix aus Englisch und Deutsch — gebräuchlicher Tech-Stil.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:10px;display:flex;flex-direction:column;gap:7px">
+            ${['MATCH SCORE','CV OPTIMIERUNG','ANSCHREIBEN'].map(l=>`
+              <div>
+                <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">
+                  <div style="width:10px;height:10px;background:#1a2a1a;border-radius:2px;border:1px solid #059669;flex-shrink:0"></div>
+                  <div style="height:4px;background:#059669;border-radius:2px;width:${Math.min(l.length*3.8,85)}px;opacity:.7"></div>
+                  <div style="flex:1;height:1px;background:#083a20"></div>
+                </div>
+                <div style="height:14px;background:#0f0f12;border-radius:4px;border:1px solid #1a1a1e"></div>
+              </div>`).join('')}
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'profile-color-coding',
+    label: 'Frage 9 — Profil-Farbkodierung',
+    text: 'Bekommt jedes Profil eine eigene Farbe?',
+    sub: 'Zum Beispiel: Profil "Javier DE" = Grün, Profil "Javier ES" = Blau.',
+    cols: 3,
+    options: [
+      {
+        id: 'all-same-color',
+        label: 'Alle gleich grün',
+        desc: 'Alle Profile verwenden denselben Emerald-Akzent. Konsistent, kein visuelles Chaos bei vielen Profilen.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:14px;display:flex;flex-direction:column;gap:8px;justify-content:center">
+            ${[['J','Javier DE'],['J','Javier ES'],['J','Javier EN']].map(([a,n])=>`
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="width:22px;height:22px;background:#1e3a1e;border-radius:50%;border:2px solid #059669;display:flex;align-items:center;justify-content:center;font-size:8px;color:#059669;font-weight:700;flex-shrink:0">${a}</div>
+                <div style="height:4px;background:#555;border-radius:2px;flex:1"></div>
+                <div style="height:4px;background:#1e3a1e;border-radius:2px;width:25px"></div>
+              </div>`).join('')}
+          </div>`
+      },
+      {
+        id: 'per-profile-color',
+        label: 'Jedes Profil eigene Farbe',
+        desc: 'Automatisch zugewiesene Farbe pro Profil (grün, blau, lila…). In der Timeline und im Dropdown sichtbar.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:14px;display:flex;flex-direction:column;gap:8px;justify-content:center">
+            ${[['J','Javier DE','#059669','#1e3a1e'],['J','Javier ES','#3b82f6','#1a2a3a'],['J','Javier EN','#a855f7','#2a1a3a']].map(([a,n,c,bg])=>`
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="width:22px;height:22px;background:${bg};border-radius:50%;border:2px solid ${c};display:flex;align-items:center;justify-content:center;font-size:8px;color:${c};font-weight:700;flex-shrink:0">${a}</div>
+                <div style="height:4px;background:#555;border-radius:2px;flex:1"></div>
+                <div style="height:4px;background:${bg};border-radius:2px;width:25px"></div>
+              </div>`).join('')}
+          </div>`
+      },
+      {
+        id: 'user-picks-color',
+        label: 'User wählt Farbe selbst',
+        desc: 'Beim Erstellen/Bearbeiten eines Profils gibt es ein Farbwahl-Feld. Du entscheidest welche Farbe welches Profil bekommt.',
+        preview: `
+          <div style="background:#0a0a0c;height:100%;padding:14px;display:flex;flex-direction:column;gap:8px;justify-content:center">
+            <div style="background:#0f0f12;border-radius:8px;border:1px solid #1e3a1e;padding:10px;display:flex;flex-direction:column;gap:6px">
+              <div style="height:4px;background:#555;border-radius:2px;width:40%"></div>
+              <div style="height:14px;background:#111;border-radius:4px;border:1px solid #222"></div>
+              <div style="height:4px;background:#555;border-radius:2px;width:30%;margin-top:2px"></div>
+              <div style="display:flex;gap:5px">
+                ${['#059669','#3b82f6','#a855f7','#f59e0b'].map((c,i)=>`<div style="width:18px;height:18px;background:${c};border-radius:50%;${i===0?'border:2px solid #fff':'opacity:.6'}"></div>`).join('')}
+              </div>
+            </div>
+          </div>`
+      }
+    ]
+  },
+  {
+    id: 'sidebar-top-element',
+    label: 'Frage 10 — Oben in der Sidebar',
+    text: 'Was steht ganz oben in der Icon-Sidebar?',
+    sub: 'Der erste Slot über den Navigations-Icons — das erste was du siehst.',
+    cols: 3,
+    options: [
+      {
+        id: 'logo-icon',
+        label: 'App-Logo / Duotone-Icon',
+        desc: 'Ein kleines Duotone-Icon als App-Identität. Kein Text. Subtil.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c;overflow:hidden">
+            <div style="width:44px;background:#080810;border-right:1px solid #1a1a20;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:10px">
+              <div style="width:26px;height:26px;background:#041510;border-radius:6px;border:1px solid #059669;display:flex;align-items:center;justify-content:center;margin-bottom:4px">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <rect x="3" y="3" width="8" height="11" rx="1" fill="#083a20" stroke="#059669" stroke-width="1.5"/>
+                  <path d="M13 7h5M13 10h5M13 13h3" stroke="#6ee7b7" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div style="width:1px;height:1px;background:#1a1a20;width:24px"></div>
+              <div style="width:20px;height:20px;background:#1a2a1a;border-radius:4px;border:1px solid #059669"></div>
+              <div style="width:20px;height:20px;background:#111;border-radius:4px;border:1px solid #222"></div>
+            </div>
+            <div style="flex:1;background:#0a0a0c"></div>
+          </div>`
+      },
+      {
+        id: 'initials-avatar',
+        label: 'Initialen-Avatar',
+        desc: 'Der erste Slot zeigt die Initialen des aktiven Profils (z.B. "JB"). Doppelt als App-Icon und Profil-Indikator.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c;overflow:hidden">
+            <div style="width:44px;background:#080810;border-right:1px solid #1a1a20;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:10px">
+              <div style="width:26px;height:26px;background:#1e3a1e;border-radius:50%;border:2px solid #059669;display:flex;align-items:center;justify-content:center;font-size:9px;color:#059669;font-weight:700;margin-bottom:4px">JB</div>
+              <div style="width:24px;height:1px;background:#1a1a20"></div>
+              <div style="width:20px;height:20px;background:#1a2a1a;border-radius:4px;border:1px solid #059669"></div>
+              <div style="width:20px;height:20px;background:#111;border-radius:4px;border:1px solid #222"></div>
+            </div>
+            <div style="flex:1;background:#0a0a0c"></div>
+          </div>`
+      },
+      {
+        id: 'nothing-icons-start',
+        label: 'Direkt mit Icons anfangen',
+        desc: 'Kein Slot oben — die Navigations-Icons beginnen direkt oben in der Sidebar. Maximal kompakt.',
+        preview: `
+          <div style="display:flex;height:100%;background:#0a0a0c;overflow:hidden">
+            <div style="width:44px;background:#080810;border-right:1px solid #1a1a20;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:10px">
+              <div style="width:20px;height:20px;background:#1a2a1a;border-radius:4px;border:1px solid #059669"></div>
+              <div style="width:20px;height:20px;background:#111;border-radius:4px;border:1px solid #222"></div>
+            </div>
+            <div style="flex:1;background:#0a0a0c"></div>
+          </div>`
+      }
+    ]
+  }
+];
+
+let current = 0;
+const answers = JSON.parse(localStorage.getItem('design-answers-9') || '{}');
+
+function render() {
+  const q = questions[current];
+  const isSummary = current >= questions.length;
+  document.getElementById('hdr-count').textContent = isSummary ? 'Fertig!' : `${current+1} / ${questions.length}`;
+  document.getElementById('prog').style.width = `${((current+(isSummary?1:0))/questions.length)*100}%`;
+  document.getElementById('btn-back').style.display = (current===0||isSummary)?'none':'';
+  document.getElementById('btn-next').style.display = isSummary?'none':'';
+  if (isSummary) { renderSummary(); return; }
+  const sel = answers[q.id];
+  document.getElementById('nav-info').textContent = sel?'':'Bitte eine Option wählen';
+  document.getElementById('btn-next').disabled = !sel;
+  document.getElementById('summary').classList.remove('visible');
+  document.getElementById('question-area').style.display = '';
+  document.getElementById('question-area').innerHTML = `
+    <div class="q-label">${q.label}</div>
+    <div class="q-text">${q.text}</div>
+    ${q.sub?`<div class="q-sub">${q.sub}</div>`:''}
+    <div class="opts ${q.cols===3?'cols3':''}">
+      ${q.options.map(opt=>`
+        <div class="opt ${sel===opt.id?'selected':''}" onclick="selectOpt('${q.id}','${opt.id}',this)">
+          <div class="opt-preview">${opt.preview}</div>
+          <div class="opt-label">${opt.label}</div>
+          <div class="opt-desc">${opt.desc}</div>
+        </div>`).join('')}
+    </div>`;
+}
+function selectOpt(qid,oid,el){
+  answers[qid]=oid;
+  localStorage.setItem('design-answers-9',JSON.stringify(answers));
+  document.querySelectorAll('.opt').forEach(e=>e.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('btn-next').disabled=false;
+  document.getElementById('nav-info').textContent='';
+}
+function goNext(){current++;render();window.scrollTo(0,0);}
+function goBack(){if(current>0){current--;render();window.scrollTo(0,0);}}
+function renderSummary(){
+  document.getElementById('question-area').style.display='none';
+  const sumEl=document.getElementById('summary');
+  sumEl.classList.add('visible');
+  let rows='';
+  questions.forEach(q=>{
+    const aid=answers[q.id];
+    const opt=q.options.find(o=>o.id===aid);
+    if(!opt)return;
+    rows+=`<div class="summary-item"><div class="summary-preview">${opt.preview}</div><div><div class="summary-q">${q.label}</div><div class="summary-a">${opt.label}</div><div style="font-size:.75rem;color:#555;margin-top:.15rem">${opt.desc}</div></div></div>`;
+  });
+  sumEl.innerHTML=`<div class="done-msg"><h2>✅ Runde 9 abgeschlossen!</h2><p>Speichern…</p></div>${rows}
+    <button class="btn btn-primary" style="width:100%;margin-top:1rem;padding:.9rem" onclick="submit()">Absenden →</button>`;
+  fetch('/api/design-answers-9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(answers)})
+    .then(r=>r.json()).then(()=>{document.querySelector('.done-msg p').textContent='✅ Gespeichert!';}).catch(()=>{});
+}
+function submit(){
+  fetch('/api/design-answers-9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(answers)})
+    .then(r=>r.json()).then(()=>{document.querySelector('.done-msg p').textContent='✅ Gespeichert!';});
+}
+render();
+</script>
+</body>
+</html>

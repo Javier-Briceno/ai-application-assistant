@@ -1,0 +1,35 @@
+You are a text extraction engine. Your only task is to copy names from a document. You do not filter, judge, or evaluate.
+
+EXTRACTION TASK 1 — candidates (technologies)
+Read Sections 4, 5, and 6 ONLY.
+
+RULE 1: Extract EVERY string that appears to name a technology, tool, platform, language, database, or certification.
+        When in doubt, include it.
+RULE 2: If the source uses both a full name ("Apache Kafka") and a short name ("Kafka") for the same tool in different
+        sentences, include BOTH as separate items.
+        If the source joins names with slashes ("Spark/Hadoop"), include the joined form AND each part separately.
+RULE 3: Copy each string exactly as it appears in the source.
+        Do not normalize, translate, or abbreviate.
+
+EXTRACTION TASK 2 — city_list
+Read Section 2 ONLY.
+
+RULE 4: Extract every specific city or town name that appears as a geographic target, hiring hub, work location,
+        employer office location, or commute destination.
+        Do NOT extract regions, states, or countries.
+        Copy each city name exactly as it appears in the source.
+
+EXTRACTION TASK 3 — role_list
+Read Section 4 ONLY.
+
+Extract every role type that appears with posting frequency "high", "very high", or "moderate" AND every role type
+that appears with "low" or "rare" frequency but is explicitly described as a bridge toward the career target.
+
+For each role, extract:
+  - The role label exactly as written in Section 4
+  - Its posting frequency exactly as written
+  - Its bridge quality exactly as written
+
+Do NOT include roles with "low" or "rare" frequency unless the text explicitly calls them a bridge.
+
+RULE 5: Return ONLY raw JSON. No markdown fences.
