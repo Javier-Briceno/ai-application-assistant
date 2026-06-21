@@ -27,11 +27,13 @@ from backend.deterministic.language import detect_language
 from backend.models.analysis import ScoringResult
 from backend.models.company import CompanyResearchResult
 from backend.models.tailoring import TailoringResult
+from backend.models.validation import TruthfulnessResult
 from backend.pipeline.analysis_scoring import run_analysis_scoring
 from backend.pipeline.anschreiben import run_anschreiben
 from backend.pipeline.company_research import run_company_research
 from backend.pipeline.cv_tailoring import run_cv_tailoring
 from backend.pipeline.translation_cache import get_cv_for_language
+from backend.pipeline.truthfulness import validate_anschreiben
 
 log = logging.getLogger(__name__)
 
@@ -45,6 +47,7 @@ class PipelineResult:
     anschreiben_text: str | None               # None if threshold == 'fail'
     gap_analysis: str | None                   # None if threshold != 'fail'
     job_application_id: int | None             # set after DB insert
+    anschreiben_truthfulness_warning: list[str] | None = None  # set if retry still found issues
 
 
 async def _fetch_profile_context(conn: asyncpg.Connection, profile_id: int) -> dict:
@@ -68,15 +71,19 @@ async def _store_job_application(
     tailored_cv: str,
     anschreiben: str,
     gaps: str,
+    truthfulness_warning: list[str] | None = None,
 ) -> int:
     import json
-    scoring_details_json = json.dumps({
+    scoring_details: dict = {
         "technical":    {"score": scoring.dims.technical,    "reasoning": scoring.analyzer_output.technical.reasoning},
         "requirements": {"score": scoring.dims.requirements, "reasoning": scoring.analyzer_output.requirements.reasoning},
         "role_fit":     {"score": scoring.dims.role_fit,     "reasoning": scoring.analyzer_output.role_fit.reasoning},
         "location":     {"score": scoring.dims.location,     "reasoning": scoring.analyzer_output.location.reasoning},
         "strategic":    {"score": scoring.dims.strategic,    "reasoning": scoring.analyzer_output.strategic.reasoning},
-    })
+    }
+    if truthfulness_warning:
+        scoring_details["truthfulness_warning"] = truthfulness_warning
+    scoring_details_json = json.dumps(scoring_details)
     return await conn.fetchval(
         """
         INSERT INTO job_application_assistant.job_applications
@@ -232,6 +239,65 @@ async def run_main_pipeline(
         profile_id=profile_id,
     )
 
+    # ── Truthfulness: validate cover letter against the ORIGINAL CV ────────────
+    # Anchored on cv_for_analysis (original, language-matched) — NOT the tailored
+    # CV, which is also LLM-generated and cannot serve as its own truth source.
+    # Wrapped in try/except so a broken safety check never kills document generation.
+    _safe_valid = TruthfulnessResult(valid=True, issues=[], severity="low")
+    surviving_warning: list[str] | None = None
+
+    try:
+        anschreiben_validation = await validate_anschreiben(
+            conn,
+            anschreiben_text=anschreiben_text,
+            original_cv=cv_for_analysis,
+            candidate_profile=candidate_profile,
+            profile_id=profile_id,
+        )
+    except Exception as exc:
+        log.warning("Anschreiben truthfulness check failed (ignored): %s", exc)
+        anschreiben_validation = _safe_valid
+
+    if anschreiben_validation.severity in ("medium", "high"):
+        log.warning(
+            "Anschreiben truthfulness issues (severity=%s, %d issues) — "
+            "retrying with strict grounding: %s",
+            anschreiben_validation.severity,
+            len(anschreiben_validation.issues),
+            [i.detail for i in anschreiben_validation.issues],
+        )
+        anschreiben_text = await run_anschreiben(
+            conn,
+            job_posting=job_posting,
+            cv_text=tailoring.tailored_cv,
+            career_target=career_target,
+            candidate_profile=candidate_profile,
+            company_result=company_result,
+            job_language=job_language,
+            profile_id=profile_id,
+            strict_grounding=True,
+        )
+        try:
+            anschreiben_validation2 = await validate_anschreiben(
+                conn,
+                anschreiben_text=anschreiben_text,
+                original_cv=cv_for_analysis,
+                candidate_profile=candidate_profile,
+                profile_id=profile_id,
+            )
+        except Exception as exc:
+            log.warning("Anschreiben truthfulness re-check failed (ignored): %s", exc)
+            anschreiben_validation2 = _safe_valid
+
+        if anschreiben_validation2.severity in ("medium", "high"):
+            surviving_warning = [i.detail for i in anschreiben_validation2.issues]
+            log.warning(
+                "Anschreiben retry still has truthfulness issues (severity=%s) — "
+                "surfacing warning to user: %s",
+                anschreiben_validation2.severity,
+                surviving_warning,
+            )
+
     # ── 6. Store result ────────────────────────────────────────────────────────
     step("Ergebnisse werden gespeichert...")
     app_id = await _store_job_application(
@@ -245,6 +311,7 @@ async def run_main_pipeline(
         tailored_cv=tailoring.tailored_cv,
         anschreiben=anschreiben_text,
         gaps="",
+        truthfulness_warning=surviving_warning,
     )
 
     step("Fertig!")
@@ -256,6 +323,7 @@ async def run_main_pipeline(
         anschreiben_text=anschreiben_text,
         gap_analysis=None,
         job_application_id=app_id,
+        anschreiben_truthfulness_warning=surviving_warning,
     )
 
 

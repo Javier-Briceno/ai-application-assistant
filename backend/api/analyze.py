@@ -62,6 +62,7 @@ async def api_analyze(req: AnalyzeRequest):
                 "anschreiben_text": result.anschreiben_text,
                 "gap_analysis": result.gap_analysis,
                 "job_application_id": result.job_application_id,
+                "anschreiben_truthfulness_warning": result.anschreiben_truthfulness_warning,
             }
             yield _sse({"type": "result", "data": payload})
 
@@ -164,6 +165,7 @@ async def api_analyze(req: AnalyzeRequest):
             "anschreiben_text": result.anschreiben_text,
             "gap_analysis": result.gap_analysis,
             "job_application_id": result.job_application_id,
+            "anschreiben_truthfulness_warning": result.anschreiben_truthfulness_warning,
         }
         yield _sse({"type": "result", "data": payload})
 

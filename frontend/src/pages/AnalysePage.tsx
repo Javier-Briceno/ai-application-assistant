@@ -320,6 +320,28 @@ export function AnalysePage() {
               />
             )}
 
+            {/* Truthfulness warning — only shown when retry still found issues */}
+            {result.anschreiben_truthfulness_warning && result.anschreiben_truthfulness_warning.length > 0 && (
+              <div style={{
+                background: '#1a1100',
+                border: '1px solid #854d0e',
+                borderRadius: 8,
+                padding: '12px 16px',
+                color: '#fbbf24',
+                fontSize: 12,
+                lineHeight: 1.6,
+              }}>
+                <div style={{ fontWeight: 600, marginBottom: 6 }}>
+                  Hinweis: Das Anschreiben enthält möglicherweise nicht vollständig belegte Angaben.
+                </div>
+                <ul style={{ margin: 0, paddingLeft: 18 }}>
+                  {result.anschreiben_truthfulness_warning.map((w, i) => (
+                    <li key={i}>{w}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {/* Anschreiben */}
             {result.anschreiben_text && (
               <Anschreiben

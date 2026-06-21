@@ -26,6 +26,7 @@ async def run_anschreiben(
     company_result: CompanyResearchResult,
     job_language: str = "de",
     profile_id: int | None = None,
+    strict_grounding: bool = False,
 ) -> str:
     """
     Generate a cover letter for the given job posting and candidate profile.
@@ -37,6 +38,14 @@ async def run_anschreiben(
     core_skills = candidate_profile.get("core_skills", "")
     target_format = candidate_profile.get("target_format", "")
     commute_options = candidate_profile.get("commute_options", "")
+
+    grounding_instruction = (
+        "\n\nCRITICAL: Every specific factual claim (skills, technologies, "
+        "years of experience, achievements, companies, degrees, certifications) "
+        "MUST be directly and explicitly stated in the provided CV. "
+        "Do not invent, infer, or embellish anything not present in the CV."
+        if strict_grounding else ""
+    )
 
     user = (
         f"<job_language>{job_language}</job_language>\n\n"
@@ -51,6 +60,7 @@ async def run_anschreiben(
         f"Work format preference: {target_format}\n"
         f"Location / commute: {commute_options}\n"
         f"</candidate_summary>"
+        f"{grounding_instruction}"
     )
 
     log.info("Generating Anschreiben (Sonnet)...")

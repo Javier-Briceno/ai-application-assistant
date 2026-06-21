@@ -53,6 +53,7 @@ export interface PipelineResult {
   anschreiben_text: string | null
   gap_analysis: string | null
   job_application_id: number | null
+  anschreiben_truthfulness_warning: string[] | null
 }
 
 export interface ScoringDetails {
@@ -61,6 +62,7 @@ export interface ScoringDetails {
   role_fit: DimensionScore
   location: DimensionScore
   strategic: DimensionScore
+  truthfulness_warning?: string[]
 }
 
 export interface Application {

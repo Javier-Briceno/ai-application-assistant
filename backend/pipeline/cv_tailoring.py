@@ -30,6 +30,7 @@ from backend.models.tailoring import (
     TailoringResult,
     ValidationResult,
 )
+from backend.pipeline.truthfulness import check_cv_word_inflation
 from backend.prompts.loader import load_prompt
 
 log = logging.getLogger(__name__)
@@ -306,6 +307,17 @@ async def run_cv_tailoring(
         job_posting=job_posting,
         profile_id=profile_id,
     )
+
+    # Truthfulness: detect word-count inflation introduced by the rewriter.
+    # The pipeline is subtractive, so the final CV must not exceed the original.
+    inflation_check = check_cv_word_inflation(cv_text, edited_cv, rewritten_cv)
+    if not inflation_check.valid:
+        log.warning(
+            "CV Rewriter word inflation detected — falling back to pre-rewrite CV. "
+            "Issues: %s",
+            [i.detail for i in inflation_check.issues],
+        )
+        rewritten_cv = edited_cv
 
     # Step 7: Compute diff
     cv_diff = compute_diff(cv_text, rewritten_cv)
