@@ -3,9 +3,11 @@ Focused regression tests for:
   B1 — role_type_scores is merged into the candidate_profile the Analyzer receives
   B2 — profile re-extraction is triggered when career_target or market_research changes,
         but NOT when only unrelated metadata (name, city, …) changes
+  B3 — chat endpoint injects application context into system prompt when job_application_id given
   B6 — job postings longer than 50 000 chars are rejected with a clean SSE error
 """
 import json
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -261,3 +263,81 @@ async def test_job_posting_at_limit_not_blocked_by_length_check():
     assert not length_errors, (
         "A posting at exactly 50k chars must not be rejected by the length guard"
     )
+
+
+# ── B3: chat context injection ────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_chat_context_loaded_for_valid_application():
+    """B3: _load_application_context returns a string with key application fields
+    when the application exists in the database.
+    """
+    from backend.api.chat import _load_application_context
+
+    fake_row = {
+        "company": "Acme GmbH",
+        "role_title": "Senior Engineer",
+        "job_posting": "Wir suchen einen erfahrenen Ingenieur...",
+        "score": 75,
+        "threshold": "pass",
+        "scoring_details": json.dumps({"technical": {"score": 80, "reasoning": "strong"}}),
+        "gaps": "Führungserfahrung fehlt",
+        "cv_diff": "+ Python 3.12 hinzugefügt",
+        "tailored_cv": "Lebenslauf-Inhalt",
+        "anschreiben": "Sehr geehrte Damen und Herren...",
+    }
+
+    mock_conn = AsyncMock()
+    mock_conn.fetchrow = AsyncMock(return_value=fake_row)
+
+    @asynccontextmanager
+    async def fake_get_conn():
+        yield mock_conn
+
+    with patch("backend.api.chat.get_conn", fake_get_conn):
+        result = await _load_application_context(1)
+
+    assert result is not None
+    assert "Acme GmbH" in result
+    assert "Senior Engineer" in result
+    assert "75" in result
+    assert "pass" in result
+    assert "Führungserfahrung" in result
+
+
+@pytest.mark.asyncio
+async def test_chat_context_returns_none_for_missing_application():
+    """B3: _load_application_context returns None when no row is found,
+    so the chat falls back to the base system prompt without crashing.
+    """
+    from backend.api.chat import _load_application_context
+
+    mock_conn = AsyncMock()
+    mock_conn.fetchrow = AsyncMock(return_value=None)
+
+    @asynccontextmanager
+    async def fake_get_conn():
+        yield mock_conn
+
+    with patch("backend.api.chat.get_conn", fake_get_conn):
+        result = await _load_application_context(999)
+
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_chat_context_returns_none_on_db_error():
+    """B3: _load_application_context returns None (not raises) on a DB exception,
+    so the endpoint degrades gracefully to base system prompt.
+    """
+    from backend.api.chat import _load_application_context
+
+    @asynccontextmanager
+    async def fake_get_conn():
+        raise RuntimeError("connection refused")
+        yield  # noqa: unreachable — required for asynccontextmanager
+
+    with patch("backend.api.chat.get_conn", fake_get_conn):
+        result = await _load_application_context(1)
+
+    assert result is None

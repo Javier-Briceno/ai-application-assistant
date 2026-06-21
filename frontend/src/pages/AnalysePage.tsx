@@ -258,12 +258,20 @@ export function AnalysePage() {
             height: '100%', gap: 12, padding: 36,
           }}>
             <div style={{ fontSize: 13, color: '#b91c1c', textAlign: 'center', maxWidth: 340 }}>{error}</div>
-            <button onClick={() => setError(null)} style={{
-              background: 'none', border: '1px solid #2a2a2e', borderRadius: 6, color: '#888',
-              fontSize: 12, padding: '5px 12px', cursor: 'pointer',
-            }}>
-              Verwerfen
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={analyze} style={{
+                background: 'none', border: '1px solid #059669', borderRadius: 6, color: '#059669',
+                fontSize: 12, padding: '5px 12px', cursor: 'pointer',
+              }}>
+                Erneut versuchen
+              </button>
+              <button onClick={() => setError(null)} style={{
+                background: 'none', border: '1px solid #2a2a2e', borderRadius: 6, color: '#888',
+                fontSize: 12, padding: '5px 12px', cursor: 'pointer',
+              }}>
+                Verwerfen
+              </button>
+            </div>
           </div>
         )}
 
@@ -308,7 +316,7 @@ export function AnalysePage() {
               <CvDiff
                 diff={result.tailoring.cv_diff}
                 applicationId={result.job_application_id ?? undefined}
-                onDownload={result.job_application_id ? () => api.applications.downloadCv(result.job_application_id!) : undefined}
+                onDownload={result.job_application_id ? () => api.applications.downloadCv(result.job_application_id!, showToast) : undefined}
               />
             )}
 
@@ -319,7 +327,7 @@ export function AnalysePage() {
                 profileName={profileName}
                 profileCity={activeProfile?.home_location ?? ''}
                 companyName={result.company.company_name}
-                onDownload={result.job_application_id ? () => api.applications.downloadAnschreiben(result.job_application_id!) : undefined}
+                onDownload={result.job_application_id ? () => api.applications.downloadAnschreiben(result.job_application_id!, showToast) : undefined}
               />
             )}
           </div>

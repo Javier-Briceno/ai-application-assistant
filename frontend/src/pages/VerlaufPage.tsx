@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { profileColor } from '@/lib/profileColor'
 import { api } from '@/lib/api'
+import { useApp } from '@/context/AppContext'
 import { CvDiff } from '@/components/CvDiff'
 import { Anschreiben } from '@/components/Anschreiben'
 import { Bewertung } from '@/components/Bewertung'
@@ -39,7 +40,8 @@ function appToScoring(app: Application): ScoringResult {
 
 export function VerlaufPage() {
   const navigate = useNavigate()
-const { data: profiles = [] } = useQuery({ queryKey: ['profiles'], queryFn: api.profiles.list })
+  const { showToast } = useApp()
+  const { data: profiles = [] } = useQuery({ queryKey: ['profiles'], queryFn: api.profiles.list })
   const [filterProfileId, setFilterProfileId] = useState<number | null>(null)
   const [selectedAppId, setSelectedAppId] = useState<number | null>(null)
 
@@ -224,7 +226,7 @@ const { data: profiles = [] } = useQuery({ queryKey: ['profiles'], queryFn: api.
                 key={selectedApp.id}
                 diff={selectedApp.cv_diff}
                 applicationId={selectedApp.id}
-                onDownload={() => api.applications.downloadCv(selectedApp.id)}
+                onDownload={() => api.applications.downloadCv(selectedApp.id, showToast)}
               />
             )}
 
@@ -234,7 +236,7 @@ const { data: profiles = [] } = useQuery({ queryKey: ['profiles'], queryFn: api.
                 text={selectedApp.anschreiben}
                 profileName={profileName}
                 companyName={selectedApp.company}
-                onDownload={() => api.applications.downloadAnschreiben(selectedApp.id)}
+                onDownload={() => api.applications.downloadAnschreiben(selectedApp.id, showToast)}
               />
             )}
           </div>

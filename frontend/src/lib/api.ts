@@ -28,10 +28,42 @@ export const api = {
   applications: {
     list: (profileId: number | null): Promise<Application[]> =>
       request(profileId != null ? `/applications?profile_id=${profileId}` : '/applications'),
-    downloadCv: (id: number) =>
-      window.open(`${BASE}/applications/${id}/cv.docx`, '_blank'),
-    downloadAnschreiben: (id: number) =>
-      window.open(`${BASE}/applications/${id}/anschreiben.docx`, '_blank'),
+    downloadCv: async (id: number, onError?: (msg: string) => void): Promise<void> => {
+      const res = await fetch(`${BASE}/applications/${id}/cv.docx`)
+      if (!res.ok) {
+        onError?.('Dieser Lebenslauf wurde vor einem Update erstellt und ist nicht mehr verfügbar.')
+        return
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const disposition = res.headers.get('Content-Disposition') ?? ''
+      const match = disposition.match(/filename="([^"]+)"/)
+      a.download = match?.[1] ?? 'Lebenslauf.docx'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    },
+    downloadAnschreiben: async (id: number, onError?: (msg: string) => void): Promise<void> => {
+      const res = await fetch(`${BASE}/applications/${id}/anschreiben.docx`)
+      if (!res.ok) {
+        onError?.('Das Anschreiben konnte nicht heruntergeladen werden.')
+        return
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const disposition = res.headers.get('Content-Disposition') ?? ''
+      const match = disposition.match(/filename="([^"]+)"/)
+      a.download = match?.[1] ?? 'Anschreiben.docx'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    },
   },
 }
 
