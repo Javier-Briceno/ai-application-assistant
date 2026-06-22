@@ -25,10 +25,6 @@ def validate_generator_output(
     section_membership maps every cv item (including KEEP items) to its section,
     so the cluster guard uses the correct denominator.
     """
-    """
-    Mirrors the n8n Validator Code Node.
-    Returns ValidationResult(valid=True) if all checks pass.
-    """
     errors: list[ValidationError] = []
     classifier_map = {item.id: item.classification for item in classifier_output.items}
 
@@ -83,23 +79,6 @@ def validate_generator_output(
 
 
 # ── Deterministic editor ──────────────────────────────────────────────────────
-
-def apply_remove_instructions(cv_text: str, generator_output: GeneratorOutput) -> str:
-    """
-    Mirrors the n8n CV Deterministic Editor Code Node.
-    Applies ENTFERNEN by exact string match on the CV text.
-    Operates on the full cv_text string (not the item list) for reliability.
-    Only processes ENTFERNEN — KÜRZEN is applied by the LLM Rewriter.
-    """
-    result = cv_text
-    for item in generator_output.items:
-        if item.action == "ENTFERNEN" and item.id in cv_text:
-            # The item id in this context is the original content string
-            # (see cv_tailoring.py for how ids are mapped to content)
-            pass  # ids are opaque — content lookup happens in pipeline
-
-    return result
-
 
 def apply_removes_by_content(
     cv_text: str,

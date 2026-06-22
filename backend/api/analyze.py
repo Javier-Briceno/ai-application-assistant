@@ -26,52 +26,6 @@ def _sse(data: dict) -> str:
 
 @router.post("/analyze")
 async def api_analyze(req: AnalyzeRequest):
-    async def generate():
-        try:
-            async with get_conn() as conn:
-                result = await run_main_pipeline(
-                    conn,
-                    profile_id=req.profile_id,
-                    job_posting=req.job_posting,
-                    on_step=lambda msg: None,  # replaced by generator below
-                )
-
-            # Yield the final result
-            payload = {
-                "profile_id": result.profile_id,
-                "company": {
-                    "company_name": result.company.company_name,
-                    "search_name": result.company.search_name,
-                    "research_text": result.company.company_profile or "",
-                },
-                "scoring": {
-                    "total_score": result.scoring.total_score,
-                    "threshold": result.scoring.threshold,
-                    "technical":    {"score": result.scoring.dims.technical,    "reasoning": result.scoring.analyzer_output.technical.reasoning},
-                    "requirements": {"score": result.scoring.dims.requirements, "reasoning": result.scoring.analyzer_output.requirements.reasoning},
-                    "role_fit":     {"score": result.scoring.dims.role_fit,     "reasoning": result.scoring.analyzer_output.role_fit.reasoning},
-                    "location":     {"score": result.scoring.dims.location,     "reasoning": result.scoring.analyzer_output.location.reasoning},
-                    "strategic":    {"score": result.scoring.dims.strategic,    "reasoning": result.scoring.analyzer_output.strategic.reasoning},
-                    "requirements_analysis": result.scoring.requirements_analysis.model_dump() if result.scoring.requirements_analysis else None,
-                },
-                "tailoring": {
-                    "items_removed": result.tailoring.items_removed,
-                    "items_shortened": result.tailoring.items_shortened,
-                    "cv_diff": result.tailoring.cv_diff,
-                    "tailored_cv": result.tailoring.tailored_cv,
-                } if result.tailoring else None,
-                "anschreiben_text": result.anschreiben_text,
-                "gap_analysis": result.gap_analysis,
-                "job_application_id": result.job_application_id,
-                "anschreiben_truthfulness_warning": result.anschreiben_truthfulness_warning,
-            }
-            yield _sse({"type": "result", "data": payload})
-
-        except Exception as exc:
-            log.exception("Pipeline error")
-            yield _sse({"type": "error", "message": str(exc)})
-
-    # We need step events too — rewire with a step queue
     async def generate_with_steps():
         if len(req.job_posting) > _MAX_POSTING_LEN:
             yield _sse({
