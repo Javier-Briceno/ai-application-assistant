@@ -228,7 +228,6 @@ export function VerlaufPage() {
             {/* CV Diff */}
             {selectedApp.cv_diff && (
               <CvDiff
-                key={selectedApp.id}
                 diff={selectedApp.cv_diff}
                 applicationId={selectedApp.id}
                 onDownload={() => api.applications.downloadCv(selectedApp.id, showToast)}
@@ -260,7 +259,6 @@ export function VerlaufPage() {
             {/* Anschreiben */}
             {selectedApp.anschreiben && (
               <Anschreiben
-                key={selectedApp.id}
                 text={selectedApp.anschreiben}
                 profileName={profileName}
                 companyName={selectedApp.company}
@@ -273,6 +271,7 @@ export function VerlaufPage() {
         {/* Chat popup — shown whenever an app is selected */}
         {selectedApp && (
           <ChatPopup
+            key={selectedApp.id}
             companyName={selectedApp.company}
             jobApplicationId={selectedApp.id}
           />

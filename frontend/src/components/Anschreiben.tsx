@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useApp } from '@/context/AppContext'
 
 interface Props {
@@ -28,6 +28,13 @@ export function Anschreiben({ text: initialText, profileName, profileCity, compa
   const [text, setText] = useState(header + initialText)
   const [copied, setCopied] = useState(false)
   const { showToast } = useApp()
+
+  useEffect(() => {
+    const h = (profileName || companyName)
+      ? buildHeader(profileName ?? '', profileCity ?? '', companyName ?? '')
+      : ''
+    setText(h + initialText)
+  }, [initialText, profileName, profileCity, companyName])
 
   const copy = async () => {
     try {

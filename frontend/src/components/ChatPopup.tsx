@@ -25,6 +25,13 @@ export function ChatPopup({ companyName, jobTitle, jobApplicationId }: Props) {
   }
 
   useEffect(() => {
+    setOpen(false)
+    setMessages([])
+    setInput('')
+    setStreaming(false)
+  }, [jobApplicationId])
+
+  useEffect(() => {
     if (open && messages.length === 0) {
       setMessages([welcomeMsg])
     }

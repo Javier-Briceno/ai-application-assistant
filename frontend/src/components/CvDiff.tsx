@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 interface Props {
   diff: string
@@ -35,6 +35,8 @@ function parseLine(line: string): { type: LineType; text: string } {
 
 export function CvDiff({ diff, applicationId, onDownload }: Props) {
   const [showAll, setShowAll] = useState(false)
+
+  useEffect(() => { setShowAll(false) }, [diff])
 
   if (!diff?.trim()) {
     return (
