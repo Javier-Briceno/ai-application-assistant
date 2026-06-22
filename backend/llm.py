@@ -4,6 +4,7 @@ Every call is logged to job_application_assistant.llm_logs.
 Structured calls validate output with Pydantic and retry on failure.
 """
 import json
+import logging
 import time
 from typing import Type, TypeVar
 
@@ -14,6 +15,7 @@ from pydantic import BaseModel, ValidationError
 
 from backend.config import settings
 
+log = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
 
 _anthropic = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
@@ -157,6 +159,61 @@ def _strip_fences(text: str) -> str:
     return t.strip()
 
 
+async def _openai_parse(
+    conn: asyncpg.Connection,
+    *,
+    model: str,
+    system: str,
+    user: str,
+    response_model: Type[T],
+    max_tokens: int,
+    temperature: float,
+    node_name: str,
+    profile_id: int | None,
+) -> T:
+    """Call OpenAI's native structured-output API (chat.completions.parse).
+
+    Constrained decoding at the token-sampling level guarantees the response
+    matches the Pydantic schema — no manual JSON parsing, no schema appended to
+    the user message, no retry needed for schema conformance.
+
+    Raises on refusal or any API-level error so the caller can fall back to the
+    manual schema-in-prompt path.
+    """
+    start = time.monotonic()
+    resp = await _openai.chat.completions.parse(
+        model=model,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+        response_format=response_model,
+    )
+    parsed = resp.choices[0].message.parsed
+    if parsed is None:
+        raise ValueError(
+            f"OpenAI structured output returned None for node '{node_name}' "
+            f"(model refused or response was empty)"
+        )
+    latency_ms = int((time.monotonic() - start) * 1000)
+    in_tok = resp.usage.prompt_tokens
+    out_tok = resp.usage.completion_tokens
+    cost_usd = await _compute_cost(conn, model, in_tok, out_tok)
+    await _log(
+        conn,
+        model=model,
+        node_name=node_name,
+        profile_id=profile_id,
+        input_tokens=in_tok,
+        output_tokens=out_tok,
+        latency_ms=latency_ms,
+        cost_usd=cost_usd,
+    )
+    return parsed
+
+
 async def call_structured(
     conn: asyncpg.Connection,
     *,
@@ -170,11 +227,39 @@ async def call_structured(
     profile_id: int | None = None,
     max_retries: int = 2,
 ) -> T:
+    """Make a structured LLM call.
+
+    OpenAI models: uses the native structured-output parse API (constrained
+    decoding).  No schema appended to the user message.  Falls back to the
+    manual path on any API-level failure.
+
+    Claude/Anthropic models: appends the JSON schema to the user message,
+    parses the response with Pydantic, and retries up to max_retries times on
+    parse failure.
     """
-    Make a structured LLM call.
-    Appends JSON schema to the user message, parses the response,
-    validates with Pydantic, and retries up to max_retries on failure.
-    """
+    # ── OpenAI path: native structured outputs ────────────────────────────────
+    if not _is_claude(model):
+        try:
+            return await _openai_parse(
+                conn,
+                model=model,
+                system=system,
+                user=user,
+                response_model=response_model,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                node_name=node_name,
+                profile_id=profile_id,
+            )
+        except Exception as exc:
+            log.warning(
+                "OpenAI structured output failed for node=%s (%s: %s); "
+                "falling back to manual schema-in-prompt path",
+                node_name, type(exc).__name__, str(exc)[:200],
+            )
+            # Fall through to manual path
+
+    # ── Manual schema-in-prompt path (Claude always; OpenAI fallback) ─────────
     schema = json.dumps(response_model.model_json_schema(), indent=2)
     schema_instruction = (
         f"\n\nRespond with ONLY a valid JSON object matching this schema — "
@@ -199,6 +284,10 @@ async def call_structured(
         try:
             return response_model.model_validate_json(_strip_fences(text))
         except (ValidationError, json.JSONDecodeError, ValueError) as exc:
+            log.warning(
+                "Structured output parse failure: node=%s attempt=%d type=%s: %s",
+                attempt_node, attempt, type(exc).__name__, str(exc)[:200],
+            )
             last_error = exc
             if attempt < max_retries:
                 current_user = (
