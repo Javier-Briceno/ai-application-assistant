@@ -24,6 +24,7 @@ from typing import Callable
 import asyncpg
 
 from backend.deterministic.language import detect_language
+from backend.exceptions import UserVisibleError
 from backend.models.analysis import ScoringResult
 from backend.models.company import CompanyResearchResult
 from backend.models.tailoring import TailoringResult
@@ -152,7 +153,7 @@ async def run_main_pipeline(
     candidate_profile["role_type_scores"] = role_type_scores
 
     if not cv_text:
-        raise ValueError("Kein Lebenslauf im Profil hinterlegt. Bitte Profil bearbeiten.")
+        raise UserVisibleError("Kein Lebenslauf im Profil hinterlegt. Bitte Profil bearbeiten.")
 
     # ── 2. Detect job language ─────────────────────────────────────────────────
     job_language = detect_language(job_posting)

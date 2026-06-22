@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from backend.api.profiles import router as profiles_router
@@ -17,7 +17,7 @@ from backend.api.analyze import router as analyze_router
 from backend.api.applications import router as applications_router
 from backend.api.chat import router as chat_router
 from backend.config import settings
-from backend.db import close_pool, get_pool
+from backend.db import close_pool, get_pool, ping_db
 
 logging.basicConfig(
     level=logging.INFO,
@@ -55,7 +55,13 @@ app.include_router(chat_router)
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok"}
+    db_ok = await ping_db()
+    if db_ok:
+        return {"status": "ok", "db": "connected"}
+    return JSONResponse(
+        status_code=503,
+        content={"status": "degraded", "db": "unreachable"},
+    )
 
 
 # ── Serve built React frontend ────────────────────────────────────────────────

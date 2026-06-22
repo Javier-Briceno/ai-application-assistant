@@ -233,6 +233,20 @@ File-name headers (`---`/`+++`) are stripped. Context lines = 2 (configurable vi
 
 Prompts live in `backend/prompts/v1/*.txt`. To change a prompt: create a `v2/` copy and update the `load_prompt()` call at the pipeline call site. The version directory is the prompt version label; old versions stay in git history.
 
+## Health check
+
+`GET /api/health` performs a live `SELECT 1` against the pool.
+
+| DB reachable | HTTP | Body |
+|---|---|---|
+| yes | 200 | `{"status": "ok", "db": "connected"}` |
+| no | 503 | `{"status": "degraded", "db": "unreachable"}` |
+
+`ping_db()` in `db.py` never raises — it logs the error and returns `False`.
+`reset_pool()` closes the pool immediately; the next `get_conn()` call opens a fresh one.
+The pool is configured with `max_inactive_connection_lifetime=60` so stale connections
+from a Postgres restart are recycled within 60 seconds.
+
 ## Hard constraints (non-negotiable)
 
 1. No candidate-specific or profile-specific content in any prompt file

@@ -6,10 +6,25 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from backend.db import get_conn
+from backend.exceptions import UserVisibleError
 from backend.pipeline.main_pipeline import run_main_pipeline
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["analyze"])
+
+_GENERIC_ERROR = "Analyse fehlgeschlagen. Bitte versuchen Sie es erneut."
+
+
+def _user_safe_error(exc: Exception) -> str:
+    """Return a user-facing German error message.
+
+    UserVisibleError is raised by the pipeline for conditions the user can act
+    on (e.g. missing CV).  All other exceptions hide internal details to avoid
+    leaking DB errors, API keys, stack traces, or model names.
+    """
+    if isinstance(exc, UserVisibleError):
+        return str(exc)
+    return _GENERIC_ERROR
 
 
 _MAX_POSTING_LEN = 50_000
@@ -90,7 +105,7 @@ async def api_analyze(req: AnalyzeRequest):
             result = await pipeline_task
         except Exception as exc:
             log.exception("Pipeline error")
-            yield _sse({"type": "error", "message": str(exc)})
+            yield _sse({"type": "error", "message": _user_safe_error(exc)})
             return
 
         dims = result.scoring.dims
