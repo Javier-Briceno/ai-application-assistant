@@ -260,6 +260,7 @@ export function VerlaufPage() {
             {/* Anschreiben */}
             {selectedApp.anschreiben && (
               <Anschreiben
+                key={selectedApp.id}
                 text={selectedApp.anschreiben}
                 profileName={profileName}
                 companyName={selectedApp.company}
