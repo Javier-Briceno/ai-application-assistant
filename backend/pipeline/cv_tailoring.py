@@ -299,14 +299,21 @@ async def run_cv_tailoring(
     items_shortened = sum(1 for i in generator_output.items if i.action == "KÜRZEN")
     log.info("Applied edits: %d removed, %d shortened", items_removed, items_shortened)
 
-    # Step 6: Rewrite (polish)
-    log.info("Running CV Rewriter (Haiku)...")
-    rewritten_cv = await _run_rewriter(
-        conn,
-        cv_text=edited_cv,
-        job_posting=job_posting,
-        profile_id=profile_id,
-    )
+    # Step 6: Rewrite (polish) — skip when no items were removed.
+    # Removed items leave gaps between bullets; that is the only thing the
+    # rewriter fixes.  KÜRZEN replacements are already natural-sounding text
+    # produced by the generator, so no polish pass is needed.
+    if items_removed > 0:
+        log.info("Running CV Rewriter (Haiku)...")
+        rewritten_cv = await _run_rewriter(
+            conn,
+            cv_text=edited_cv,
+            job_posting=job_posting,
+            profile_id=profile_id,
+        )
+    else:
+        log.info("Skipping CV Rewriter — no items removed, no gaps to smooth")
+        rewritten_cv = edited_cv
 
     # Truthfulness: detect word-count inflation introduced by the rewriter.
     # The pipeline is subtractive, so the final CV must not exceed the original.
