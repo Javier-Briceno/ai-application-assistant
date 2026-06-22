@@ -1,7 +1,9 @@
 """
-CV Deterministic Editor and LCS Diff Engine.
-Ports the n8n CV Deterministic Editor + Diff Engine Code Nodes from the main workflow.
+CV Deterministic Editor and Diff Engine.
+Ports the n8n CV Deterministic Editor Code Node from the main workflow.
+Diff uses Python stdlib difflib (positional unified diff).
 """
+import difflib
 import re
 
 from backend.models.tailoring import ClassifierOutput, GeneratorOutput, ValidationError, ValidationResult
@@ -121,73 +123,42 @@ def apply_removes_by_content(
     return result.strip()
 
 
-# ── LCS Diff Engine ───────────────────────────────────────────────────────────
+# ── Diff Engine ───────────────────────────────────────────────────────────────
 
-def _lcs(a: list[str], b: list[str]) -> list[str]:
-    """Standard LCS via DP table."""
-    m, n = len(a), len(b)
-    dp = [[0] * (n + 1) for _ in range(m + 1)]
-    for i in range(1, m + 1):
-        for j in range(1, n + 1):
-            if a[i - 1] == b[j - 1]:
-                dp[i][j] = dp[i - 1][j - 1] + 1
-            else:
-                dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
-
-    # Backtrack
-    result: list[str] = []
-    i, j = m, n
-    while i > 0 and j > 0:
-        if a[i - 1] == b[j - 1]:
-            result.append(a[i - 1])
-            i -= 1
-            j -= 1
-        elif dp[i - 1][j] >= dp[i][j - 1]:
-            i -= 1
-        else:
-            j -= 1
-    return list(reversed(result))
-
-
-def _strip_md(text: str) -> str:
-    """Strip markdown formatting so diff compares plain content only."""
-    text = re.sub(r'^#{1,6}\s+', '', text)
-    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
-    text = re.sub(r'\*(.+?)\*', r'\1', text)
-    text = re.sub(r'__(.+?)__', r'\1', text)
-    text = re.sub(r'_([^_\s][^_]*)_', r'\1', text)
-    text = re.sub(r'`([^`]+)`', r'\1', text)
-    return text.strip()
+_DIFF_CONTEXT = 2  # context lines shown around each changed block
 
 
 def compute_diff(original: str, modified: str) -> str:
     """
-    Compute a line-level diff between original and modified CV.
-    Returns a string with + (added), - (removed), or 2-space-prefix (context) lines.
-    Comparison is done on plain text (markdown stripped) so formatting-only
-    changes don't appear as content changes.
+    Compute a positional unified diff between original and modified CV.
+
+    Uses Python stdlib difflib.unified_diff so that:
+    - Line order is preserved
+    - Duplicate lines are handled correctly (no set-based collapse)
+    - Changes appear at their actual position with surrounding context
+    - Multiple changed regions produce separate @@ hunks
+
+    Output format (unified diff subset, no ---/+++ file headers):
+        @@ -a,b +c,d @@       hunk header (position marker)
+         context line          1-space prefix
+        -removed line          minus prefix
+        +added line            plus prefix
+
+    Returns an empty string when original == modified.
     """
-    orig_lines = [_strip_md(l) for l in original.splitlines() if l.strip()]
-    mod_lines  = [_strip_md(l) for l in modified.splitlines()  if l.strip()]
+    orig_lines = original.splitlines()
+    mod_lines  = modified.splitlines()
 
-    # Drop empty strings that result from stripping (e.g. a line that was only `---`)
-    orig_lines = [l for l in orig_lines if l]
-    mod_lines  = [l for l in mod_lines  if l]
+    diff_iter = difflib.unified_diff(
+        orig_lines,
+        mod_lines,
+        lineterm="",
+        n=_DIFF_CONTEXT,
+    )
+    lines = list(diff_iter)
 
-    common = set(_lcs(orig_lines, mod_lines))
-    diff_lines: list[str] = []
+    # Drop the ---/+++ file-name header lines (not meaningful for CV diffs)
+    if len(lines) >= 2 and lines[0].startswith("---"):
+        lines = lines[2:]
 
-    orig_set = set(orig_lines)
-    mod_set  = set(mod_lines)
-
-    for line in orig_lines:
-        if line in common:
-            diff_lines.append(f"  {line}")
-        elif line not in mod_set:
-            diff_lines.append(f"- {line}")
-
-    for line in mod_lines:
-        if line not in orig_set:
-            diff_lines.append(f"+ {line}")
-
-    return "\n".join(diff_lines)
+    return "\n".join(lines)

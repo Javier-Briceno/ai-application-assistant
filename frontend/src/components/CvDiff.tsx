@@ -6,33 +6,35 @@ interface Props {
   onDownload?: () => void
 }
 
+// Number of total lines shown before the "show all" button appears.
+const PREVIEW_LINES = 30
+
 function stripMarkdown(text: string): string {
   return text
-    .replace(/^#{1,6}\s+/, '')         // ## headings
-    .replace(/\*\*(.+?)\*\*/g, '$1')   // **bold**
-    .replace(/\*(.+?)\*/g, '$1')       // *italic*
-    .replace(/__(.+?)__/g, '$1')       // __bold__
+    .replace(/^#{1,6}\s+/, '')          // ## headings
+    .replace(/\*\*(.+?)\*\*/g, '$1')    // **bold**
+    .replace(/\*(.+?)\*/g, '$1')        // *italic*
+    .replace(/__(.+?)__/g, '$1')        // __bold__
     .replace(/_([^_\s][^_]*)_/g, '$1') // _italic_
-    .replace(/`([^`]+)`/g, '$1')       // `code`
+    .replace(/`([^`]+)`/g, '$1')        // `code`
 }
 
-function parseLine(line: string): { type: 'add' | 'del' | 'ctx'; text: string } {
+type LineType = 'add' | 'del' | 'ctx' | 'hunk'
+
+function parseLine(line: string): { type: LineType; text: string } {
+  // Unified diff hunk header: @@ -a,b +c,d @@
+  if (line.startsWith('@@')) return { type: 'hunk', text: line }
+  // Added line: + (new) or +<space> (old format)
   if (line.startsWith('+')) return { type: 'add', text: stripMarkdown(line.slice(1).trimStart()) }
+  // Removed line: - (new) or -<space> (old format)
   if (line.startsWith('-')) return { type: 'del', text: stripMarkdown(line.slice(1).trimStart()) }
-  return { type: 'ctx', text: stripMarkdown(line.startsWith(' ') ? line.slice(1) : line) }
+  // Context: single-space prefix (new unified diff) or two-space prefix (old format)
+  const content = line.startsWith('  ') ? line.slice(2) : line.startsWith(' ') ? line.slice(1) : line
+  return { type: 'ctx', text: stripMarkdown(content) }
 }
 
 export function CvDiff({ diff, applicationId, onDownload }: Props) {
   const [showAll, setShowAll] = useState(false)
-
-  // Only show changed lines (+ and -); skip context lines (2-space prefix)
-  // compute_diff outputs all unchanged+removed first then all additions at end
-  const lines = (diff || '').split('\n').filter(
-    (l) => l.startsWith('+') || l.startsWith('-')
-  )
-  const preview = lines.slice(0, 12)
-  const hasMore = lines.length > 12
-  const displayed = showAll ? lines : preview
 
   if (!diff?.trim()) {
     return (
@@ -42,6 +44,16 @@ export function CvDiff({ diff, applicationId, onDownload }: Props) {
       </div>
     )
   }
+
+  // All non-empty lines, preserving context and hunk headers
+  const lines = diff.split('\n').filter((l) => l !== '')
+
+  // Count changed lines for the summary shown in the "show more" button
+  const changedCount = lines.filter((l) => l.startsWith('+') || l.startsWith('-')).length
+
+  const preview = lines.slice(0, PREVIEW_LINES)
+  const hasMore = lines.length > PREVIEW_LINES
+  const displayed = showAll ? lines : preview
 
   return (
     <div>
@@ -59,12 +71,32 @@ export function CvDiff({ diff, applicationId, onDownload }: Props) {
       }}>
         {displayed.map((line, i) => {
           const { type, text } = parseLine(line)
+
+          if (type === 'hunk') {
+            return (
+              <div key={i} style={{
+                padding: '2px 10px',
+                color: '#2a4a5a',
+                fontSize: 10,
+                borderTop: i > 0 ? '1px solid #111116' : undefined,
+                borderBottom: '1px solid #111116',
+                userSelect: 'none',
+                letterSpacing: '.04em',
+              }}>
+                {text}
+              </div>
+            )
+          }
+
           return (
             <div key={i} style={{ display: 'flex', alignItems: 'baseline' }}>
               <span style={{
-                width: 20, flexShrink: 0, textAlign: 'center',
-                color: type === 'add' ? '#059669' : type === 'del' ? '#444' : '#222',
-                fontSize: 11, userSelect: 'none',
+                width: 20,
+                flexShrink: 0,
+                textAlign: 'center',
+                color: type === 'add' ? '#059669' : type === 'del' ? '#7f1d1d' : '#222',
+                fontSize: 11,
+                userSelect: 'none',
               }}>
                 {type === 'add' ? '+' : type === 'del' ? '−' : ' '}
               </span>
@@ -78,6 +110,7 @@ export function CvDiff({ diff, applicationId, onDownload }: Props) {
           )
         })}
       </div>
+
       {hasMore && (
         <button
           onClick={() => setShowAll((v) => !v)}
@@ -88,7 +121,7 @@ export function CvDiff({ diff, applicationId, onDownload }: Props) {
         >
           {showAll
             ? 'Weniger anzeigen ↑'
-            : `Alle Änderungen anzeigen (${lines.length - 12} weitere)`}
+            : `Alle ${changedCount} Änderungen anzeigen (${lines.length - PREVIEW_LINES} weitere Zeilen)`}
         </button>
       )}
     </div>
