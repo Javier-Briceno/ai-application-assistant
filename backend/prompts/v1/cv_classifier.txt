@@ -18,6 +18,5 @@ RULE 7: The total word count of KEEP + TRANSFERABEL items must stay within <word
 OUTPUT: Return a JSON object with an "items" array. Each item:
 {
   "id": "<exact copy of the item identifier, e.g. item_001>",
-  "classification": "KEEP" | "DISTRAKTOR" | "TRANSFERABEL",
-  "reasoning": "<one short sentence>"
+  "classification": "KEEP" | "DISTRAKTOR" | "TRANSFERABEL"
 }

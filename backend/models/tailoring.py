@@ -12,7 +12,6 @@ from pydantic import BaseModel, Field
 class ClassifierItem(BaseModel):
     id: str
     classification: Literal["KEEP", "DISTRAKTOR", "TRANSFERABEL"]
-    reasoning: str = ""
 
 
 class ClassifierOutput(BaseModel):

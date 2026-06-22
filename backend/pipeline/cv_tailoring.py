@@ -133,7 +133,7 @@ async def _run_classifier(
         system=system,
         user=user,
         response_model=ClassifierOutput,
-        max_tokens=8192,
+        max_tokens=2048,
         temperature=0.1,
         node_name="cv_classifier",
         profile_id=profile_id,
