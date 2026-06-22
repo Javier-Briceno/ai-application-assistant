@@ -22,6 +22,19 @@ export interface DimensionScore {
   reasoning: string
 }
 
+export interface RequirementsBlocker {
+  requirement: string
+  reason: string
+}
+
+export interface RequirementsAnalysisData {
+  hard_requirement_matches: string[]
+  missing_hard_requirements: RequirementsBlocker[]
+  triggered_dealbreakers: RequirementsBlocker[]
+  missing_soft_requirements: string[]
+  recommendation_blockers: string[]
+}
+
 export interface ScoringResult {
   total_score: number
   threshold: 'pass' | 'caution' | 'fail'
@@ -30,6 +43,7 @@ export interface ScoringResult {
   role_fit: DimensionScore
   location: DimensionScore
   strategic: DimensionScore
+  requirements_analysis?: RequirementsAnalysisData
 }
 
 export interface CompanyResult {
@@ -63,6 +77,7 @@ export interface ScoringDetails {
   location: DimensionScore
   strategic: DimensionScore
   truthfulness_warning?: string[]
+  requirements_analysis?: RequirementsAnalysisData
 }
 
 export interface Application {

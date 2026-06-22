@@ -14,9 +14,11 @@ import logging
 import asyncpg
 
 from backend import llm
-from backend.deterministic.scoring import calculate_dimensions, calculate_threshold
+from backend.deterministic.scoring import apply_requirements_override, calculate_dimensions, calculate_threshold
 from backend.models.analysis import AnalyzerOutput, ScoringResult
 from backend.models.company import CompanyResearchResult
+from backend.models.requirements import RequirementsAnalysis
+from backend.pipeline.requirements_check import run_requirements_check
 from backend.prompts.loader import load_prompt
 
 log = logging.getLogger(__name__)
@@ -123,11 +125,26 @@ async def run_analysis_scoring(
     dims = calculate_dimensions(analyzer_output)
     threshold = calculate_threshold(dims)
 
+    # Requirements compliance check (Haiku) — fail open so it never blocks generation.
+    try:
+        requirements_analysis = await run_requirements_check(
+            conn,
+            job_posting=job_posting,
+            cv_text=cv_text,
+            candidate_profile=candidate_profile,
+            profile_id=profile_id,
+        )
+        threshold = apply_requirements_override(threshold, requirements_analysis)
+    except Exception as exc:
+        log.warning("Requirements check failed (ignored): %s", exc)
+        requirements_analysis = RequirementsAnalysis()
+
     result = ScoringResult(
         dims=dims,
         total_score=dims.total,
         threshold=threshold,
         analyzer_output=analyzer_output,
+        requirements_analysis=requirements_analysis,
     )
 
     log.info(

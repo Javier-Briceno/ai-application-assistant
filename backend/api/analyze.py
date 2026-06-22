@@ -52,6 +52,7 @@ async def api_analyze(req: AnalyzeRequest):
                     "role_fit":     {"score": result.scoring.dims.role_fit,     "reasoning": result.scoring.analyzer_output.role_fit.reasoning},
                     "location":     {"score": result.scoring.dims.location,     "reasoning": result.scoring.analyzer_output.location.reasoning},
                     "strategic":    {"score": result.scoring.dims.strategic,    "reasoning": result.scoring.analyzer_output.strategic.reasoning},
+                    "requirements_analysis": result.scoring.requirements_analysis.model_dump() if result.scoring.requirements_analysis else None,
                 },
                 "tailoring": {
                     "items_removed": result.tailoring.items_removed,
@@ -155,6 +156,7 @@ async def api_analyze(req: AnalyzeRequest):
                 "role_fit":     {"score": dims.role_fit,     "reasoning": ao.role_fit.reasoning},
                 "location":     {"score": dims.location,     "reasoning": ao.location.reasoning},
                 "strategic":    {"score": dims.strategic,    "reasoning": ao.strategic.reasoning},
+                "requirements_analysis": result.scoring.requirements_analysis.model_dump() if result.scoring.requirements_analysis else None,
             },
             "tailoring": {
                 "items_removed": result.tailoring.items_removed,

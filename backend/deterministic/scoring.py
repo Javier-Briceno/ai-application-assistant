@@ -6,6 +6,7 @@ No LLM calls — pure arithmetic on AnalyzerOutput.
 from typing import Literal
 
 from backend.models.analysis import AnalyzerOutput, DimensionScores
+from backend.models.requirements import RequirementsAnalysis
 
 # Dimension maximums (hard constraint — must match the Analyzer prompt and frontend)
 DIM_MAX = {
@@ -35,6 +36,38 @@ def calculate_dimensions(output: AnalyzerOutput) -> DimensionScores:
         location=max(0, min(output.location.score, DIM_MAX["location"])),
         strategic=max(0, min(output.strategic.score, DIM_MAX["strategic"])),
     )
+
+
+def apply_requirements_override(
+    threshold: Literal["pass", "caution", "fail"],
+    requirements_analysis: RequirementsAnalysis | None,
+) -> Literal["pass", "caution", "fail"]:
+    """
+    Adjust the score-based threshold for explicit requirement failures.
+
+    Rules (applied in order):
+      1. triggered_dealbreakers present, base was already "fail" → keep "fail"
+      2. triggered_dealbreakers present, base was "pass"/"caution" → downgrade to
+         "caution" (NOT "fail"), so document generation still proceeds.
+         The dealbreaker is surfaced via requirements_analysis in the UI.
+      3. missing_hard_requirements and threshold == "pass" → downgrade to "caution"
+      4. Everything else → leave threshold unchanged
+
+    Rationale for rule 2: a single Haiku check should never silently kill
+    generation.  The Analyzer (GPT-4.1) already captured the requirement signal
+    in the requirements dimension score.  When the Haiku check fires a dealbreaker
+    on a base that was pass/caution, it records the blocker prominently for the
+    user while still producing the CV and cover letter.
+    """
+    if requirements_analysis is None:
+        return threshold
+    if requirements_analysis.triggered_dealbreakers:
+        if threshold == "fail":
+            return "fail"
+        return "caution"
+    if requirements_analysis.missing_hard_requirements and threshold == "pass":
+        return "caution"
+    return threshold
 
 
 def calculate_threshold(dims: DimensionScores) -> Literal["pass", "caution", "fail"]:

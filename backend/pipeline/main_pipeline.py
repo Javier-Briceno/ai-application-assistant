@@ -83,6 +83,8 @@ async def _store_job_application(
     }
     if truthfulness_warning:
         scoring_details["truthfulness_warning"] = truthfulness_warning
+    if scoring.requirements_analysis:
+        scoring_details["requirements_analysis"] = scoring.requirements_analysis.model_dump()
     scoring_details_json = json.dumps(scoring_details)
     return await conn.fetchval(
         """

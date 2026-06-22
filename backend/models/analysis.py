@@ -6,6 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from backend.models.requirements import RequirementsAnalysis
+
 
 # ── LLM output from Analyzer ──────────────────────────────────────────────────
 
@@ -66,3 +68,4 @@ class ScoringResult(BaseModel):
     total_score: int
     threshold: Literal["pass", "caution", "fail"]
     analyzer_output: AnalyzerOutput
+    requirements_analysis: RequirementsAnalysis | None = None

@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
 import { useApp } from '@/context/AppContext'
 import { api, streamAnalyze } from '@/lib/api'
-import type { PipelineResult } from '@/types'
+import type { PipelineResult, RequirementsAnalysisData } from '@/types'
 import { StepList } from '@/components/StepList'
 import { Bewertung } from '@/components/Bewertung'
 import { CvDiff } from '@/components/CvDiff'
@@ -308,6 +308,11 @@ export function AnalysePage() {
               </div>
             </div>
 
+            {/* Requirements warning — shown before score so blockers are seen first */}
+            {result.scoring.requirements_analysis && (
+              <RequirementsWarning analysis={result.scoring.requirements_analysis} />
+            )}
+
             {/* Bewertung */}
             <Bewertung scoring={result.scoring} />
 
@@ -363,6 +368,35 @@ export function AnalysePage() {
           />
         )}
       </main>
+    </div>
+  )
+}
+
+function RequirementsWarning({ analysis }: { analysis: RequirementsAnalysisData }) {
+  const dealbreakers = analysis.triggered_dealbreakers ?? []
+  const hardMissing = analysis.missing_hard_requirements ?? []
+  if (dealbreakers.length === 0 && hardMissing.length === 0) return null
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {dealbreakers.length > 0 && (
+        <div style={{ background: '#140a0a', border: '1px solid #7f1d1d', borderRadius: 8, padding: '12px 16px', fontSize: 12, lineHeight: 1.6 }}>
+          <div style={{ fontWeight: 600, color: '#fca5a5', marginBottom: 4 }}>Mögliche Ausschlusskriterien</div>
+          <div style={{ color: '#f87171', marginBottom: 8, fontSize: 11 }}>
+            Die Bewerbungsunterlagen wurden trotzdem erstellt. Bitte prüfen Sie diese Anforderungen sorgfältig.
+          </div>
+          <ul style={{ margin: 0, paddingLeft: 18, color: '#fca5a5' }}>
+            {dealbreakers.map((d, i) => <li key={i}><strong>{d.requirement}</strong> — {d.reason}</li>)}
+          </ul>
+        </div>
+      )}
+      {hardMissing.length > 0 && (
+        <div style={{ background: '#1a1100', border: '1px solid #854d0e', borderRadius: 8, padding: '12px 16px', fontSize: 12, lineHeight: 1.6 }}>
+          <div style={{ fontWeight: 600, color: '#fbbf24', marginBottom: 6 }}>Fehlende Pflichtanforderungen</div>
+          <ul style={{ margin: 0, paddingLeft: 18, color: '#fbbf24' }}>
+            {hardMissing.map((m, i) => <li key={i}><strong>{m.requirement}</strong> — {m.reason}</li>)}
+          </ul>
+        </div>
+      )}
     </div>
   )
 }
