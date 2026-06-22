@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
@@ -8,7 +9,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from backend.db import get_conn
-from backend.llm import _anthropic
+from backend.llm import _anthropic, log_call
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["chat"])
@@ -80,7 +81,13 @@ async def _load_application_context(application_id: int) -> str | None:
         return None
 
 
-async def _stream_chat(messages: list[dict], system: str) -> AsyncGenerator[str, None]:
+async def _stream_chat(
+    messages: list[dict],
+    system: str,
+    *,
+    profile_id: int | None = None,
+) -> AsyncGenerator[str, None]:
+    start = time.monotonic()
     async with _anthropic.messages.stream(
         model=CHAT_MODEL,
         system=system,
@@ -89,6 +96,23 @@ async def _stream_chat(messages: list[dict], system: str) -> AsyncGenerator[str,
     ) as stream:
         async for delta in stream.text_stream:
             yield f"data: {json.dumps({'delta': delta}, ensure_ascii=False)}\n\n"
+        # Capture exact token counts from the final stream event before closing.
+        final_message = await stream.get_final_message()
+
+    latency_ms = int((time.monotonic() - start) * 1000)
+    try:
+        async with get_conn() as conn:
+            await log_call(
+                conn,
+                model=CHAT_MODEL,
+                node_name="chat",
+                profile_id=profile_id,
+                input_tokens=final_message.usage.input_tokens,
+                output_tokens=final_message.usage.output_tokens,
+                latency_ms=latency_ms,
+            )
+    except Exception:
+        log.exception("Chat LLM logging failed — streaming not affected")
 
 
 @router.post("/chat")

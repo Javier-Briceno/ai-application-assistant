@@ -10,9 +10,10 @@ Usage:
 
 Requires DB credentials in .env (same as the app).  No extra dependencies.
 
-NOTE: This script applies a runtime correction for the Haiku model key mismatch
-(the pricing table uses 'claude-haiku-4-5'; the code logs 'claude-haiku-4-5-20251001').
-Corrected costs are marked with (*)  in the output.
+NOTE: This script applies a runtime correction for rows where cost_usd = 0 but a
+pricing entry exists for that model (historical rows logged before migration 004).
+After migration 004 is applied, new Haiku rows will have correct cost_usd values and
+no correction is needed.  The correction is marked with (*) in the output.
 """
 import asyncio
 import sys
@@ -30,8 +31,8 @@ _PROFILE_NODES = frozenset(
     ["market_research_extractor", "binary_classifier",
      "core_skills_extractor", "candidate_profile_extractor"]
 )
-# Chat is unlogged (direct SDK call, not via llm.py)
-_UNLOGGED_NODES = ["chat"]
+# Chat is now logged via log_call() after stream completion (exact token counts).
+_UNLOGGED_NODES: list[str] = []
 
 
 async def _connect() -> asyncpg.Connection:
@@ -71,7 +72,7 @@ def _col(values: list, width: int) -> str:
 # ── SQL helpers ───────────────────────────────────────────────────────────────
 
 _TRUE_COST_EXPR = """
-  CASE WHEN model = $1
+  CASE WHEN model = $1 AND cost_usd = 0
     THEN (input_tokens * {in_p} + output_tokens * {out_p}) / 1000000.0
     ELSE cost_usd
   END
@@ -202,7 +203,19 @@ async def _run(conn: asyncpg.Connection) -> None:
         SELECT * FROM runs ORDER BY hr DESC
     """, _HAIKU_LOGGED)
 
-    # ── 8. Pipeline coverage check ───────────────────────────────────────────
+    # ── 8. Models logged without a pricing entry ─────────────────────────────
+    missing_pricing = await conn.fetch("""
+        SELECT DISTINCT l.model, COUNT(*) AS calls, SUM(l.cost_usd) AS logged_cost
+        FROM job_application_assistant.llm_logs l
+        WHERE NOT EXISTS (
+            SELECT 1 FROM job_application_assistant.model_pricing p
+            WHERE p.model = l.model
+        )
+        GROUP BY l.model
+        ORDER BY calls DESC
+    """)
+
+    # ── 9. Pipeline coverage check ───────────────────────────────────────────
     expected = [
         "analyzer", "cv_classifier", "cv_generator", "cv_rewriter",
         "anschreiben", "requirements_check", "truthfulness_validator",
@@ -240,7 +253,7 @@ async def _run(conn: asyncpg.Connection) -> None:
     p(f"- **Logged cost**: ${logged_total:.4f}  (Haiku cost missing — see critical bug below)")
     p(f"- **Corrected cost**: ${true_total:.4f}  (after applying Haiku pricing)")
     p(f"- **{zero_calls} calls ({zero_calls*100//total_calls}%) report $0 cost** — all are Haiku calls with missing pricing key")
-    p(f"- **Chat endpoint is completely unlogged** — uses direct Anthropic streaming, bypasses `llm.py`")
+    p(f"- **Chat endpoint is now logged** — `node_name=chat`, exact token counts from final stream event")
     p(f"- **Analyzer JSON retry rate: {len([r for r in retries if 'analyzer' in r['node_name']])>0 and next((r['calls'] for r in retries if r['node_name']=='analyzer_retry1'), 0)} retries out of 19 analyses (37%)** — high, worth investigating prompt")
     p(f"- **`cv_rewriter` is the latency bottleneck**: avg {_fmt_ms(float(next(r['avg_ms'] for r in nodes if r['node_name']=='cv_rewriter')))}, p50 {_fmt_ms(float(next(r['p50_ms'] for r in nodes if r['node_name']=='cv_rewriter')))}  ")
     p(f"- **Estimated cost per full analysis run: ~$0.09** (pass/caution path)")
@@ -260,15 +273,37 @@ async def _run(conn: asyncpg.Connection) -> None:
     p("to strip the date suffix. This does not affect product behavior, only cost reporting.")
     p("")
 
-    # ── Missing coverage: Chat ────────────────────────────────────────────────
-    p("## ⚠ Logging Gap: Chat Endpoint")
+    # ── Missing pricing keys ──────────────────────────────────────────────────
+    if missing_pricing:
+        p("## ⚠ Missing Pricing Keys")
+        p("")
+        p("The following models appear in `llm_logs` but have no row in `model_pricing`.")
+        p("`_compute_cost()` returns `0.0` for these — cost reporting is incomplete.")
+        p("")
+        p("| Model | Calls | Logged Cost |")
+        p("|---|---|---|")
+        for r in missing_pricing:
+            p(f"| `{r['model']}` | {r['calls']} | {_fmt_usd(float(r['logged_cost']))} |")
+        p("")
+        p("**Fix**: run `backend/migrations/004_haiku_pricing_key.sql` or add the missing row manually.")
+        p("")
+    else:
+        p("## Pricing Coverage")
+        p("")
+        p("All models in `llm_logs` have a matching row in `model_pricing`. Cost data is complete.")
+        p("")
+
+    # ── Chat logging note ─────────────────────────────────────────────────────
+    p("## Chat Endpoint Logging")
     p("")
-    p("`backend/api/chat.py` calls `_anthropic.messages.stream()` directly, bypassing `llm.py`.")
-    p("Chat calls are **never logged** in `llm_logs`. No cost or latency data exists for chat.")
+    p("Chat calls are logged via `log_call()` in `backend/llm.py` after the stream completes.")
+    p("Token counts are **exact** — captured from `stream.get_final_message().usage`")
+    p("(the Anthropic SDK populates this from the final `message_delta` event).")
     p("")
     p("- Model: `claude-haiku-4-5-20251001`")
+    p("- `node_name`: `chat`")
     p("- `max_tokens: 1024` per turn")
-    p("- Estimated cost per chat turn: ~$0.001–$0.005 depending on context size")
+    p("- `profile_id`: null (not present in ChatRequest)")
     p("")
 
     # ── Model assignments ─────────────────────────────────────────────────────
@@ -280,7 +315,7 @@ async def _run(conn: asyncpg.Connection) -> None:
     for node, model in sorted(node_model_map.items()):
         pipeline = "profile_setup" if node in _PROFILE_NODES else "job_analysis"
         p(f"| `{node}` | `{model}` | {pipeline} |")
-    p(f"| `chat` | `claude-haiku-4-5-20251001` | chat (unlogged) |")
+    p(f"| `chat` | `claude-haiku-4-5-20251001` | chat (logged) |")
     p("")
 
     # ── Cost table ────────────────────────────────────────────────────────────
@@ -397,7 +432,7 @@ async def _run(conn: asyncpg.Connection) -> None:
     p("| Issue | Severity | Detail |")
     p("|---|---|---|")
     p(f"| Haiku pricing key mismatch | **Critical** | `{_HAIKU_LOGGED}` not in `model_pricing`; all Haiku cost_usd = 0 |")
-    p(f"| Chat endpoint unlogged | **High** | `api/chat.py` bypasses `llm.py`; zero visibility into chat cost/latency |")
+    p(f"| Chat endpoint | Fixed | Now logged via `log_call()` with exact tokens from `stream.get_final_message()` |")
     p(f"| `analyzer_retry1` logged separately | Low | Retries have their own node_name; easy to aggregate but easy to miss |")
     p(f"| No `job_application_id` in `llm_logs` | Low | Can't link a log row directly to a specific job application |")
     p(f"| Profile-setup nodes: only 1 sample each | Info | Only 1 profile created; profile-setup stats are not yet reliable |")
@@ -410,8 +445,8 @@ async def _run(conn: asyncpg.Connection) -> None:
     p("")
     p("| # | Action | Impact | Risk | Effort |")
     p("|---|---|---|---|---|")
-    p("| 1 | Add `claude-haiku-4-5-20251001` to `model_pricing` table | Fixes 61 zero-cost rows; cost reporting becomes accurate | Zero | 1 SQL INSERT |")
-    p("| 2 | Add chat logging to `api/chat.py` via `llm.py` or a manual log call | Makes chat cost/latency visible | Low | ~30 min |")
+    p("| 1 | Run `migrations/004_haiku_pricing_key.sql` | Fixes zero-cost Haiku rows; new calls already log correctly | Zero | 1 SQL INSERT |")
+    p("| 2 | ~~Add chat logging~~ | **Done** — `node_name=chat` rows now appear in `llm_logs` | — | — |")
     p("")
     p("### Investigate before acting")
     p("")

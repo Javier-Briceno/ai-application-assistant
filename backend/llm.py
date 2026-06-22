@@ -61,6 +61,34 @@ async def _log(
     )
 
 
+async def log_call(
+    conn: asyncpg.Connection,
+    *,
+    model: str,
+    node_name: str,
+    profile_id: int | None,
+    input_tokens: int,
+    output_tokens: int,
+    latency_ms: int,
+) -> None:
+    """Log a completed LLM call whose tokens and latency are already known.
+
+    Use this for streaming calls where you capture usage from the final message
+    event rather than from a blocking response object.
+    """
+    cost_usd = await _compute_cost(conn, model, input_tokens, output_tokens)
+    await _log(
+        conn,
+        model=model,
+        node_name=node_name,
+        profile_id=profile_id,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        latency_ms=latency_ms,
+        cost_usd=cost_usd,
+    )
+
+
 async def call_raw(
     conn: asyncpg.Connection,
     *,
