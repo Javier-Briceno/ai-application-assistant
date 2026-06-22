@@ -10,10 +10,12 @@ Usage:
 
 Requires DB credentials in .env (same as the app).  No extra dependencies.
 
-NOTE: This script applies a runtime correction for rows where cost_usd = 0 but a
-pricing entry exists for that model (historical rows logged before migration 004).
-After migration 004 is applied, new Haiku rows will have correct cost_usd values and
-no correction is needed.  The correction is marked with (*) in the output.
+Cost correction note
+--------------------
+Rows logged before migration 004 (which added claude-haiku-4-5-20251001 to
+model_pricing) have cost_usd = 0.  For those rows only, this script estimates cost
+from token counts using the current Haiku pricing.  New rows are logged correctly
+by _compute_cost() and need no correction.  Corrected cells are marked (*).
 """
 import asyncio
 import sys
@@ -23,8 +25,10 @@ import asyncpg
 
 from backend.config import settings
 
-# Haiku pricing fix: logged model key vs. pricing table key
+# The key used in llm_logs for Haiku calls (the value returned by the Anthropic SDK).
 _HAIKU_LOGGED = "claude-haiku-4-5-20251001"
+# Legacy pricing-table key present before migration 004.  Used only as a fallback
+# if _HAIKU_LOGGED is not yet in model_pricing.
 _HAIKU_PRICED = "claude-haiku-4-5"
 # Profile-setup nodes (called once per profile, not per analysis)
 _PROFILE_NODES = frozenset(
@@ -69,6 +73,26 @@ def _col(values: list, width: int) -> str:
     return " | ".join(str(v).ljust(width) for v in values)
 
 
+def _classify_pricing_state(
+    missing_pricing_models: list[str],
+    zero_calls: int,
+) -> str:
+    """Classify the current pricing data-quality state.
+
+    Returns one of:
+        'current_gap'      — one or more models have no pricing row right now;
+                             cost reporting is incomplete for all future calls too.
+        'historical_zeros' — pricing is complete; old rows still have cost_usd=0
+                             from before the pricing key was added.
+        'complete'         — pricing is complete and every row has non-zero cost.
+    """
+    if missing_pricing_models:
+        return "current_gap"
+    if zero_calls > 0:
+        return "historical_zeros"
+    return "complete"
+
+
 # ── SQL helpers ───────────────────────────────────────────────────────────────
 
 _TRUE_COST_EXPR = """
@@ -91,13 +115,19 @@ async def _run(conn: asyncpg.Connection) -> None:
     now = datetime.now(timezone.utc)
 
     # ── 0. Fetch Haiku pricing for the correction formula ─────────────────────
+    # After migration 004 the correct key (_HAIKU_LOGGED) is in model_pricing.
+    # If that row doesn't exist yet, fall back to the legacy key (_HAIKU_PRICED).
     haiku_row = await conn.fetchrow(
         "SELECT input_price, output_price FROM job_application_assistant.model_pricing WHERE model = $1",
-        _HAIKU_PRICED,
+        _HAIKU_LOGGED,
     )
+    if not haiku_row:
+        haiku_row = await conn.fetchrow(
+            "SELECT input_price, output_price FROM job_application_assistant.model_pricing WHERE model = $1",
+            _HAIKU_PRICED,
+        )
     haiku_in  = float(haiku_row["input_price"])  if haiku_row else 1.0
     haiku_out = float(haiku_row["output_price"]) if haiku_row else 5.0
-    haiku_mismatch = haiku_row is not None  # pricing entry exists, but under wrong key in logs
 
     # ── 1. Overview ───────────────────────────────────────────────────────────
     overview = await conn.fetchrow("""
@@ -124,12 +154,12 @@ async def _run(conn: asyncpg.Connection) -> None:
             PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY latency_ms)     AS p50_ms,
             PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY latency_ms)    AS p95_ms,
             ROUND(SUM(
-                CASE WHEN model = $1
+                CASE WHEN model = $1 AND cost_usd = 0
                     THEN (input_tokens * {haiku_in} + output_tokens * {haiku_out}) / 1000000.0
                     ELSE cost_usd END
             )::numeric, 6)                                               AS true_total,
             ROUND(AVG(
-                CASE WHEN model = $1
+                CASE WHEN model = $1 AND cost_usd = 0
                     THEN (input_tokens * {haiku_in} + output_tokens * {haiku_out}) / 1000000.0
                     ELSE cost_usd END
             )::numeric, 6)                                               AS true_avg,
@@ -147,7 +177,7 @@ async def _run(conn: asyncpg.Connection) -> None:
             COUNT(*)                                                      AS calls,
             ROUND(SUM(cost_usd)::numeric, 4)                              AS logged_cost,
             ROUND(SUM(
-                CASE WHEN model = $1
+                CASE WHEN model = $1 AND cost_usd = 0
                     THEN (input_tokens * {haiku_in} + output_tokens * {haiku_out}) / 1000000.0
                     ELSE cost_usd END
             )::numeric, 4)                                                AS true_cost,
@@ -188,7 +218,7 @@ async def _run(conn: asyncpg.Connection) -> None:
                 DATE_TRUNC('hour', created_at)                               AS hr,
                 COUNT(*)                                                      AS calls,
                 ROUND(SUM(
-                    CASE WHEN model = $1
+                    CASE WHEN model = $1 AND cost_usd = 0
                         THEN (input_tokens * {haiku_in} + output_tokens * {haiku_out}) / 1000000.0
                         ELSE cost_usd END
                 )::numeric, 4)                                                AS true_cost,
@@ -228,11 +258,15 @@ async def _run(conn: asyncpg.Connection) -> None:
     """)
     logged_nodes = {r["node_name"]: r["calls"] for r in coverage}
 
-    # ── Compute totals ────────────────────────────────────────────────────────
+    # ── Compute totals and classify data-quality state ────────────────────────
     true_total = sum(float(r["true_total"]) for r in nodes)
     logged_total = float(overview["logged_cost"] or 0)
     total_calls  = int(overview["total_calls"])
     zero_calls   = int(overview["zero_cost_calls"])
+    pricing_state = _classify_pricing_state(
+        [r["model"] for r in missing_pricing],
+        zero_calls,
+    )
 
     # ─────────────────────────────────────────────────────────────────────────
     # OUTPUT
@@ -250,35 +284,30 @@ async def _run(conn: asyncpg.Connection) -> None:
     p("## Executive Summary")
     p("")
     p(f"- **{total_calls} LLM calls** logged across {len(set(r['node_name'] for r in nodes))} nodes")
-    p(f"- **Logged cost**: ${logged_total:.4f}  (Haiku cost missing — see critical bug below)")
-    p(f"- **Corrected cost**: ${true_total:.4f}  (after applying Haiku pricing)")
-    p(f"- **{zero_calls} calls ({zero_calls*100//total_calls}%) report $0 cost** — all are Haiku calls with missing pricing key")
+    if pricing_state == "current_gap":
+        p(f"- **Logged cost**: ${logged_total:.4f}  (incomplete — models without pricing entries, see warning below)")
+        p(f"- **Corrected cost**: ${true_total:.4f}  (estimated from token counts where cost_usd = 0)")
+        pct = zero_calls * 100 // total_calls if total_calls else 0
+        p(f"- **{zero_calls} calls ({pct}%) report $0 cost** — missing pricing entry for their model")
+    elif pricing_state == "historical_zeros":
+        p(f"- **Logged cost**: ${logged_total:.4f}  (partially complete — {zero_calls} historical rows have $0)")
+        p(f"- **Corrected cost**: ${true_total:.4f}  (estimated from token counts for pre-migration rows)")
+        pct = zero_calls * 100 // total_calls if total_calls else 0
+        p(f"- **{zero_calls} calls ({pct}%) show $0 cost** — logged before migration 004 added the Haiku pricing key; new calls are priced correctly")
+    else:
+        p(f"- **Logged cost**: ${logged_total:.4f}  (complete — all models have pricing entries)")
     p(f"- **Chat endpoint is now logged** — `node_name=chat`, exact token counts from final stream event")
     p(f"- **Analyzer JSON retry rate: {len([r for r in retries if 'analyzer' in r['node_name']])>0 and next((r['calls'] for r in retries if r['node_name']=='analyzer_retry1'), 0)} retries out of 19 analyses (37%)** — high, worth investigating prompt")
     p(f"- **`cv_rewriter` is the latency bottleneck**: avg {_fmt_ms(float(next(r['avg_ms'] for r in nodes if r['node_name']=='cv_rewriter')))}, p50 {_fmt_ms(float(next(r['p50_ms'] for r in nodes if r['node_name']=='cv_rewriter')))}  ")
     p(f"- **Estimated cost per full analysis run: ~$0.09** (pass/caution path)")
     p("")
 
-    # ── Critical bug ──────────────────────────────────────────────────────────
-    p("## ⚠ Critical Data Bug: Haiku Pricing Key Mismatch")
-    p("")
-    p("| What | Detail |")
-    p("|---|---|")
-    p(f"| Model logged | `{_HAIKU_LOGGED}` |")
-    p(f"| Model in pricing table | `{_HAIKU_PRICED}` |")
-    p(f"| Effect | `_compute_cost()` returns `0.0` for every Haiku call |")
-    p(f"| Zero-cost Haiku calls | {zero_calls} calls, true cost ≈ ${sum(float(r['true_total']) for r in nodes if r['model']==_HAIKU_LOGGED):.4f} |")
-    p("")
-    p("**Fix**: add `claude-haiku-4-5-20251001` to `model_pricing`, OR change the lookup key")
-    p("to strip the date suffix. This does not affect product behavior, only cost reporting.")
-    p("")
-
-    # ── Missing pricing keys ──────────────────────────────────────────────────
+    # ── Missing pricing keys (current issue) ─────────────────────────────────
     if missing_pricing:
-        p("## ⚠ Missing Pricing Keys")
+        p("## ⚠ Pricing Coverage Issue")
         p("")
         p("The following models appear in `llm_logs` but have no row in `model_pricing`.")
-        p("`_compute_cost()` returns `0.0` for these — cost reporting is incomplete.")
+        p("`_compute_cost()` returns `0.0` for ALL calls to these models — past and future.")
         p("")
         p("| Model | Calls | Logged Cost |")
         p("|---|---|---|")
@@ -290,8 +319,28 @@ async def _run(conn: asyncpg.Connection) -> None:
     else:
         p("## Pricing Coverage")
         p("")
-        p("All models in `llm_logs` have a matching row in `model_pricing`. Cost data is complete.")
+        p("All models in `llm_logs` have a matching row in `model_pricing`.")
+        p("Current and future calls will be priced correctly by `_compute_cost()`.")
         p("")
+        if pricing_state == "historical_zeros":
+            haiku_zero_cost = sum(
+                float(r["true_total"]) for r in nodes
+                if r["model"] == _HAIKU_LOGGED and int(r["zero_cost"]) > 0
+            )
+            p("### Historical Zero-cost Rows")
+            p("")
+            p(f"{zero_calls} rows in `llm_logs` still have `cost_usd = 0` because they were logged")
+            p(f"before `{_HAIKU_LOGGED}` was added to `model_pricing` (migration 004).")
+            p("These rows are **not a current bug** — they are a historical artifact.")
+            p(f"Estimated cost for those rows: **${haiku_zero_cost:.4f}** (calculated from token counts).")
+            p("")
+            p("| What | Detail |")
+            p("|---|---|")
+            p(f"| Affected model | `{_HAIKU_LOGGED}` |")
+            p(f"| Zero-cost rows | {zero_calls} |")
+            p(f"| Estimated uncounted cost | ${haiku_zero_cost:.4f} |")
+            p(f"| New calls affected? | No — migration 004 has been applied |")
+            p("")
 
     # ── Chat logging note ─────────────────────────────────────────────────────
     p("## Chat Endpoint Logging")
@@ -321,17 +370,27 @@ async def _run(conn: asyncpg.Connection) -> None:
     # ── Cost table ────────────────────────────────────────────────────────────
     p("## Cost by Node")
     p("")
-    p("(*) = cost corrected for Haiku pricing key mismatch; logged value was $0")
+    if pricing_state in ("current_gap", "historical_zeros"):
+        p("(*) = cost estimated from token counts; `cost_usd` was 0 in the DB for those rows")
     p("")
     p("| Node | Model | Calls | Total Cost | Avg/Call | Logged Was |")
     p("|---|---|---|---|---|---|")
     for r in nodes:
-        is_haiku = r["model"] == _HAIKU_LOGGED
-        marker = " (*)" if is_haiku else ""
-        logged = "$0 (bug)" if is_haiku else _fmt_usd(float(r["true_total"]))
+        zero = int(r["zero_cost"])
+        total = int(r["calls"])
+        if zero == 0:
+            marker = ""
+            logged_was = _fmt_usd(float(r["true_total"]))
+        elif zero == total:
+            marker = " (*)"
+            logged_was = "$0 (pre-migration)"
+        else:
+            marker = " (*)"
+            logged_was = f"partial ({zero}/{total} rows were $0)"
         p(f"| `{r['node_name']}` | `{r['model'].split('-')[0]}` | {r['calls']} | "
-          f"{_fmt_usd(float(r['true_total']))}{marker} | {_fmt_usd(float(r['true_avg']))}{marker} | {logged} |")
-    p(f"| **TOTAL** | | **{total_calls}** | **${true_total:.4f}** | | **${logged_total:.4f} (incomplete)** |")
+          f"{_fmt_usd(float(r['true_total']))}{marker} | {_fmt_usd(float(r['true_avg']))}{marker} | {logged_was} |")
+    total_row_suffix = " (some rows corrected)" if pricing_state in ("current_gap", "historical_zeros") else ""
+    p(f"| **TOTAL** | | **{total_calls}** | **${true_total:.4f}** | | **${logged_total:.4f}{total_row_suffix}** |")
     p("")
 
     # ── Cost by model ─────────────────────────────────────────────────────────
@@ -431,8 +490,13 @@ async def _run(conn: asyncpg.Connection) -> None:
     p("")
     p("| Issue | Severity | Detail |")
     p("|---|---|---|")
-    p(f"| Haiku pricing key mismatch | **Critical** | `{_HAIKU_LOGGED}` not in `model_pricing`; all Haiku cost_usd = 0 |")
-    p(f"| Chat endpoint | Fixed | Now logged via `log_call()` with exact tokens from `stream.get_final_message()` |")
+    if pricing_state == "current_gap":
+        p(f"| Missing pricing rows | **Critical** | {len(missing_pricing)} model(s) in `llm_logs` have no `model_pricing` entry; cost_usd = 0 for all their calls |")
+    elif pricing_state == "historical_zeros":
+        p(f"| Historical zero-cost rows | Info | {zero_calls} rows logged before migration 004; `{_HAIKU_LOGGED}` is now in `model_pricing` |")
+    else:
+        p(f"| Pricing coverage | ✓ | All models have pricing entries; no zero-cost rows |")
+    p(f"| Chat endpoint | ✓ Fixed | Now logged via `log_call()` with exact tokens from `stream.get_final_message()` |")
     p(f"| `analyzer_retry1` logged separately | Low | Retries have their own node_name; easy to aggregate but easy to miss |")
     p(f"| No `job_application_id` in `llm_logs` | Low | Can't link a log row directly to a specific job application |")
     p(f"| Profile-setup nodes: only 1 sample each | Info | Only 1 profile created; profile-setup stats are not yet reliable |")
@@ -445,7 +509,12 @@ async def _run(conn: asyncpg.Connection) -> None:
     p("")
     p("| # | Action | Impact | Risk | Effort |")
     p("|---|---|---|---|---|")
-    p("| 1 | Run `migrations/004_haiku_pricing_key.sql` | Fixes zero-cost Haiku rows; new calls already log correctly | Zero | 1 SQL INSERT |")
+    if pricing_state == "current_gap":
+        p("| 1 | Run `migrations/004_haiku_pricing_key.sql` for each missing model | Fixes $0 cost_usd for all future calls | Zero | 1 SQL INSERT per model |")
+    elif pricing_state == "historical_zeros":
+        p("| 1 | ~~Run migration 004~~ | **Done** — `claude-haiku-4-5-20251001` is in `model_pricing`; historical $0 rows remain but new calls are priced correctly | — | — |")
+    else:
+        p("| — | _(no pricing fixes needed)_ | Pricing is complete | — | — |")
     p("| 2 | ~~Add chat logging~~ | **Done** — `node_name=chat` rows now appear in `llm_logs` | — | — |")
     p("")
     p("### Investigate before acting")
