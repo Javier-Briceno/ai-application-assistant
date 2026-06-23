@@ -478,3 +478,227 @@ async def test_empty_requirements_analysis_not_stored():
     positional = mock_conn.fetchval.call_args[0]
     stored = json.loads(positional[-1])
     assert "requirements_analysis" not in stored
+
+
+# ── mandatory technical requirements — override logic ─────────────────────────
+# These tests validate that when Haiku correctly places a mandatory technical
+# gap into missing_hard_requirements, the override logic handles it the same
+# way as any other hard requirement (pass → caution, caution stays caution).
+
+def test_missing_mandatory_tech_downgrades_pass_to_caution():
+    """Java required, candidate lacks it → Haiku puts it in missing_hard_requirements → pass→caution."""
+    ra = _ra(hard_missing=[_blocker("Java required", "no Java, Kotlin, or JVM evidence in CV or profile")])
+    assert apply_requirements_override("pass", ra) == "caution"
+
+
+def test_missing_mandatory_tech_does_not_downgrade_caution():
+    """Caution stays caution when a mandatory tech gap exists — no double-penalty."""
+    ra = _ra(hard_missing=[_blocker("SAP required", "no SAP or ERP evidence in CV or profile")])
+    assert apply_requirements_override("caution", ra) == "caution"
+
+
+def test_missing_mandatory_tech_cert_downgrades_pass_to_caution():
+    """AWS certification required, no cloud evidence → missing_hard_requirements → pass→caution."""
+    ra = _ra(hard_missing=[_blocker("AWS certification required", "no AWS, Azure, or GCP evidence in CV")])
+    assert apply_requirements_override("pass", ra) == "caution"
+
+
+def test_missing_mandatory_tech_does_not_reach_triggered_dealbreakers():
+    """
+    A mandatory tech gap must NEVER appear in triggered_dealbreakers.
+    This test validates the expectation: if Haiku correctly follows the prompt,
+    technical items land in missing_hard_requirements, not triggered_dealbreakers,
+    so a pass base is downgraded to caution rather than being treated as a blocker.
+    """
+    # Correct path: technical gap as missing_hard_requirement
+    ra_correct = _ra(hard_missing=[_blocker("Kubernetes required", "no container evidence")])
+    assert apply_requirements_override("pass", ra_correct) == "caution"
+
+    # Wrong path (prompt violation): same gap as dealbreaker — still caution, never fail from pass
+    ra_wrong = _ra(dealbreakers=[_blocker("Kubernetes required", "no container evidence")])
+    assert apply_requirements_override("pass", ra_wrong) == "caution"
+
+
+# ── mandatory technical requirements — pipeline wiring ───────────────────────
+
+@pytest.mark.asyncio
+async def test_mandatory_tech_gap_flows_through_pipeline_as_missing_hard():
+    """
+    When Haiku places a mandatory technical gap in missing_hard_requirements,
+    run_analysis_scoring exposes it in result.requirements_analysis and
+    downgrades a 'pass' base to 'caution'.
+    """
+    from backend.pipeline.analysis_scoring import run_analysis_scoring
+
+    mock_conn = AsyncMock()
+    tech_miss_ra = RequirementsAnalysis(
+        missing_hard_requirements=[
+            _blocker("Java required", "no Java or JVM evidence in CV or profile"),
+        ],
+    )
+
+    with (
+        patch(
+            "backend.pipeline.analysis_scoring._run_analyzer",
+            new=AsyncMock(return_value=_fake_scoring("pass").analyzer_output),
+        ),
+        patch(
+            "backend.pipeline.analysis_scoring.run_requirements_check",
+            new=AsyncMock(return_value=tech_miss_ra),
+        ),
+    ):
+        result, gap = await run_analysis_scoring(
+            mock_conn,
+            job_posting="Java Developer — Java required",
+            cv_text="Python 5 years, Django, FastAPI",
+            candidate_profile={"core_skills": ["Python"], "secondary_tools": ["Django"]},
+            company_result=CompanyResearchResult(company_name="Co", search_name="co", company_profile=""),
+        )
+
+    assert result.threshold == "caution"
+    assert result.requirements_analysis is not None
+    assert len(result.requirements_analysis.missing_hard_requirements) == 1
+    assert "Java" in result.requirements_analysis.missing_hard_requirements[0].requirement
+    assert gap is None  # caution path does not run gap analysis
+
+
+@pytest.mark.asyncio
+async def test_soft_tech_requirement_does_not_affect_threshold():
+    """
+    A preferred/nice-to-have technology that Haiku correctly places in
+    missing_soft_requirements must not downgrade the threshold.
+    """
+    from backend.pipeline.analysis_scoring import run_analysis_scoring
+
+    mock_conn = AsyncMock()
+    soft_ra = RequirementsAnalysis(
+        missing_soft_requirements=["Docker (nice to have)"],
+    )
+
+    with (
+        patch(
+            "backend.pipeline.analysis_scoring._run_analyzer",
+            new=AsyncMock(return_value=_fake_scoring("pass").analyzer_output),
+        ),
+        patch(
+            "backend.pipeline.analysis_scoring.run_requirements_check",
+            new=AsyncMock(return_value=soft_ra),
+        ),
+    ):
+        result, gap = await run_analysis_scoring(
+            mock_conn,
+            job_posting="Backend role — Docker nice to have",
+            cv_text="Python 5 years",
+            candidate_profile={"core_skills": ["Python"]},
+            company_result=CompanyResearchResult(company_name="Co", search_name="co", company_profile=""),
+        )
+
+    assert result.threshold == "pass"
+    assert result.requirements_analysis is not None
+    assert result.requirements_analysis.missing_hard_requirements == []
+    assert result.requirements_analysis.triggered_dealbreakers == []
+
+
+@pytest.mark.asyncio
+async def test_multi_requirement_german_and_python_both_flagged():
+    """
+    'Must have German C1 and Python' — when candidate has German B1 and no Python,
+    Haiku should flag both. This test validates the pipeline handles two simultaneous
+    missing hard requirements (one language, one technical) correctly.
+    """
+    from backend.pipeline.analysis_scoring import run_analysis_scoring
+
+    mock_conn = AsyncMock()
+    multi_miss_ra = RequirementsAnalysis(
+        missing_hard_requirements=[
+            _blocker("German C1 required", "CV states German: B1"),
+            _blocker("Python required", "no Python or equivalent evidence in CV or profile"),
+        ],
+    )
+
+    with (
+        patch(
+            "backend.pipeline.analysis_scoring._run_analyzer",
+            new=AsyncMock(return_value=_fake_scoring("pass").analyzer_output),
+        ),
+        patch(
+            "backend.pipeline.analysis_scoring.run_requirements_check",
+            new=AsyncMock(return_value=multi_miss_ra),
+        ),
+    ):
+        result, gap = await run_analysis_scoring(
+            mock_conn,
+            job_posting="Must have German C1 and Python",
+            cv_text="German: B1. Java 3 years.",
+            candidate_profile={"core_skills": ["Java"]},
+            company_result=CompanyResearchResult(company_name="Co", search_name="co", company_profile=""),
+        )
+
+    assert result.threshold == "caution"
+    assert len(result.requirements_analysis.missing_hard_requirements) == 2
+    reqs = {b.requirement for b in result.requirements_analysis.missing_hard_requirements}
+    assert any("German" in r for r in reqs)
+    assert any("Python" in r for r in reqs)
+
+
+# ── prompt content regression — mandatory technical requirement patch ──────────
+
+def test_prompt_no_longer_has_blanket_technical_exclusion():
+    """
+    The old prompt said 'do NOT flag technical skills — those are scored separately'
+    as a blanket rule at the top of CATEGORIES TO CHECK.
+    After the patch that blanket exclusion must be replaced by the conditional exception.
+    """
+    from backend.prompts.loader import load_prompt
+
+    prompt = load_prompt("requirements_extractor")
+    assert "do NOT flag technical skills — those are scored separately" not in prompt, (
+        "Blanket technical exclusion must be replaced by the conditional TECHNICAL SKILLS exception block"
+    )
+
+
+def test_prompt_has_technical_exception_rule():
+    """The prompt must contain the conditional exception that allows mandatory tech gaps."""
+    from backend.prompts.loader import load_prompt
+
+    prompt = load_prompt("requirements_extractor")
+    assert "EXCEPTION" in prompt, "Prompt must contain the EXCEPTION block for mandatory technical gaps"
+    assert "zero evidence" in prompt, "Prompt must require zero evidence across all three sources"
+    assert "core_skills" in prompt and "secondary_tools" in prompt and "cv_text" in prompt, (
+        "Prompt must name all three evidence sources: core_skills, secondary_tools, cv_text"
+    )
+    assert "When in doubt, do NOT flag" in prompt, "Prompt must include the doubt-suppression rule"
+
+
+def test_prompt_has_equivalence_guidance():
+    """The prompt must list accepted equivalences to prevent false positives."""
+    from backend.prompts.loader import load_prompt
+
+    prompt = load_prompt("requirements_extractor")
+    assert "EQUIVALENCE" in prompt, "Prompt must contain an EQUIVALENCE section"
+    # Java family
+    assert "Kotlin" in prompt and "JVM" in prompt, "Java equivalence must mention Kotlin and JVM"
+    # Cloud family
+    assert "Azure" in prompt and "GCP" in prompt, "AWS equivalence must mention Azure and GCP"
+    # SQL family
+    assert "PostgreSQL" in prompt and "MySQL" in prompt, "SQL equivalence must mention PostgreSQL/MySQL"
+    # Kubernetes family
+    assert "Docker" in prompt, "Kubernetes equivalence must mention Docker"
+    # SAP family
+    assert "ERP" in prompt, "SAP equivalence must mention ERP"
+
+
+def test_prompt_technical_gaps_must_not_go_to_triggered_dealbreakers():
+    """The prompt must explicitly state that technical gaps must not go to triggered_dealbreakers."""
+    from backend.prompts.loader import load_prompt
+
+    prompt = load_prompt("requirements_extractor")
+    assert "technical" in prompt.lower() and "triggered_dealbreakers" in prompt, (
+        "Prompt must address the relationship between technical gaps and triggered_dealbreakers"
+    )
+    # The explicit prohibition must be present somewhere in the prompt
+    assert "NEVER go to triggered_dealbreakers" in prompt or \
+           "must NEVER go to triggered_dealbreakers" in prompt or \
+           "not go to triggered_dealbreakers" in prompt, (
+        "Prompt must explicitly state technical gaps must never go to triggered_dealbreakers"
+    )
