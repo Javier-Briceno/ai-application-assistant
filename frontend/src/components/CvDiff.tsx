@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 interface Props {
   diff: string
   applicationId?: number
-  onDownload?: () => void
+  downloadHref?: string
 }
 
 // Number of total lines shown before the "show all" button appears.
@@ -33,7 +33,7 @@ function parseLine(line: string): { type: LineType; text: string } {
   return { type: 'ctx', text: stripMarkdown(content) }
 }
 
-export function CvDiff({ diff, applicationId, onDownload }: Props) {
+export function CvDiff({ diff, applicationId, downloadHref }: Props) {
   const [showAll, setShowAll] = useState(false)
 
   useEffect(() => { setShowAll(false) }, [diff])
@@ -41,7 +41,7 @@ export function CvDiff({ diff, applicationId, onDownload }: Props) {
   if (!diff?.trim()) {
     return (
       <div>
-        <SectionHeader onDownload={applicationId !== undefined ? onDownload : undefined} />
+        <SectionHeader downloadHref={applicationId !== undefined ? downloadHref : undefined} />
         <p style={{ fontSize: 13, color: '#555', marginTop: 10 }}>Keine Änderungen.</p>
       </div>
     )
@@ -59,7 +59,7 @@ export function CvDiff({ diff, applicationId, onDownload }: Props) {
 
   return (
     <div>
-      <SectionHeader onDownload={applicationId !== undefined ? onDownload : undefined} />
+      <SectionHeader downloadHref={applicationId !== undefined ? downloadHref : undefined} />
       <div style={{
         fontFamily: 'ui-monospace, monospace',
         fontSize: 12,
@@ -130,7 +130,7 @@ export function CvDiff({ diff, applicationId, onDownload }: Props) {
   )
 }
 
-function SectionHeader({ onDownload }: { onDownload?: () => void }) {
+function SectionHeader({ downloadHref }: { downloadHref?: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -140,13 +140,14 @@ function SectionHeader({ onDownload }: { onDownload?: () => void }) {
         Lebenslauf-Änderungen
       </span>
       <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, #083a20, transparent)', marginLeft: 4 }} />
-      {onDownload && (
-        <button onClick={onDownload} style={{
+      {downloadHref && (
+        <a href={downloadHref} download style={{
           display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: '1px solid #1e3a1e',
           borderRadius: 5, color: '#059669', fontSize: 11, padding: '2px 7px', cursor: 'pointer',
+          textDecoration: 'none',
         }}>
           <DownloadIcon /> .docx
-        </button>
+        </a>
       )}
     </div>
   )

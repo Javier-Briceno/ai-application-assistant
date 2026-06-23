@@ -321,7 +321,7 @@ export function AnalysePage() {
               <CvDiff
                 diff={result.tailoring.cv_diff}
                 applicationId={result.job_application_id ?? undefined}
-                onDownload={result.job_application_id ? () => api.applications.downloadCv(result.job_application_id!, showToast) : undefined}
+                downloadHref={result.job_application_id ? api.applications.cvDocxUrl(result.job_application_id) : undefined}
               />
             )}
 
@@ -354,7 +354,7 @@ export function AnalysePage() {
                 profileName={profileName}
                 profileCity={activeProfile?.home_location ?? ''}
                 companyName={result.company.company_name}
-                onDownload={result.job_application_id ? () => api.applications.downloadAnschreiben(result.job_application_id!, showToast) : undefined}
+                downloadHref={result.job_application_id ? api.applications.anschreibenDocxUrl(result.job_application_id) : undefined}
               />
             )}
           </div>

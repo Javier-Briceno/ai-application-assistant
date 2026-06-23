@@ -92,6 +92,7 @@ export interface Application {
   anschreiben: string | null
   gaps: string | null
   scoring_details: ScoringDetails | null
+  has_tailored_cv: boolean
 }
 
 export type StepEvent = { type: 'step'; message: string }

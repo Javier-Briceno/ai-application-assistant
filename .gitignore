@@ -10,3 +10,4 @@ frontend/dist/
 .coverage
 *.log
 design_answers*.json
+reference_templates/*.docx

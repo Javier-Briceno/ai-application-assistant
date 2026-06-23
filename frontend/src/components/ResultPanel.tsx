@@ -2,7 +2,6 @@ import { Download, FileText } from 'lucide-react'
 import { ScorePanel } from './ScorePanel'
 import { CvDiff } from './CvDiff'
 import { Tabs, TabsList, Tab, TabPanel } from './ui/tabs'
-import { Button } from './ui/button'
 import { api } from '@/lib/api'
 import type { PipelineResult } from '@/types'
 
@@ -52,25 +51,25 @@ export function ResultPanel({ result }: { result: PipelineResult }) {
           {appId && (
             <TabPanel value="download">
               <div className="flex flex-col gap-3 pt-2">
-                <Button
-                  variant="outline"
-                  className="justify-start gap-3 h-12"
-                  onClick={() => api.applications.downloadCv(appId)}
+                <a
+                  href={api.applications.cvDocxUrl(appId)}
+                  download
+                  className="inline-flex items-center justify-start gap-3 h-12 rounded-md border border-white/20 px-4 text-sm font-medium text-gray-300 hover:bg-white/10 transition-colors no-underline"
                 >
                   <FileText size={16} className="text-blue-400" />
                   <span>Lebenslauf herunterladen (.docx)</span>
                   <Download size={14} className="ml-auto opacity-50" />
-                </Button>
+                </a>
                 {anschreiben_text && (
-                  <Button
-                    variant="outline"
-                    className="justify-start gap-3 h-12"
-                    onClick={() => api.applications.downloadAnschreiben(appId)}
+                  <a
+                    href={api.applications.anschreibenDocxUrl(appId)}
+                    download
+                    className="inline-flex items-center justify-start gap-3 h-12 rounded-md border border-white/20 px-4 text-sm font-medium text-gray-300 hover:bg-white/10 transition-colors no-underline"
                   >
                     <FileText size={16} className="text-green-400" />
                     <span>Anschreiben herunterladen (.docx)</span>
                     <Download size={14} className="ml-auto opacity-50" />
-                  </Button>
+                  </a>
                 )}
               </div>
             </TabPanel>

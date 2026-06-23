@@ -6,7 +6,7 @@ interface Props {
   profileName?: string
   profileCity?: string
   companyName?: string
-  onDownload?: () => void
+  downloadHref?: string
 }
 
 function buildHeader(name: string, city: string, company: string): string {
@@ -21,7 +21,7 @@ function buildHeader(name: string, city: string, company: string): string {
   return lines.join('\n')
 }
 
-export function Anschreiben({ text: initialText, profileName, profileCity, companyName, onDownload }: Props) {
+export function Anschreiben({ text: initialText, profileName, profileCity, companyName, downloadHref }: Props) {
   const header = (profileName || companyName)
     ? buildHeader(profileName ?? '', profileCity ?? '', companyName ?? '')
     : ''
@@ -56,13 +56,14 @@ export function Anschreiben({ text: initialText, profileName, profileCity, compa
           Anschreiben
         </span>
         <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, #083a20, transparent)', marginLeft: 4 }} />
-        {onDownload && (
-          <button onClick={onDownload} style={{
+        {downloadHref && (
+          <a href={downloadHref} download style={{
             display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: '1px solid #1e3a1e',
             borderRadius: 5, color: '#059669', fontSize: 11, padding: '2px 7px', cursor: 'pointer',
+            textDecoration: 'none',
           }}>
             <DownloadIcon /> .docx
-          </button>
+          </a>
         )}
       </div>
 

@@ -19,7 +19,8 @@ async def api_list_applications(profile_id: int | None = Query(None)):
             rows = await conn.fetch(
                 """
                 SELECT id, profile_id, company, role_title, score, threshold,
-                       date_applied, cv_diff, anschreiben, gaps, scoring_details
+                       date_applied, cv_diff, anschreiben, gaps, scoring_details,
+                       (tailored_cv IS NOT NULL AND tailored_cv <> '') AS has_tailored_cv
                 FROM job_application_assistant.job_applications
                 WHERE profile_id = $1
                 ORDER BY date_applied DESC
@@ -30,7 +31,8 @@ async def api_list_applications(profile_id: int | None = Query(None)):
             rows = await conn.fetch(
                 """
                 SELECT id, profile_id, company, role_title, score, threshold,
-                       date_applied, cv_diff, anschreiben, gaps, scoring_details
+                       date_applied, cv_diff, anschreiben, gaps, scoring_details,
+                       (tailored_cv IS NOT NULL AND tailored_cv <> '') AS has_tailored_cv
                 FROM job_application_assistant.job_applications
                 ORDER BY date_applied DESC
                 """
@@ -48,6 +50,7 @@ async def api_list_applications(profile_id: int | None = Query(None)):
             "anschreiben": r["anschreiben"],
             "gaps": r["gaps"],
             "scoring_details": json.loads(r["scoring_details"]) if isinstance(r["scoring_details"], str) else r["scoring_details"],
+            "has_tailored_cv": bool(r["has_tailored_cv"]),
         }
         for r in rows
     ]
@@ -59,7 +62,10 @@ async def _fetch_application(application_id: int) -> dict:
             """
             SELECT ja.id, ja.profile_id, ja.company, ja.role_title,
                    ja.tailored_cv, ja.anschreiben,
-                   p.first_name, p.last_name, p.city
+                   p.first_name, p.last_name,
+                   p.city, p.email,
+                   p.phone_country_code, p.phone_number,
+                   p.linkedin_url, p.github_url
             FROM job_application_assistant.job_applications ja
             JOIN job_application_assistant.profiles p ON p.id = ja.profile_id
             WHERE ja.id = $1
@@ -71,6 +77,15 @@ async def _fetch_application(application_id: int) -> dict:
     return dict(row)
 
 
+def _build_phone(row: dict) -> str:
+    """Combine country code + number if both are available."""
+    code = (row.get("phone_country_code") or "").strip()
+    number = (row.get("phone_number") or "").strip()
+    if code and number:
+        return f"{code} {number}"
+    return number or code
+
+
 @router.get("/{application_id}/cv.docx")
 async def download_cv_docx(application_id: int):
     row = await _fetch_application(application_id)
@@ -78,8 +93,17 @@ async def download_cv_docx(application_id: int):
     if not cv_text:
         raise HTTPException(404, "Kein angepasster Lebenslauf vorhanden")
 
-    candidate_name = f"{row.get('first_name', '')} {row.get('last_name', '')}".strip()
-    data = generate_cv_docx(cv_text, candidate_name=candidate_name)
+    candidate_name = f"{row.get('first_name', '') or ''} {row.get('last_name', '') or ''}".strip()
+    data = generate_cv_docx(
+        cv_text,
+        candidate_name=candidate_name,
+        candidate_role=row.get("role_title") or "",
+        candidate_city=row.get("city") or "",
+        candidate_email=row.get("email") or "",
+        candidate_phone=_build_phone(row),
+        candidate_linkedin=row.get("linkedin_url") or "",
+        candidate_github=row.get("github_url") or "",
+    )
     buf = io.BytesIO(data)
 
     safe_name = candidate_name.replace(" ", "_") if candidate_name else "Lebenslauf"
@@ -97,14 +121,16 @@ async def download_anschreiben_docx(application_id: int):
     if not text:
         raise HTTPException(404, "Kein Anschreiben vorhanden")
 
-    candidate_name = f"{row.get('first_name', '')} {row.get('last_name', '')}".strip()
-    company = row.get("company", "")
-    candidate_address = row.get("city") or ""
+    candidate_name = f"{row.get('first_name', '') or ''} {row.get('last_name', '') or ''}".strip()
     data = generate_anschreiben_docx(
         text,
         candidate_name=candidate_name,
-        company_name=company,
-        candidate_address=candidate_address,
+        candidate_city=row.get("city") or "",
+        candidate_phone=_build_phone(row),
+        candidate_email=row.get("email") or "",
+        candidate_linkedin=row.get("linkedin_url") or "",
+        candidate_github=row.get("github_url") or "",
+        company_name=row.get("company") or "",
     )
     buf = io.BytesIO(data)
 

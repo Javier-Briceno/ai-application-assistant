@@ -28,6 +28,7 @@ def _make_row(id: int, anschreiben: str, date_applied=None) -> MagicMock:
         "anschreiben": anschreiben,
         "gaps": "",
         "scoring_details": json.dumps({}),
+        "has_tailored_cv": True,
     }[k]
     return row
 
@@ -103,6 +104,7 @@ async def test_list_applications_returns_all_detail_panel_fields():
     required_fields = {
         "id", "profile_id", "company", "role_title", "score", "threshold",
         "date_applied", "cv_diff", "anschreiben", "gaps", "scoring_details",
+        "has_tailored_cv",
     }
     rows = [_make_row(1, "letter")]
     mock_conn = AsyncMock()
