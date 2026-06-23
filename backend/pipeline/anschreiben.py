@@ -74,5 +74,8 @@ async def run_anschreiben(
         node_name="anschreiben",
         profile_id=profile_id,
     )
+    if "—" in text:
+        log.warning("Anschreiben contained em dash(es) — stripping (prompt violation)")
+        text = text.replace("—", ",")
     log.info("Anschreiben complete: %d words", len(text.split()))
     return text
