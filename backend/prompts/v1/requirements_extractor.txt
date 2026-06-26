@@ -63,5 +63,6 @@ If you are not sure whether the candidate has an equivalent skill, do NOT flag i
 ADDITIONAL RULES:
 - Only use facts explicitly present in the provided documents. Never invent requirements.
 - Keep requirement and reason fields to one line each.
+- Write ALL requirement and reason text in German, regardless of the language of the job posting or CV.
 
 Return ONLY valid JSON matching the provided schema. No markdown, no explanation.

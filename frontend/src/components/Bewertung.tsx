@@ -2,17 +2,85 @@ import { useState } from 'react'
 import type { ScoringResult } from '@/types'
 
 const DIMS = [
-  { key: 'technical' as const,    label: 'Technik' },
-  { key: 'requirements' as const, label: 'Anforderungen' },
-  { key: 'role_fit' as const,     label: 'Rollenfit' },
-  { key: 'location' as const,     label: 'Standort' },
-  { key: 'strategic' as const,    label: 'Strategie' },
+  {
+    key: 'technical' as const,
+    label: 'Technik',
+    max: 40,
+    info: 'Übereinstimmung der geforderten Technologien mit den Kernkompetenzen und Sekundärtools des Kandidaten. Bewertet sowohl Breite als auch Tiefe der technischen Passform.',
+  },
+  {
+    key: 'requirements' as const,
+    label: 'Anforderungen',
+    max: 25,
+    info: 'Formale und strukturelle Voraussetzungen: Studiengang, Verfügbarkeit, Arbeitszeit, Sprachkenntnisse und Erfahrungsniveau. Unerfüllte Pflichtanforderungen können das Gesamtergebnis herabstufen.',
+  },
+  {
+    key: 'role_fit' as const,
+    label: 'Rollenfit',
+    max: 20,
+    info: 'Wie gut die ausgeschriebene Rolle zum Karriereziel und Erfahrungsprofil des Kandidaten passt, basierend auf den intern berechneten Rollentyp-Scores.',
+  },
+  {
+    key: 'location' as const,
+    label: 'Standort',
+    max: 10,
+    info: 'Pendelbarkeit: Heimatstadt und Remote/Hybrid-Optionen erhalten volle Punkte. Fahrzeit über 2 Stunden bei Vor-Ort-Pflicht ergibt 0 Punkte.',
+  },
+  {
+    key: 'strategic' as const,
+    label: 'Strategie',
+    max: 5,
+    info: 'Langfristige Karriererelevanz: Ist diese Stelle ein klarer Schritt in Richtung Karriereziel, oder bietet sie nur indirekten Nutzen?',
+  },
 ]
 
 function scoreColor(s: number): string {
   if (s >= 70) return '#059669'
   if (s >= 40) return '#f59e0b'
   return '#b91c1c'
+}
+
+function InfoTooltip({ text }: { text: string }) {
+  const [visible, setVisible] = useState(false)
+  return (
+    <span
+      style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}
+      onMouseEnter={() => setVisible(true)}
+      onMouseLeave={() => setVisible(false)}
+    >
+      <svg
+        width="11" height="11" viewBox="0 0 24 24" fill="none"
+        stroke="#444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+        style={{ cursor: 'default', display: 'block' }}
+      >
+        <circle cx="12" cy="12" r="10" />
+        <line x1="12" y1="16" x2="12" y2="12" />
+        <line x1="12" y1="8" x2="12.01" y2="8" />
+      </svg>
+      {visible && (
+        <span style={{
+          position: 'absolute',
+          left: '50%',
+          bottom: 'calc(100% + 6px)',
+          transform: 'translateX(-50%)',
+          width: 220,
+          background: '#18181b',
+          border: '1px solid #2a2a2e',
+          borderRadius: 6,
+          padding: '7px 10px',
+          fontSize: 11,
+          color: '#aaa',
+          lineHeight: 1.55,
+          zIndex: 50,
+          pointerEvents: 'none',
+          whiteSpace: 'normal',
+          boxShadow: '0 4px 16px rgba(0,0,0,.5)',
+        }}>
+          {text}
+        </span>
+      )}
+    </span>
+  )
 }
 
 function ThresholdBadge({ threshold }: { threshold: string }) {
@@ -46,6 +114,7 @@ interface Props {
 
 export function Bewertung({ scoring }: Props) {
   const [expandedDim, setExpandedDim] = useState<string | null>(null)
+  const [hoveredDim, setHoveredDim] = useState<string | null>(null)
 
   const toggle = (key: string) => setExpandedDim((prev) => (prev === key ? null : key))
 
@@ -63,61 +132,80 @@ export function Bewertung({ scoring }: Props) {
 
       {/* Dimension bars */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {DIMS.map(({ key, label }) => {
+        {DIMS.map(({ key, label, max, info }) => {
           const score = scoring[key].score
           const reasoning = scoring[key].reasoning
-          const color = scoreColor(score)
+          const pct = (score / max) * 100
+          const color = scoreColor(pct)
           const isOpen = expandedDim === key
+
+          const isHovered = hoveredDim === key
 
           return (
             <div key={key}>
-              <button
-                onClick={() => toggle(key)}
+              <div
                 style={{
-                  width: '100%',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: '4px 0',
+                  borderRadius: 6,
+                  background: isHovered ? 'rgba(255,255,255,0.03)' : 'transparent',
+                  transition: 'background .15s',
+                  padding: '0 4px 0 0',
+                  marginLeft: -4,
                 }}
               >
-                <span style={{ width: 78, fontSize: 11, color: '#666', textAlign: 'right', flexShrink: 0 }}>
-                  {label}
-                </span>
-                <div style={{
-                  flex: 1,
-                  height: 6,
-                  background: '#1e1e22',
-                  borderRadius: 99,
-                  overflow: 'hidden',
-                }}>
-                  <div
-                    className="bar-anim"
-                    style={{
-                      height: '100%',
-                      width: `${score}%`,
-                      background: color,
-                      borderRadius: 99,
-                    }}
-                  />
+                {/* Label + info icon */}
+                <div style={{ width: 104, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4, flexShrink: 0 }}>
+                  <span style={{ fontSize: 11, color: '#666' }}>{label}</span>
+                  <InfoTooltip text={info} />
                 </div>
-                <span style={{
-                  fontSize: 9,
-                  color: isOpen ? '#059669' : '#333',
-                  flexShrink: 0,
-                  transition: 'color .15s',
-                }}>
-                  {isOpen ? '▼' : '▶'}
-                </span>
-              </button>
+
+                {/* Bar — clickable */}
+                <button
+                  onClick={() => toggle(key)}
+                  onMouseEnter={() => setHoveredDim(key)}
+                  onMouseLeave={() => setHoveredDim(null)}
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '5px 0',
+                  }}
+                >
+                  <div style={{
+                    flex: 1,
+                    height: 6,
+                    background: '#1e1e22',
+                    borderRadius: 99,
+                    overflow: 'hidden',
+                  }}>
+                    <div
+                      className="bar-anim"
+                      style={{
+                        height: '100%',
+                        width: `${pct}%`,
+                        background: color,
+                        borderRadius: 99,
+                      }}
+                    />
+                  </div>
+                  <span style={{ fontSize: 10, color: '#555', fontVariantNumeric: 'tabular-nums', width: 34, textAlign: 'right', flexShrink: 0 }}>
+                    {score}/{max}
+                  </span>
+                  <ChevronIcon open={isOpen} hovered={isHovered} />
+                </button>
+              </div>
+
               {isOpen && reasoning && (
                 <div
                   className="fade-in"
                   style={{
-                    marginLeft: 86,
+                    marginLeft: 112,
                     marginTop: 4,
                     marginBottom: 4,
                     padding: '7px 10px',
@@ -137,6 +225,19 @@ export function Bewertung({ scoring }: Props) {
         })}
       </div>
     </div>
+  )
+}
+
+function ChevronIcon({ open, hovered }: { open: boolean; hovered: boolean }) {
+  return (
+    <svg
+      width="12" height="12" viewBox="0 0 24 24" fill="none"
+      stroke={open ? '#059669' : hovered ? '#888' : '#444'}
+      strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+      style={{ flexShrink: 0, transition: 'transform .2s, stroke .15s', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
   )
 }
 
