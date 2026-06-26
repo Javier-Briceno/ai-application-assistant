@@ -92,6 +92,7 @@ async def _handle_profile_form(
     market_research: str,
     cv_text: str,
     avatar: UploadFile | None,
+    existing_avatar_url: str | None = None,
 ) -> JSONResponse:
     avatar_data_url: str | None = None
     if avatar and avatar.filename:
@@ -120,7 +121,7 @@ async def _handle_profile_form(
                 linkedin_url=linkedin_url or None,
                 github_url=github_url or None,
                 website_url=website_url or None,
-                avatar_url=avatar_data_url,
+                avatar_url=avatar_data_url or existing_avatar_url,
                 notes=notes or None,
                 cv_text=cv_text,
                 market_research=market_research or "",
@@ -195,4 +196,5 @@ async def api_update_profile(
         profile_id, first_name, last_name, email, phone_country_code, phone_number,
         street_address, postal_code, home_location, linkedin_url, github_url,
         website_url, notes, career_target, market_research, cv_text, avatar,
+        existing_avatar_url=existing.avatar_url,
     )
