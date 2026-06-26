@@ -1,9 +1,11 @@
 import io
 import json
 import logging
+import re
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
 from backend.db import get_conn
 from backend.ui.docx_export import generate_anschreiben_docx, generate_cv_docx
@@ -64,7 +66,7 @@ async def _fetch_application(application_id: int) -> dict:
             SELECT ja.id, ja.profile_id, ja.company, ja.company_address, ja.role_title,
                    ja.tailored_cv, ja.anschreiben,
                    p.first_name, p.last_name,
-                   p.city, p.email,
+                   p.street_address, p.postal_code, p.city, p.email,
                    p.phone_country_code, p.phone_number,
                    p.linkedin_url, p.github_url, p.avatar_url
             FROM job_application_assistant.job_applications ja
@@ -85,6 +87,22 @@ def _build_phone(row: dict) -> str:
     if code and number:
         return f"{code} {number}"
     return number or code
+
+
+class _AnschreibenPatch(BaseModel):
+    anschreiben: str
+
+
+@router.patch("/{application_id}/anschreiben", status_code=204)
+async def patch_anschreiben(application_id: int, body: _AnschreibenPatch):
+    async with get_conn() as conn:
+        result = await conn.execute(
+            "UPDATE job_application_assistant.job_applications SET anschreiben = $1 WHERE id = $2",
+            body.anschreiben,
+            application_id,
+        )
+    if result == "UPDATE 0":
+        raise HTTPException(404, "Bewerbung nicht gefunden")
 
 
 @router.get("/{application_id}/cv.docx")
@@ -115,6 +133,41 @@ async def download_cv_docx(application_id: int):
     )
 
 
+_DATE_RE = re.compile(r"^\d{1,2}\. \w+ \d{4}$")
+_BODY_STARTERS = ("sehr geehrte", "bewerbung", "mit freundlichen", "ich bewerbe", "hochachtungsvoll", "betreff")
+
+
+def _parse_company_from_text(text: str) -> tuple[str, str, str]:
+    """Parse a saved anschreiben that may start with the company block.
+
+    Returns (company_name, company_address, body_text).
+    If no company block is detected the first two values are empty strings.
+    """
+    lines = text.split("\n")
+    first = lines[0].strip() if lines else ""
+    if not first or any(first.lower().startswith(s) for s in _BODY_STARTERS):
+        return "", "", text
+
+    company_lines: list[str] = []
+    i = 0
+    while i < len(lines) and lines[i].strip():
+        stripped = lines[i].strip()
+        if not _DATE_RE.match(stripped):
+            company_lines.append(stripped)
+        i += 1
+
+    if not company_lines:
+        return "", "", text
+
+    while i < len(lines) and not lines[i].strip():
+        i += 1
+
+    company_name = company_lines[0]
+    company_address = company_lines[1] if len(company_lines) > 1 else ""
+    body = "\n".join(lines[i:])
+    return company_name, company_address, body
+
+
 @router.get("/{application_id}/anschreiben.docx")
 async def download_anschreiben_docx(application_id: int):
     row = await _fetch_application(application_id)
@@ -122,17 +175,25 @@ async def download_anschreiben_docx(application_id: int):
     if not text:
         raise HTTPException(404, "Kein Anschreiben vorhanden")
 
+    # Parse company block if the user saved an edited version that starts with it.
+    # Falls back to the DB company fields when the text starts directly with letter body.
+    parsed_company, parsed_address, body_text = _parse_company_from_text(text)
+    company_name = parsed_company or (row.get("company") or "")
+    company_address = parsed_address if parsed_company else (row.get("company_address") or "")
+
     candidate_name = f"{row.get('first_name', '') or ''} {row.get('last_name', '') or ''}".strip()
     data = generate_anschreiben_docx(
-        text,
+        body_text,
         candidate_name=candidate_name,
+        candidate_street=row.get("street_address") or "",
+        candidate_postal_code=row.get("postal_code") or "",
         candidate_city=row.get("city") or "",
         candidate_phone=_build_phone(row),
         candidate_email=row.get("email") or "",
         candidate_linkedin=row.get("linkedin_url") or "",
         candidate_github=row.get("github_url") or "",
-        company_name=row.get("company") or "",
-        company_address=row.get("company_address") or "",
+        company_name=company_name,
+        company_address=company_address,
     )
     buf = io.BytesIO(data)
 

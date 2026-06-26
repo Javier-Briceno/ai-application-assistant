@@ -30,6 +30,14 @@ export const api = {
       request(profileId != null ? `/applications?profile_id=${profileId}` : '/applications'),
     cvDocxUrl: (id: number): string => `${BASE}/applications/${id}/cv.docx`,
     anschreibenDocxUrl: (id: number): string => `${BASE}/applications/${id}/anschreiben.docx`,
+    patchAnschreiben: async (id: number, anschreiben: string): Promise<void> => {
+      const res = await fetch(`${BASE}/applications/${id}/anschreiben`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ anschreiben }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    },
   },
 }
 

@@ -5,6 +5,12 @@ export interface ProfileSummary {
   last_name: string | null
   avatar_data_url: string | null
   home_location: string | null
+  street_address: string | null
+  postal_code: string | null
+  email: string | null
+  phone: string | null
+  linkedin_url: string | null
+  github_url: string | null
 }
 
 export interface ProfileDetail extends ProfileSummary {

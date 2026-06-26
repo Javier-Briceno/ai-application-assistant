@@ -591,6 +591,8 @@ _DE_MONTHS = ["Januar", "Februar", "März", "April", "Mai", "Juni",
 def generate_anschreiben_docx(
     anschreiben_text: str,
     candidate_name: str = "",
+    candidate_street: str = "",
+    candidate_postal_code: str = "",
     candidate_city: str = "",
     candidate_phone: str = "",
     candidate_email: str = "",
@@ -617,12 +619,23 @@ def generate_anschreiben_docx(
         _set_para_spacing(p, before_pt=0, after_pt=4)
         _add_run(p, candidate_name, size_pt=11, bold=True)
 
+    # Address line: "Burgstraße 20, 57072 Siegen" — or just city if no street/postal
     city_short = _short_city(candidate_city)
-    city_phone_parts = [x for x in [city_short, candidate_phone] if x]
-    if city_phone_parts:
+    postal_city = " ".join(x for x in [candidate_postal_code, city_short] if x)
+    address_parts = [x for x in [candidate_street, postal_city] if x]
+    if address_parts:
         p = doc.add_paragraph()
         _set_para_spacing(p, before_pt=0, after_pt=4)
-        _add_run(p, "  |  ".join(city_phone_parts), size_pt=11)
+        _add_run(p, ", ".join(address_parts), size_pt=11)
+    elif city_short:
+        p = doc.add_paragraph()
+        _set_para_spacing(p, before_pt=0, after_pt=4)
+        _add_run(p, city_short, size_pt=11)
+
+    if candidate_phone:
+        p = doc.add_paragraph()
+        _set_para_spacing(p, before_pt=0, after_pt=4)
+        _add_run(p, candidate_phone, size_pt=11)
 
     if candidate_email:
         p = doc.add_paragraph()

@@ -19,6 +19,13 @@ router = APIRouter(prefix="/api/profiles", tags=["profiles"])
 async def api_list_profiles():
     async with get_conn() as conn:
         profiles = await list_profiles(conn)
+    def _phone(p) -> str:
+        code = (p.phone_country_code or "").strip()
+        number = (p.phone_number or "").strip()
+        if code and number:
+            return f"{code} {number}"
+        return number or code
+
     return [
         {
             "id": p.id,
@@ -27,6 +34,12 @@ async def api_list_profiles():
             "last_name": p.last_name,
             "avatar_data_url": p.avatar_url,
             "home_location": p.city,
+            "street_address": p.street_address,
+            "postal_code": p.postal_code,
+            "email": p.email or "",
+            "phone": _phone(p),
+            "linkedin_url": p.linkedin_url or "",
+            "github_url": p.github_url or "",
         }
         for p in profiles
     ]

@@ -351,8 +351,15 @@ export function AnalysePage() {
             {result.anschreiben_text && (
               <Anschreiben
                 text={result.anschreiben_text}
+                applicationId={result.job_application_id ?? undefined}
                 profileName={profileName}
+                profileStreet={activeProfile?.street_address ?? ''}
+                profilePostalCode={activeProfile?.postal_code ?? ''}
                 profileCity={activeProfile?.home_location ?? ''}
+                profilePhone={activeProfile?.phone ?? undefined}
+                profileEmail={activeProfile?.email ?? undefined}
+                profileLinkedin={activeProfile?.linkedin_url ?? undefined}
+                profileGithub={activeProfile?.github_url ?? undefined}
                 companyName={result.company.company_name}
                 companyAddress={result.company.company_address}
                 downloadHref={result.job_application_id ? api.applications.anschreibenDocxUrl(result.job_application_id) : undefined}

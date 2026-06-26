@@ -1,46 +1,171 @@
-import { useState, useEffect } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useApp } from '@/context/AppContext'
+import { api } from '@/lib/api'
 
 interface Props {
   text: string
+  applicationId?: number
   profileName?: string
+  profileStreet?: string
+  profilePostalCode?: string
   profileCity?: string
+  profilePhone?: string
+  profileEmail?: string
+  profileLinkedin?: string
+  profileGithub?: string
   companyName?: string
   companyAddress?: string
   downloadHref?: string
 }
 
-function buildHeader(name: string, city: string, company: string, address: string): string {
-  const date = new Date().toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' })
+function cleanUrl(url: string): string {
+  return url.replace(/^https?:\/\//i, '')
+}
+
+function buildSenderLines(name: string, street: string, postalCode: string, city: string, phone: string, email: string, linkedin: string, github: string): string[] {
   const lines: string[] = []
   if (name) lines.push(name)
-  lines.push(city ? `${city}, ${date}` : date)
-  lines.push('')
-  if (company) lines.push(company)
-  if (address) lines.push(address)
-  lines.push('')
-  lines.push('')
+  if (street || postalCode) {
+    const postalCity = [postalCode, city].filter(Boolean).join(' ')
+    const addressLine = [street, postalCity].filter(Boolean).join(', ')
+    if (addressLine) lines.push(addressLine)
+  } else if (city) {
+    lines.push(city)
+  }
+  if (phone) lines.push(phone)
+  if (email) lines.push(email)
+  if (linkedin) lines.push(cleanUrl(linkedin))
+  if (github) lines.push(cleanUrl(github))
+  return lines
+}
+
+// Build HTML for the editable region (company block + date + letter body only — no sender).
+function buildHTML(recipientLines: string[], date: string, bodyText: string): string {
+  const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const line = (text: string, style = '') =>
+    `<div${style ? ` style="${style}"` : ''}>${text ? escape(text) : '<br>'}</div>`
+
+  return [
+    ...recipientLines.map(l => line(l)),
+    ...(recipientLines.length ? [line(date, 'text-align:right'), line('')] : []),
+    line(''),
+    ...bodyText.split('\n').map(l => line(l)),
+  ].join('')
+}
+
+const DATE_RE = /^\d{1,2}\. \w+ \d{4}$/
+const BODY_STARTERS = ['sehr geehrte', 'bewerbung', 'mit freundlichen', 'ich bewerbe', 'hochachtungsvoll', 'betreff']
+
+// Parse a saved anschreiben text that may start with the company block.
+// Returns null if no company block is detected (text starts directly with letter body).
+function parseCompanyFromText(text: string): { recipientLines: string[]; date: string; body: string } | null {
+  const lines = text.split('\n')
+  const firstLine = lines[0]?.trim() ?? ''
+
+  if (!firstLine || BODY_STARTERS.some(s => firstLine.toLowerCase().startsWith(s))) {
+    return null
+  }
+
+  const recipientLines: string[] = []
+  let dateFound = ''
+  let i = 0
+
+  while (i < lines.length && lines[i].trim()) {
+    const stripped = lines[i].trim()
+    if (DATE_RE.test(stripped)) {
+      dateFound = stripped
+    } else {
+      recipientLines.push(stripped)
+    }
+    i++
+  }
+
+  if (recipientLines.length === 0) return null
+
+  while (i < lines.length && !lines[i].trim()) i++
+
+  return { recipientLines, date: dateFound, body: lines.slice(i).join('\n') }
+}
+
+// Read editor content as plain text without relying on innerText (which doubles newlines
+// under certain white-space CSS settings). Each direct child <div> = one line.
+function divToText(el: HTMLElement): string {
+  const lines: string[] = []
+  for (const node of Array.from(el.childNodes)) {
+    const name = node.nodeName
+    if (name === 'DIV' || name === 'P') {
+      const div = node as HTMLElement
+      const inner = div.innerHTML.toLowerCase()
+      lines.push(inner === '<br>' || inner === '' ? '' : (div.textContent ?? ''))
+    } else if (node.nodeType === Node.TEXT_NODE) {
+      const t = (node as Text).textContent ?? ''
+      if (t.trim()) lines.push(t)
+    }
+  }
   return lines.join('\n')
 }
 
-export function Anschreiben({ text: initialText, profileName, profileCity, companyName, companyAddress, downloadHref }: Props) {
-  const header = (profileName || companyName)
-    ? buildHeader(profileName ?? '', profileCity ?? '', companyName ?? '', companyAddress ?? '')
-    : ''
-  const [text, setText] = useState(header + initialText)
+export function Anschreiben({ text: initialText, applicationId, profileName, profileStreet, profilePostalCode, profileCity, profilePhone, profileEmail, profileLinkedin, profileGithub, companyName, companyAddress, downloadHref }: Props) {
+  const editorRef = useRef<HTMLDivElement>(null)
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const prevHtml = useRef<string | null>(null)
+
   const [copied, setCopied] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const { showToast } = useApp()
 
+  const today = new Date().toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' })
+
+  const senderLines = buildSenderLines(
+    profileName ?? '', profileStreet ?? '', profilePostalCode ?? '',
+    profileCity ?? '', profilePhone ?? '', profileEmail ?? '',
+    profileLinkedin ?? '', profileGithub ?? '',
+  )
+
+  // Determine what goes into the editable region.
+  // If the saved text already has a company block at the top, use it directly.
+  // Otherwise prepend the company block from props.
+  const parsed = parseCompanyFromText(initialText)
+  const effectiveRecipientLines = parsed?.recipientLines ?? [
+    ...(companyName ? [companyName] : []),
+    ...(companyAddress ? [companyAddress] : []),
+  ]
+  const effectiveDate = parsed?.date ?? today
+  const effectiveBody = parsed?.body ?? initialText
+  const html = buildHTML(effectiveRecipientLines, effectiveDate, effectiveBody)
+
   useEffect(() => {
-    const h = (profileName || companyName)
-      ? buildHeader(profileName ?? '', profileCity ?? '', companyName ?? '', companyAddress ?? '')
-      : ''
-    setText(h + initialText)
-  }, [initialText, profileName, profileCity, companyName, companyAddress])
+    if (!editorRef.current) return
+    if (html === prevHtml.current) return
+    prevHtml.current = html
+    editorRef.current.innerHTML = html
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialText, companyName, companyAddress])
+
+  const handleInput = () => {
+    if (!applicationId) return
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    setSaveStatus('saving')
+    saveTimer.current = setTimeout(async () => {
+      if (!editorRef.current) return
+      const text = divToText(editorRef.current)
+      try {
+        await api.applications.patchAnschreiben(applicationId, text)
+        setSaveStatus('saved')
+        setTimeout(() => setSaveStatus('idle'), 2000)
+      } catch {
+        setSaveStatus('idle')
+        showToast('Speichern fehlgeschlagen')
+      }
+    }, 800)
+  }
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(text)
+      const senderText = senderLines.join('\n')
+      const bodyText = editorRef.current ? divToText(editorRef.current) : ''
+      const full = senderText ? `${senderText}\n\n${bodyText}` : bodyText
+      await navigator.clipboard.writeText(full)
       setCopied(true)
       showToast('Anschreiben kopiert')
       setTimeout(() => setCopied(false), 2000)
@@ -57,6 +182,11 @@ export function Anschreiben({ text: initialText, profileName, profileCity, compa
         <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', color: '#888', textTransform: 'uppercase' }}>
           Anschreiben
         </span>
+        {saveStatus !== 'idle' && (
+          <span style={{ fontSize: 10, color: saveStatus === 'saved' ? '#059669' : '#555' }}>
+            {saveStatus === 'saving' ? 'Speichern…' : 'Gespeichert ✓'}
+          </span>
+        )}
         <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, #083a20, transparent)', marginLeft: 4 }} />
         {downloadHref && (
           <a href={downloadHref} download style={{
@@ -69,49 +199,85 @@ export function Anschreiben({ text: initialText, profileName, profileCity, compa
         )}
       </div>
 
-      {/* Editable textarea with copy button in corner */}
-      <div style={{ position: 'relative' }}>
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          style={{
-            width: '100%',
-            minHeight: 380,
-            background: '#0a0f0d',
-            border: '1px solid #1e3a1e',
-            borderRadius: 7,
-            padding: '14px 44px 14px 14px',
-            fontSize: 13,
-            color: '#d4e8d4',
-            lineHeight: 1.75,
-            fontFamily: 'inherit',
-            resize: 'vertical',
-            outline: 'none',
-          }}
-        />
-        {/* Copy icon in top-right corner of textarea */}
-        <button
-          onClick={copy}
-          title="Kopieren"
-          style={{
-            position: 'absolute',
-            top: 8,
-            right: 8,
-            width: 28,
-            height: 28,
-            background: copied ? '#041510' : 'rgba(10,15,13,.8)',
-            border: `1px solid ${copied ? '#059669' : '#1e3a1e'}`,
-            borderRadius: 6,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            color: '#059669',
-            transition: 'all .2s',
-          }}
-        >
-          {copied ? <CheckIcon /> : <ClipboardIcon />}
-        </button>
+      {/* Card */}
+      <div style={{ border: '1px solid #1e3a1e', borderRadius: 7, overflow: 'hidden' }}>
+
+        {/* Locked sender block (profile data) */}
+        {senderLines.length > 0 && (
+          <div
+            onClick={() => showToast('Absenderdaten im Profil bearbeiten')}
+            style={{
+              padding: '14px 48px 12px 14px',
+              borderBottom: '1px dashed #1a2e1a',
+              fontSize: 13,
+              color: '#5a7a5a',
+              lineHeight: 1.75,
+              cursor: 'default',
+              userSelect: 'none',
+              background: '#080f08',
+              position: 'relative',
+            }}
+          >
+            {senderLines.map((line, i) => <div key={i}>{line}</div>)}
+            <span style={{
+              position: 'absolute',
+              top: 8,
+              right: 8,
+              fontSize: 9,
+              color: '#2a4a2a',
+              border: '1px solid #1e2e1e',
+              borderRadius: 3,
+              padding: '1px 5px',
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+            }}>
+              Profil
+            </span>
+          </div>
+        )}
+
+        {/* Editable: company block + date + letter body */}
+        <div style={{ position: 'relative', background: '#0a0f0d' }}>
+          <button
+            onClick={copy}
+            title="Kopieren"
+            style={{
+              position: 'absolute',
+              top: 8,
+              right: 8,
+              width: 28,
+              height: 28,
+              background: copied ? '#041510' : 'rgba(10,15,13,.9)',
+              border: `1px solid ${copied ? '#059669' : '#1e3a1e'}`,
+              borderRadius: 6,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: '#059669',
+              transition: 'all .2s',
+              zIndex: 1,
+            }}
+          >
+            {copied ? <CheckIcon /> : <ClipboardIcon />}
+          </button>
+          <div
+            ref={editorRef}
+            contentEditable
+            suppressContentEditableWarning
+            onInput={handleInput}
+            style={{
+              minHeight: 320,
+              padding: '14px 48px 14px 14px',
+              fontSize: 13,
+              color: '#d4e8d4',
+              lineHeight: 1.75,
+              fontFamily: 'inherit',
+              outline: 'none',
+              wordBreak: 'break-word',
+            }}
+          />
+        </div>
       </div>
     </div>
   )

@@ -45,7 +45,10 @@ class ProfileSetupResult:
 async def list_profiles(conn: asyncpg.Connection) -> list[ProfileSummary]:
     rows = await conn.fetch(
         """
-        SELECT id, first_name, last_name, avatar_url, city
+        SELECT id, first_name, last_name, avatar_url,
+               street_address, postal_code, city,
+               email, phone_country_code, phone_number,
+               linkedin_url, github_url
         FROM job_application_assistant.profiles
         ORDER BY last_name, first_name
         """
