@@ -63,7 +63,8 @@ async def get_profile(conn: asyncpg.Connection, profile_id: int) -> ProfileRow |
             p.id, p.first_name, p.last_name, p.email,
             p.phone_country_code, p.phone_number,
             p.street_address, p.postal_code, p.city,
-            p.linkedin_url, p.github_url, p.avatar_url,
+            p.linkedin_url, p.github_url, p.website_url,
+            p.avatar_url, p.notes,
             MAX(CASE WHEN cc.key = 'cv_text'          THEN cc.value END) AS cv_text,
             MAX(CASE WHEN cc.key = 'market_research'   THEN cc.value END) AS market_research,
             MAX(CASE WHEN cc.key = 'career_target'     THEN cc.value END) AS career_target
@@ -272,7 +273,9 @@ async def run_profile_setup(
     city: str | None = None,
     linkedin_url: str | None = None,
     github_url: str | None = None,
+    website_url: str | None = None,
     avatar_url: str | None = None,
+    notes: str | None = None,
     # Content fields
     cv_text: str,
     market_research: str,
@@ -308,12 +311,13 @@ async def run_profile_setup(
                 UPDATE job_application_assistant.profiles
                 SET first_name=$1, last_name=$2, email=$3, phone_country_code=$4,
                     phone_number=$5, street_address=$6, postal_code=$7, city=$8,
-                    linkedin_url=$9, github_url=$10, avatar_url=$11, updated_at=NOW()
-                WHERE id=$12
+                    linkedin_url=$9, github_url=$10, website_url=$11, avatar_url=$12,
+                    notes=$13, updated_at=NOW()
+                WHERE id=$14
                 """,
                 first_name, last_name, email, phone_country_code,
                 phone_number, street_address, postal_code, city,
-                linkedin_url, github_url, avatar_url, profile_id,
+                linkedin_url, github_url, website_url, avatar_url, notes, profile_id,
             )
             action: Literal["created", "updated"] = "updated"
 
@@ -343,12 +347,14 @@ async def run_profile_setup(
                 """
                 INSERT INTO job_application_assistant.profiles
                     (first_name, last_name, email, phone_country_code, phone_number,
-                     street_address, postal_code, city, linkedin_url, github_url, avatar_url)
-                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+                     street_address, postal_code, city, linkedin_url, github_url,
+                     website_url, avatar_url, notes)
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
                 RETURNING id
                 """,
                 first_name, last_name, email, phone_country_code, phone_number,
-                street_address, postal_code, city, linkedin_url, github_url, avatar_url,
+                street_address, postal_code, city, linkedin_url, github_url,
+                website_url, avatar_url, notes,
             )
             action = "created"
             cv_changed = True

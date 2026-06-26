@@ -12,12 +12,18 @@ import type { ProfileDetail } from '@/types'
 const schema = z.object({
   first_name: z.string().min(1, 'Pflichtfeld'),
   last_name: z.string().min(1, 'Pflichtfeld'),
-  email: z.string().email('Ungültige E-Mail').or(z.literal('')),
-  phone: z.string().optional(),
+  email: z.string().min(1, 'Pflichtfeld').email('Ungültige E-Mail'),
+  phone_country_code: z.string().optional(),
+  phone_number: z.string().min(1, 'Pflichtfeld'),
+  street_address: z.string().min(1, 'Pflichtfeld'),
+  postal_code: z.string().min(1, 'Pflichtfeld'),
+  home_location: z.string().min(1, 'Pflichtfeld'),
   linkedin_url: z.string().url('Ungültige URL').or(z.literal('')),
-  home_location: z.string().optional(),
-  career_target: z.string().optional(),
-  market_research: z.string().optional(),
+  github_url: z.string().url('Ungültige URL').or(z.literal('')),
+  website_url: z.string().url('Ungültige URL').or(z.literal('')),
+  notes: z.string().optional(),
+  career_target: z.string().min(1, 'Pflichtfeld'),
+  market_research: z.string().min(1, 'Pflichtfeld'),
   cv_text: z.string().min(50, 'Lebenslauf muss mindestens 50 Zeichen haben'),
 })
 type FormValues = z.infer<typeof schema>
@@ -29,18 +35,12 @@ interface Props {
   existing?: ProfileDetail
 }
 
-function Field({
-  label,
-  error,
-  children,
-}: {
-  label: string
-  error?: string
-  children: React.ReactNode
-}) {
+function Field({ label, error, required, children }: { label: string; error?: string; required?: boolean; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">{label}</label>
+      <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+        {label}{required && <span className="text-red-400 ml-0.5">*</span>}
+      </label>
       {children}
       {error && <p className="text-xs text-red-400">{error}</p>}
     </div>
@@ -68,9 +68,15 @@ export function ProfileModal({ open, onClose, onSaved, existing }: Props) {
       first_name: existing?.first_name ?? '',
       last_name: existing?.last_name ?? '',
       email: existing?.email ?? '',
-      phone: existing?.phone ?? '',
-      linkedin_url: existing?.linkedin_url ?? '',
+      phone_country_code: existing?.phone_country_code ?? '+49',
+      phone_number: existing?.phone_number ?? '',
+      street_address: existing?.street_address ?? '',
+      postal_code: existing?.postal_code ?? '',
       home_location: existing?.home_location ?? '',
+      linkedin_url: existing?.linkedin_url ?? '',
+      github_url: existing?.github_url ?? '',
+      website_url: existing?.website_url ?? '',
+      notes: existing?.notes ?? '',
       career_target: existing?.career_target ?? '',
       market_research: existing?.market_research ?? '',
       cv_text: existing?.cv_text ?? '',
@@ -83,9 +89,15 @@ export function ProfileModal({ open, onClose, onSaved, existing }: Props) {
         first_name: existing?.first_name ?? '',
         last_name: existing?.last_name ?? '',
         email: existing?.email ?? '',
-        phone: existing?.phone ?? '',
-        linkedin_url: existing?.linkedin_url ?? '',
+        phone_country_code: existing?.phone_country_code ?? '+49',
+        phone_number: existing?.phone_number ?? '',
+        street_address: existing?.street_address ?? '',
+        postal_code: existing?.postal_code ?? '',
         home_location: existing?.home_location ?? '',
+        linkedin_url: existing?.linkedin_url ?? '',
+        github_url: existing?.github_url ?? '',
+        website_url: existing?.website_url ?? '',
+        notes: existing?.notes ?? '',
         career_target: existing?.career_target ?? '',
         market_research: existing?.market_research ?? '',
         cv_text: existing?.cv_text ?? '',
@@ -94,6 +106,19 @@ export function ProfileModal({ open, onClose, onSaved, existing }: Props) {
       setSteps([])
     }
   }, [open, existing, reset])
+
+  // Wraps register() with a character-strip filter applied on every change.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fil = <N extends keyof FormValues>(name: N, pattern: RegExp) => {
+    const { onChange, ...rest } = register(name as any)
+    return {
+      ...rest,
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+        e.target.value = e.target.value.replace(pattern, '')
+        onChange(e)
+      },
+    }
+  }
 
   const onAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -139,10 +164,11 @@ export function ProfileModal({ open, onClose, onSaved, existing }: Props) {
       className="w-full max-w-2xl max-h-[90vh]"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+
         {/* Avatar */}
         <div className="flex items-center gap-4">
           <div
-            className="w-16 h-16 rounded-full bg-white/10 border border-white/20 overflow-hidden cursor-pointer flex items-center justify-center"
+            className="w-16 h-16 rounded-full bg-white/10 border border-white/20 overflow-hidden cursor-pointer flex items-center justify-center flex-shrink-0"
             onClick={() => avatarRef.current?.click()}
           >
             {avatarPreview ? (
@@ -158,51 +184,100 @@ export function ProfileModal({ open, onClose, onSaved, existing }: Props) {
           </div>
         </div>
 
-        {/* Name */}
+        {/* Name — unicode letters, spaces, hyphens, apostrophes */}
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Vorname" error={errors.first_name?.message}>
-            <input {...register('first_name')} className={inputClass} placeholder="Max" />
+          <Field label="Vorname" required error={errors.first_name?.message}>
+            <input {...fil('first_name', /[^\p{L}\s'-]/gu)} className={inputClass} placeholder="Max" />
           </Field>
-          <Field label="Nachname" error={errors.last_name?.message}>
-            <input {...register('last_name')} className={inputClass} placeholder="Mustermann" />
+          <Field label="Nachname" required error={errors.last_name?.message}>
+            <input {...fil('last_name', /[^\p{L}\s'-]/gu)} className={inputClass} placeholder="Mustermann" />
           </Field>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="E-Mail" error={errors.email?.message}>
-            <input {...register('email')} className={inputClass} placeholder="max@example.com" />
-          </Field>
-          <Field label="Telefon" error={errors.phone?.message}>
-            <input {...register('phone')} className={inputClass} placeholder="+49 151 …" />
-          </Field>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Heimatort" error={errors.home_location?.message}>
-            <input {...register('home_location')} className={inputClass} placeholder="Berlin, Deutschland" />
-          </Field>
-          <Field label="Karriereziel" error={errors.career_target?.message}>
-            <input {...register('career_target')} className={inputClass} placeholder="Product Manager" />
-          </Field>
-        </div>
-
-        <Field label="LinkedIn URL" error={errors.linkedin_url?.message}>
-          <input {...register('linkedin_url')} className={inputClass} placeholder="https://linkedin.com/in/…" />
+        {/* E-Mail — browser-native email validation via type */}
+        <Field label="E-Mail" required error={errors.email?.message}>
+          <input {...register('email')} type="email" inputMode="email" className={inputClass} placeholder="max@example.com" />
         </Field>
 
-        <Field label="Marktrecherche" error={errors.market_research?.message}>
+        {/* Phone: country code (+ and digits) + number (digits and spaces) */}
+        <Field label="Telefon" required error={errors.phone_number?.message}>
+          <div className="flex gap-2">
+            <input
+              {...fil('phone_country_code', /[^\d+]/g)}
+              className={cn(inputClass, 'w-24 flex-shrink-0')}
+              inputMode="tel"
+              placeholder="+49"
+            />
+            <input
+              {...fil('phone_number', /[^\d\s]/g)}
+              className={inputClass}
+              inputMode="numeric"
+              placeholder="151 12345678"
+            />
+          </div>
+        </Field>
+
+        {/* Address — letters (with umlauts), digits, spaces, . , - */}
+        <Field label="Straße und Hausnummer" required error={errors.street_address?.message}>
+          <input {...fil('street_address', /[^\p{L}\d\s.,-]/gu)} className={inputClass} placeholder="Musterstraße 1" />
+        </Field>
+
+        <div className="grid grid-cols-3 gap-3">
+          {/* PLZ — digits only, max 5 chars */}
+          <Field label="PLZ" required error={errors.postal_code?.message}>
+            <input {...fil('postal_code', /[^\d]/g)} className={inputClass} inputMode="numeric" maxLength={5} placeholder="12345" />
+          </Field>
+          <div className="col-span-2">
+            {/* Stadt — unicode letters, spaces, hyphens, dots (e.g. St. Augustin) */}
+            <Field label="Stadt" required error={errors.home_location?.message}>
+              <input {...fil('home_location', /[^\p{L}\s.-]/gu)} className={inputClass} placeholder="Berlin" />
+            </Field>
+          </div>
+        </div>
+
+        {/* Links — type="url" gives browser-level hint; no char filter (URLs have many valid chars) */}
+        <Field label="LinkedIn URL" error={errors.linkedin_url?.message}>
+          <input {...register('linkedin_url')} type="url" className={inputClass} placeholder="https://linkedin.com/in/…" />
+        </Field>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="GitHub URL" error={errors.github_url?.message}>
+            <input {...register('github_url')} type="url" className={inputClass} placeholder="https://github.com/…" />
+          </Field>
+          <Field label="Webseite" error={errors.website_url?.message}>
+            <input {...register('website_url')} type="url" className={inputClass} placeholder="https://…" />
+          </Field>
+        </div>
+
+        {/* Career — free text (slashes, parentheses, dashes all valid: "Full-Stack (React/Node)") */}
+        <Field label="Karriereziel" required error={errors.career_target?.message}>
+          <input {...register('career_target')} className={inputClass} placeholder="Software Engineer, Product Manager…" />
+        </Field>
+
+        {/* Market research */}
+        <Field label="Marktrecherche" required error={errors.market_research?.message}>
           <textarea
             {...register('market_research')}
             className={cn(inputClass, 'min-h-24 resize-y')}
-            placeholder="Ergebnisse der Marktrecherche (optional)…"
+            placeholder="Zielbranche, typische Anforderungen, Unternehmenskultur, Gehaltsrahmen… (beeinflusst KI-Analyse und Anschreiben)"
           />
         </Field>
 
-        <Field label="Lebenslauf (Volltext)" error={errors.cv_text?.message}>
+        {/* CV text */}
+        <Field label="Lebenslauf (Volltext)" required error={errors.cv_text?.message}>
           <textarea
             {...register('cv_text')}
             className={cn(inputClass, 'min-h-48 resize-y font-mono text-xs')}
             placeholder="Lebenslauf hier einfügen…"
+          />
+        </Field>
+
+        {/* Notes */}
+        <Field label="Notizen (intern)" error={errors.notes?.message}>
+          <textarea
+            {...register('notes')}
+            className={cn(inputClass, 'min-h-16 resize-y')}
+            placeholder="Interne Notizen zum Profil (werden nicht verwendet)…"
           />
         </Field>
 

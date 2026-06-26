@@ -14,13 +14,13 @@ export interface ProfileSummary {
 }
 
 export interface ProfileDetail extends ProfileSummary {
-  email: string | null
-  phone: string | null
+  phone_country_code: string | null
+  phone_number: string | null
+  website_url: string | null
+  notes: string | null
   cv_text: string | null
-  linkedin_url: string | null
   market_research: string | null
   career_target: string | null
-  home_location: string | null
 }
 
 export interface DimensionScore {

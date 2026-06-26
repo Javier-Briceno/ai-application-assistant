@@ -78,7 +78,9 @@ class ProfileRow(BaseModel):
     city: str | None = None
     linkedin_url: str | None = None
     github_url: str | None = None
+    website_url: str | None = None
     avatar_url: str | None = None
+    notes: str | None = None
     cv_text: str | None = None
     market_research: str | None = None
     career_target: str | None = None
