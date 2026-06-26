@@ -116,6 +116,7 @@ async def api_analyze(req: AnalyzeRequest):
                 "company_name": result.company.company_name,
                 "search_name": result.company.search_name,
                 "research_text": result.company.company_profile or "",
+                "company_address": result.company.company_address,
             },
             "scoring": {
                 "total_score": result.scoring.total_score,

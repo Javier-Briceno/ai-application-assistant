@@ -18,7 +18,7 @@ async def api_list_applications(profile_id: int | None = Query(None)):
         if profile_id is not None:
             rows = await conn.fetch(
                 """
-                SELECT id, profile_id, company, role_title, score, threshold,
+                SELECT id, profile_id, company, company_address, role_title, score, threshold,
                        date_applied, cv_diff, anschreiben, gaps, scoring_details,
                        (tailored_cv IS NOT NULL AND tailored_cv <> '') AS has_tailored_cv
                 FROM job_application_assistant.job_applications
@@ -30,7 +30,7 @@ async def api_list_applications(profile_id: int | None = Query(None)):
         else:
             rows = await conn.fetch(
                 """
-                SELECT id, profile_id, company, role_title, score, threshold,
+                SELECT id, profile_id, company, company_address, role_title, score, threshold,
                        date_applied, cv_diff, anschreiben, gaps, scoring_details,
                        (tailored_cv IS NOT NULL AND tailored_cv <> '') AS has_tailored_cv
                 FROM job_application_assistant.job_applications
@@ -42,6 +42,7 @@ async def api_list_applications(profile_id: int | None = Query(None)):
             "id": r["id"],
             "profile_id": r["profile_id"],
             "company": r["company"],
+            "company_address": r["company_address"] or "",
             "role_title": r["role_title"],
             "score": r["score"],
             "threshold": r["threshold"],
@@ -60,7 +61,7 @@ async def _fetch_application(application_id: int) -> dict:
     async with get_conn() as conn:
         row = await conn.fetchrow(
             """
-            SELECT ja.id, ja.profile_id, ja.company, ja.role_title,
+            SELECT ja.id, ja.profile_id, ja.company, ja.company_address, ja.role_title,
                    ja.tailored_cv, ja.anschreiben,
                    p.first_name, p.last_name,
                    p.city, p.email,
@@ -131,6 +132,7 @@ async def download_anschreiben_docx(application_id: int):
         candidate_linkedin=row.get("linkedin_url") or "",
         candidate_github=row.get("github_url") or "",
         company_name=row.get("company") or "",
+        company_address=row.get("company_address") or "",
     )
     buf = io.BytesIO(data)
 

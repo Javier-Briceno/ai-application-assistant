@@ -354,6 +354,7 @@ export function AnalysePage() {
                 profileName={profileName}
                 profileCity={activeProfile?.home_location ?? ''}
                 companyName={result.company.company_name}
+                companyAddress={result.company.company_address}
                 downloadHref={result.job_application_id ? api.applications.anschreibenDocxUrl(result.job_application_id) : undefined}
               />
             )}

@@ -67,6 +67,49 @@ async def _serpapi_search(query: str) -> list[dict]:
         return data.get("organic_results", [])
 
 
+async def _lookup_company_address(company_name: str, city: str = "") -> str:
+    """
+    Look up a company's street address via SerpAPI Google Maps.
+    Returns a formatted address string (e.g. "Musterstraße 1, 12345 Berlin")
+    or "" if not found or on any error.
+    """
+    q = f"{company_name} {city}".strip()
+    if not q:
+        return ""
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(
+                _SERPAPI_URL,
+                params={
+                    "engine": "google_maps",
+                    "q": q,
+                    "type": "search",
+                    "api_key": settings.serpapi_key,
+                    "hl": "de",
+                    "gl": "de",
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+
+        local_results = data.get("local_results", [])
+        if local_results:
+            address: str = local_results[0].get("address", "")
+        elif "place_results" in data:
+            # City-specific query returns a single place_results card instead of a list
+            address = data["place_results"].get("address", "")
+        else:
+            return ""
+        # Strip trailing country suffix — implicit on a German CV
+        for suffix in (", Germany", ", Deutschland"):
+            if address.endswith(suffix):
+                address = address[: -len(suffix)]
+        return address.strip()
+    except Exception:
+        log.warning("Company address lookup failed for %r — continuing without address", company_name)
+        return ""
+
+
 async def run_company_research(
     conn: asyncpg.Connection,
     *,
@@ -108,8 +151,15 @@ async def run_company_research(
         len(company_profile.split()),
     )
 
+    company_address = await _lookup_company_address(company_name, city=extractor.job_city or "")
+    if company_address:
+        log.info("Company address found: %r", company_address)
+    else:
+        log.info("Company address not found for %r", company_name)
+
     return CompanyResearchResult(
         company_name=company_name,
         search_name=search_name,
         company_profile=company_profile,
+        company_address=company_address,
     )

@@ -20,6 +20,7 @@ def _make_row(id: int, anschreiben: str, date_applied=None) -> MagicMock:
         "id": id,
         "profile_id": 1,
         "company": f"Company {id}",
+        "company_address": "",
         "role_title": f"Role {id}",
         "score": 70,
         "threshold": "pass",

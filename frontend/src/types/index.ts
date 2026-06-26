@@ -50,6 +50,7 @@ export interface CompanyResult {
   company_name: string
   search_name: string
   research_text: string
+  company_address: string
 }
 
 export interface TailoringResult {
@@ -84,6 +85,7 @@ export interface Application {
   id: number
   profile_id: number
   company: string
+  company_address: string
   role_title: string
   score: number
   threshold: 'pass' | 'caution' | 'fail'

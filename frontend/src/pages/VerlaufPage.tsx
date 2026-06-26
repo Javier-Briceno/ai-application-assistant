@@ -261,6 +261,7 @@ export function VerlaufPage() {
                 text={selectedApp.anschreiben}
                 profileName={profileName}
                 companyName={selectedApp.company}
+                companyAddress={selectedApp.company_address}
                 downloadHref={api.applications.anschreibenDocxUrl(selectedApp.id)}
               />
             )}

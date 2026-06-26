@@ -6,24 +6,26 @@ interface Props {
   profileName?: string
   profileCity?: string
   companyName?: string
+  companyAddress?: string
   downloadHref?: string
 }
 
-function buildHeader(name: string, city: string, company: string): string {
+function buildHeader(name: string, city: string, company: string, address: string): string {
   const date = new Date().toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' })
   const lines: string[] = []
   if (name) lines.push(name)
   lines.push(city ? `${city}, ${date}` : date)
   lines.push('')
   if (company) lines.push(company)
+  if (address) lines.push(address)
   lines.push('')
   lines.push('')
   return lines.join('\n')
 }
 
-export function Anschreiben({ text: initialText, profileName, profileCity, companyName, downloadHref }: Props) {
+export function Anschreiben({ text: initialText, profileName, profileCity, companyName, companyAddress, downloadHref }: Props) {
   const header = (profileName || companyName)
-    ? buildHeader(profileName ?? '', profileCity ?? '', companyName ?? '')
+    ? buildHeader(profileName ?? '', profileCity ?? '', companyName ?? '', companyAddress ?? '')
     : ''
   const [text, setText] = useState(header + initialText)
   const [copied, setCopied] = useState(false)
@@ -31,10 +33,10 @@ export function Anschreiben({ text: initialText, profileName, profileCity, compa
 
   useEffect(() => {
     const h = (profileName || companyName)
-      ? buildHeader(profileName ?? '', profileCity ?? '', companyName ?? '')
+      ? buildHeader(profileName ?? '', profileCity ?? '', companyName ?? '', companyAddress ?? '')
       : ''
     setText(h + initialText)
-  }, [initialText, profileName, profileCity, companyName])
+  }, [initialText, profileName, profileCity, companyName, companyAddress])
 
   const copy = async () => {
     try {
