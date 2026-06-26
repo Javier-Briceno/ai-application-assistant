@@ -2,6 +2,7 @@
 Server-side DOCX generation using python-docx.
 Follows the German reference template specs (Lebenslauf_Muster / Anschreiben_Muster).
 """
+import base64
 import io
 import re
 from datetime import date
@@ -57,6 +58,16 @@ _HEADING_RE = re.compile(r'^(#{1,2})\s+(.+)$')
 _BOLD_HEADING_RE = re.compile(r'^\*\*([A-ZÄÖÜ][A-ZÄÖÜ\s/]{2,})\*\*\s*$')
 # Unescapes Markdown backslash sequences: \+ \- \. \_ etc.
 _MD_UNESCAPE_RE = re.compile(r'\\([*_{}\[\]()#+\-.!|\\`>])')
+# German date period: "04.2026 – heute", "03.2026 – 04.2026", "2023 – heute", etc.
+_GERMAN_DATE_PERIOD_RE = re.compile(
+    r'(?:\d{2}\.)?\d{4}\s*[-–—]\s*(?:(?:\d{2}\.)?\d{4}|heute)',
+    re.IGNORECASE,
+)
+# Tech-Stack line: "Tech-Stack:", "Tech Stack:" — omitted from DOCX body.
+_TECH_STACK_LINE_RE = re.compile(
+    r'^\*{0,2}[Tt]ech[-\s][Ss]tack\s*\*{0,2}:',
+    re.IGNORECASE,
+)
 
 
 def _is_plain_section_line(line: str) -> bool:
@@ -245,13 +256,66 @@ def _add_run(para, text: str, size_pt: float | None = None,
 
 
 def _set_tab_stops(para, right_pos_cm: float) -> None:
+    # 1 cm = 1440/2.54 ≈ 566.93 twips (OOXML w:pos unit)
     pPr = para._p.get_or_add_pPr()
     tabs = OxmlElement("w:tabs")
     tab = OxmlElement("w:tab")
     tab.set(qn("w:val"), "right")
-    tab.set(qn("w:pos"), str(int(right_pos_cm * 720)))
+    tab.set(qn("w:pos"), str(int(right_pos_cm * 1440 / 2.54)))
     tabs.append(tab)
     pPr.append(tabs)
+
+
+# ── Table helpers ─────────────────────────────────────────────────────────────
+
+def _remove_table_borders(table) -> None:
+    """Remove all visible borders from a python-docx Table object."""
+    tbl_el = table._tbl
+    tblPr = tbl_el.find(qn("w:tblPr"))
+    if tblPr is None:
+        tblPr = OxmlElement("w:tblPr")
+        tbl_el.insert(0, tblPr)
+    tblBorders = OxmlElement("w:tblBorders")
+    for side in ("top", "left", "bottom", "right", "insideH", "insideV"):
+        el = OxmlElement(f"w:{side}")
+        el.set(qn("w:val"), "none")
+        tblBorders.append(el)
+    tblPr.append(tblBorders)
+
+
+# ── Photo cropping ────────────────────────────────────────────────────────────
+
+def _crop_portrait(image_bytes: bytes) -> bytes | None:
+    """
+    Center-crop and resize image to portrait 3:4 ratio (225×300 px).
+    Returns JPEG bytes, or None if processing fails.
+    Requires Pillow (already a project dependency via avatar.py).
+    """
+    try:
+        from PIL import Image
+        img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        w, h = img.size
+        target_ratio = 3.0 / 4.0  # width / height
+
+        current_ratio = w / h
+        if abs(current_ratio - target_ratio) > 0.02:
+            if current_ratio > target_ratio:
+                # Too wide — crop width to portrait ratio
+                new_w = int(h * target_ratio)
+                x_off = (w - new_w) // 2
+                img = img.crop((x_off, 0, x_off + new_w, h))
+            else:
+                # Too tall — crop height to portrait ratio
+                new_h = int(w / target_ratio)
+                y_off = (h - new_h) // 2
+                img = img.crop((0, y_off, w, y_off + new_h))
+
+        img = img.resize((225, 300), Image.LANCZOS)
+        out = io.BytesIO()
+        img.save(out, format="JPEG", quality=85)
+        return out.getvalue()
+    except Exception:
+        return None
 
 
 # ── Document setup ────────────────────────────────────────────────────────────
@@ -306,13 +370,12 @@ def _add_cv_section_heading(doc: Document, text: str) -> None:
 def _add_cv_entry_title(doc: Document, title: str, org: str = "",
                         period: str = "", usable_width_cm: float = 17.0) -> None:
     para = doc.add_paragraph()
-    _set_para_spacing(para, before_pt=6, after_pt=2)
-    if period:
-        _set_tab_stops(para, right_pos_cm=usable_width_cm)
+    _set_para_spacing(para, before_pt=10, after_pt=2)
     _add_run(para, title, size_pt=10.5, bold=True)
     if org:
         _add_run(para, f"  |  {org}", size_pt=10.5)
     if period:
+        _set_tab_stops(para, right_pos_cm=usable_width_cm)
         para.add_run("\t")
         _add_run(para, period, size_pt=9.5, color=_DATE_COLOR, italic=True)
 
@@ -342,34 +405,51 @@ def _render_inline(para, text: str, size_pt: float = 10.5,
 
 # ── Entry-title heuristics ────────────────────────────────────────────────────
 
-_ENTRY_TITLE_RE = re.compile(
-    r"(.+?)\s+(?:bei|at|@)\s+(.+?)\s*[\(\[]([^\)\]]+)[\)\]]$",
-    re.IGNORECASE,
-)
-_TRAILING_DATE_RE = re.compile(
-    r"^(.+?)\s*[\(\[]([0-9]{4}[^)\]]{0,20})[\)\]]$"
-)
+def _split_title_date(line: str) -> tuple[str, str] | None:
+    """
+    Split an entry title line into (title, date_period).
+
+    Detects German-CV lines of the form:
+      "Title | 04.2026 – heute"     (pipe separator)
+      "Title\t04.2026 – heute"      (tab separator)
+      "Title (2023–heute)"          (parenthesised year range)
+      "Title | 03.2026 – 04.2026"   (month-dot-year range)
+
+    Returns None if the line does not end with a German date period.
+    """
+    m = _GERMAN_DATE_PERIOD_RE.search(line)
+    if not m:
+        return None
+    date_str = m.group(0).strip()
+    after = line[m.end():].strip()
+    before = line[:m.start()]
+
+    if after == ')':
+        # Parenthesised date: strip the opening '(' from before
+        before = re.sub(r'\s*\(\s*$', '', before)
+    elif after:
+        return None  # unexpected trailing content
+
+    title = re.sub(r'[\s|·\t]+$', '', before).strip()
+    if not title:
+        return None
+    return (title, date_str)
 
 
-def _looks_like_entry_title(line: str) -> bool:
-    return bool(_ENTRY_TITLE_RE.match(line)) or bool(_TRAILING_DATE_RE.match(line))
+# ── Profile photo helper ──────────────────────────────────────────────────────
 
-
-def _render_entry_line(doc: Document, line: str, usable_width_cm: float) -> None:
-    m = _ENTRY_TITLE_RE.match(line)
-    if m:
-        _add_cv_entry_title(doc, m.group(1).strip(), org=m.group(2).strip(),
-                            period=m.group(3).strip(),
-                            usable_width_cm=usable_width_cm)
-        return
-    m2 = _TRAILING_DATE_RE.match(line)
-    if m2:
-        _add_cv_entry_title(doc, m2.group(1).strip(), period=m2.group(2).strip(),
-                            usable_width_cm=usable_width_cm)
-        return
-    para = doc.add_paragraph()
-    _set_para_spacing(para, before_pt=6, after_pt=2)
-    _render_inline(para, line, size_pt=10.5)
+def _decode_photo(data_url: str) -> bytes | None:
+    """
+    Decode a data:image/*;base64,... URL to raw image bytes.
+    Returns None if the URL is not a valid data URL or decoding fails.
+    """
+    m = re.match(r'^data:image/[^;]+;base64,(.+)$', data_url, re.DOTALL)
+    if not m:
+        return None
+    try:
+        return base64.b64decode(m.group(1))
+    except Exception:
+        return None
 
 
 # ── CV DOCX ───────────────────────────────────────────────────────────────────
@@ -377,12 +457,12 @@ def _render_entry_line(doc: Document, line: str, usable_width_cm: float) -> None
 def generate_cv_docx(
     cv_markdown: str,
     candidate_name: str = "",
-    candidate_role: str = "",
     candidate_city: str = "",
     candidate_email: str = "",
     candidate_phone: str = "",
     candidate_linkedin: str = "",
     candidate_github: str = "",
+    candidate_photo_url: str = "",
 ) -> bytes:
     """
     Convert the tailored CV markdown to a DOCX file.
@@ -393,24 +473,17 @@ def generate_cv_docx(
     _set_doc_default_font(doc, "Calibri", 10.5)
 
     # ── Deterministic header table ─────────────────────────────────────────────
-    # Usable width = 21 - 2 - 2 = 17 cm; right col reserved for photo (TODO: real photo support)
+    # Usable width = 21 - 2 - 2 = 17 cm.
+    # Right column widens to 4 cm when a profile photo is available.
     usable_width_cm = 17.0
-    left_col_cm, right_col_cm = 14.5, 2.5
+
+    photo_bytes = _decode_photo(candidate_photo_url) if candidate_photo_url else None
+    right_col_cm = 4.0 if photo_bytes else 2.5
+    left_col_cm = usable_width_cm - right_col_cm
 
     table = doc.add_table(rows=1, cols=2)
     table.style = "Table Grid"
-    tbl = table._tbl
-    tblPr = tbl.find(qn("w:tblPr"))
-    if tblPr is None:
-        tblPr = OxmlElement("w:tblPr")
-        tbl.insert(0, tblPr)
-    tblBorders = OxmlElement("w:tblBorders")
-    for side in ("top", "left", "bottom", "right", "insideH", "insideV"):
-        el = OxmlElement(f"w:{side}")
-        el.set(qn("w:val"), "none")
-        tblBorders.append(el)
-    tblPr.append(tblBorders)
-
+    _remove_table_borders(table)
     table.columns[0].width = Cm(left_col_cm)
     table.columns[1].width = Cm(right_col_cm)
 
@@ -428,13 +501,8 @@ def generate_cv_docx(
         run = name_para.add_run(candidate_name)
         _set_run_font(run, size_pt=20, color=_HEADING_COLOR, bold=True)
 
-    # Role line
-    if candidate_role:
-        rp = left_cell.add_paragraph()
-        _set_para_spacing(rp, before_pt=0, after_pt=6)
-        _add_run(rp, candidate_role, size_pt=10.5, color=_BODY_COLOR)
-
     # Contact line: city | phone | email
+    # No application job-title line — the CV header shows only personal contact info.
     city_short = _short_city(candidate_city)
     contact_parts = [x for x in [city_short, candidate_phone, candidate_email] if x]
     if contact_parts:
@@ -453,14 +521,19 @@ def generate_cv_docx(
         _set_para_spacing(lp, before_pt=0, after_pt=2)
         _add_run(lp, "  |  ".join(link_parts), size_pt=9.5, color=_DATE_COLOR)
 
-    # Right cell: empty — TODO: insert real profile photo when available
-    right_cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-    _set_para_spacing(right_cell.paragraphs[0], before_pt=0, after_pt=0)
-
-    # Gap after header
-    gap = doc.add_paragraph()
-    _set_para_spacing(gap, before_pt=6, after_pt=0)
-    gap.add_run().font.size = Pt(4)
+    # Right cell: portrait-cropped profile photo when available; empty otherwise.
+    photo_para = right_cell.paragraphs[0]
+    photo_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    _set_para_spacing(photo_para, before_pt=0, after_pt=0)
+    if photo_bytes:
+        portrait_bytes = _crop_portrait(photo_bytes)
+        if portrait_bytes:
+            try:
+                run = photo_para.add_run()
+                # 225×300 px source (3:4) → width=3.0 cm, height auto-scales to 4.0 cm
+                run.add_picture(io.BytesIO(portrait_bytes), width=Cm(3.0))
+            except Exception:
+                pass  # invalid image — right cell stays empty
 
     # ── Normalise and render markdown body ─────────────────────────────────────
     # TODO: exact 2-page enforcement requires a semantic/layout step — not in this patch.
@@ -491,12 +564,18 @@ def generate_cv_docx(
             _add_cv_bullet(doc, stripped[2:].strip())
         elif stripped.startswith("– ") or stripped.startswith("— "):
             _add_cv_bullet(doc, stripped[2:].strip())
-        elif _looks_like_entry_title(stripped):
-            _render_entry_line(doc, stripped, usable_width_cm)
+        elif _TECH_STACK_LINE_RE.match(stripped):
+            pass  # omit Tech-Stack lines; technologies are in KENNTNISSE
         else:
-            para = doc.add_paragraph()
-            _set_para_spacing(para, before_pt=1, after_pt=1)
-            _render_inline(para, stripped, size_pt=10.5)
+            entry = _split_title_date(stripped)
+            if entry:
+                title, date = entry
+                _add_cv_entry_title(doc, title, period=date,
+                                    usable_width_cm=usable_width_cm)
+            else:
+                para = doc.add_paragraph()
+                _set_para_spacing(para, before_pt=1, after_pt=1)
+                _render_inline(para, stripped, size_pt=10.5)
 
     buf = io.BytesIO()
     doc.save(buf)

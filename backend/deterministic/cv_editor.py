@@ -11,7 +11,7 @@ from backend.models.tailoring import ClassifierOutput, GeneratorOutput, Validati
 
 # ── Validator ─────────────────────────────────────────────────────────────────
 
-_MAX_CLUSTER_REMOVE_RATIO = 0.50
+_MAX_CLUSTER_REMOVE_RATIO = 0.70
 
 
 def validate_generator_output(

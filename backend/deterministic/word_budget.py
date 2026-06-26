@@ -7,8 +7,8 @@ from backend.models.tailoring import ClassifierItem, ClassifierOutput, Generator
 
 # ── Word budget ───────────────────────────────────────────────────────────────
 
-_BUDGET_MIN = 700
-_BUDGET_MAX = 950
+_BUDGET_MIN = 400
+_BUDGET_MAX = 550
 _BUDGET_RATIO = 0.80
 _SHORTEN_MIN_WORDS = 25
 

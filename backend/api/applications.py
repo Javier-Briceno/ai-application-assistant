@@ -65,7 +65,7 @@ async def _fetch_application(application_id: int) -> dict:
                    p.first_name, p.last_name,
                    p.city, p.email,
                    p.phone_country_code, p.phone_number,
-                   p.linkedin_url, p.github_url
+                   p.linkedin_url, p.github_url, p.avatar_url
             FROM job_application_assistant.job_applications ja
             JOIN job_application_assistant.profiles p ON p.id = ja.profile_id
             WHERE ja.id = $1
@@ -97,12 +97,12 @@ async def download_cv_docx(application_id: int):
     data = generate_cv_docx(
         cv_text,
         candidate_name=candidate_name,
-        candidate_role=row.get("role_title") or "",
         candidate_city=row.get("city") or "",
         candidate_email=row.get("email") or "",
         candidate_phone=_build_phone(row),
         candidate_linkedin=row.get("linkedin_url") or "",
         candidate_github=row.get("github_url") or "",
+        candidate_photo_url=row.get("avatar_url") or "",
     )
     buf = io.BytesIO(data)
 

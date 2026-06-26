@@ -22,6 +22,7 @@ import asyncpg
 
 from backend import llm
 from backend.deterministic.cv_editor import apply_removes_by_content, compute_diff, validate_generator_output
+from backend.deterministic.cv_trimmer import trim_cv_to_2_pages
 from backend.deterministic.word_budget import compute_word_budget, enforcer
 from backend.models.tailoring import (
     ClassifierOutput,
@@ -325,6 +326,16 @@ async def run_cv_tailoring(
             [i.detail for i in inflation_check.issues],
         )
         rewritten_cv = edited_cv
+
+    # Deterministic section trimmer: enforce max-project-count and max-bullet-per-entry
+    # limits so the final DOCX fits within 2 pages. Runs AFTER all LLM steps so it
+    # is reflected in both the diff and the stored tailored_cv.
+    _pre_trim = len(rewritten_cv.split())
+    rewritten_cv = trim_cv_to_2_pages(rewritten_cv)
+    log.info(
+        "Section trimmer: %d → %d words",
+        _pre_trim, len(rewritten_cv.split()),
+    )
 
     # Step 7: Compute diff
     cv_diff = compute_diff(cv_text, rewritten_cv)

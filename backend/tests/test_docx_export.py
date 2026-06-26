@@ -720,6 +720,197 @@ def test_anschreiben_linkedin_url_has_no_https_prefix():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# CV — patch 8: layout / readability improvements
+# ══════════════════════════════════════════════════════════════════════════════
+
+# CV fixture with German date periods, Tech-Stack lines, and a KENNTNISSE section.
+CV_WITH_GERMAN_DATES = """\
+## PROFIL
+Erfahrener Entwickler.
+
+## AUSBILDUNG
+Universität Siegen · Informatik B.Sc. | 04.2024 – heute
+Notendurchschnitt: 1,8 (sehr gut)
+
+## PRAKTISCHE ERFAHRUNG
+Werkstudent Backend-Entwicklung | 09.2023 – 03.2024
+- Entwicklung von REST-APIs mit Python
+- Deployment mit Docker
+
+Tech-Stack: Python, Docker, AWS
+
+## PROJEKTE
+KI-Bewerbungsassistent | 03.2026 – 04.2026
+- Automatisierungspipeline mit n8n und Claude API
+- Hash-basiertes Caching-System
+
+Tech-Stack: n8n, Anthropic Claude API, PostgreSQL
+
+## KENNTNISSE
+Python, TypeScript, Docker, PostgreSQL, n8n
+"""
+
+
+def _make_test_photo_data_url() -> str:
+    """Create a minimal 4×5 pixel JPEG data URL for testing photo rendering."""
+    from PIL import Image
+    import base64
+    img = Image.new("RGB", (4, 5), color=(200, 150, 100))
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=50)
+    encoded = base64.b64encode(buf.getvalue()).decode()
+    return f"data:image/jpeg;base64,{encoded}"
+
+
+def test_cv_header_structure_without_role_line():
+    """CV header left cell must have exactly 3 paragraphs: name, contact, links — no role line."""
+    doc = Document(io.BytesIO(generate_cv_docx(SAMPLE_CV, **PROFILE)))
+    header_table = doc.tables[0]
+    left_cell = header_table.cell(0, 0)
+    cell_paras = [p for p in left_cell.paragraphs if p.text.strip()]
+    assert len(cell_paras) == 3, (
+        f"Header must have exactly 3 lines (name, contact, links), got {len(cell_paras)}: "
+        f"{[p.text for p in cell_paras]}"
+    )
+    assert "Sara Mustermann" in cell_paras[0].text
+    assert "sara@example.com" in cell_paras[1].text
+    assert "linkedin.com" in cell_paras[2].text or "github.com" in cell_paras[2].text
+
+
+def test_cv_header_no_job_title_line():
+    """Calling generate_cv_docx does not accept candidate_role — no job-title in output."""
+    import inspect
+    from backend.ui.docx_export import generate_cv_docx as _gcv
+    sig = inspect.signature(_gcv)
+    assert "candidate_role" not in sig.parameters, (
+        "candidate_role parameter must have been removed from generate_cv_docx"
+    )
+
+
+def test_cv_entry_date_rendered_in_document():
+    """German date period must appear somewhere in the DOCX (in entry title table cells)."""
+    doc = Document(io.BytesIO(generate_cv_docx(CV_WITH_GERMAN_DATES)))
+    all_t = _all_text(doc)  # includes table cells
+    assert any("Universität Siegen" in t for t in all_t), "Ausbildung entry must appear in DOCX"
+    assert any("04.2024" in t for t in all_t), "Date 04.2024 must appear in DOCX"
+    assert any("heute" in t for t in all_t), "'heute' must appear in DOCX"
+
+
+def test_cv_entry_date_in_paragraph():
+    """Entry dates must appear in the body paragraphs (tab-stop approach, no extra tables)."""
+    doc = Document(io.BytesIO(generate_cv_docx(CV_WITH_GERMAN_DATES)))
+    all_t = _all_text(doc)
+    assert any("04.2024" in t for t in all_t), "Date 04.2024 must appear in a paragraph"
+    assert any("03.2026" in t for t in all_t), "Date 03.2026 must appear in a paragraph"
+    assert any("09.2023" in t for t in all_t), "Date 09.2023 must appear in a paragraph"
+    # Entry titles must NOT be in extra tables beyond the single header table
+    assert len(doc.tables) == 1, (
+        f"Only the header table should exist; got {len(doc.tables)} tables"
+    )
+
+
+def test_cv_entry_title_is_bold():
+    """Entry title must be rendered bold in a body paragraph."""
+    doc = Document(io.BytesIO(generate_cv_docx(CV_WITH_GERMAN_DATES)))
+    for para in doc.paragraphs:
+        if "KI-Bewerbungsassistent" in para.text:
+            assert para.runs and para.runs[0].bold, (
+                "Project entry title run must be bold"
+            )
+            return
+    pytest.fail("Project entry title not found in any paragraph")
+
+
+def test_cv_tech_stack_lines_omitted():
+    """Tech-Stack: lines must not appear in DOCX output."""
+    doc = Document(io.BytesIO(generate_cv_docx(CV_WITH_GERMAN_DATES)))
+    full = "\n".join(_all_text(doc))
+    assert "Tech-Stack:" not in full, (
+        "Tech-Stack lines must be omitted from DOCX; technologies are listed in KENNTNISSE"
+    )
+
+
+def test_cv_tech_stack_omitted_various_formats():
+    """Tech-Stack omission must work for both 'Tech-Stack:' and 'Tech Stack:' spelling."""
+    for line_fmt in ("Tech-Stack: Python, Docker", "Tech Stack: Python, Docker"):
+        cv = f"## KENNTNISSE\n{line_fmt}\nPython, Docker\n"
+        doc = Document(io.BytesIO(generate_cv_docx(cv)))
+        full = "\n".join(_all_text(doc))
+        assert "Tech-Stack:" not in full and "Tech Stack:" not in full, (
+            f"Format {line_fmt!r} must be omitted from DOCX"
+        )
+
+
+def test_cv_kenntnisse_section_preserved():
+    """Technologies in KENNTNISSE must still appear even though Tech-Stack lines are omitted."""
+    doc = Document(io.BytesIO(generate_cv_docx(CV_WITH_GERMAN_DATES)))
+    full = "\n".join(_all_text(doc))
+    assert "KENNTNISSE" in full, "KENNTNISSE section heading must appear"
+    assert "Python" in full, "Python must appear in KENNTNISSE"
+    assert "TypeScript" in full, "TypeScript must appear in KENNTNISSE"
+    assert "Docker" in full, "Docker must appear in KENNTNISSE"
+
+
+def test_cv_photo_rendered_when_provided():
+    """Profile photo from a valid data URL must be embedded as an image in the DOCX."""
+    data_url = _make_test_photo_data_url()
+    doc = Document(io.BytesIO(generate_cv_docx(
+        SAMPLE_CV,
+        candidate_name="Sara Mustermann",
+        candidate_photo_url=data_url,
+    )))
+    assert len(doc.inline_shapes) > 0, (
+        "DOCX must contain at least one inline image when candidate_photo_url is provided"
+    )
+
+
+def test_cv_photo_absent_when_no_url():
+    """No inline image when no photo URL is provided."""
+    doc = Document(io.BytesIO(generate_cv_docx(SAMPLE_CV, candidate_name="Sara Mustermann")))
+    assert len(doc.inline_shapes) == 0, (
+        "DOCX must not contain inline images when no photo URL is provided"
+    )
+
+
+def test_cv_invalid_photo_no_crash():
+    """Invalid photo data URL must not crash DOCX generation."""
+    data = generate_cv_docx(
+        SAMPLE_CV,
+        candidate_name="Sara Mustermann",
+        candidate_photo_url="data:image/jpeg;base64,NOT_VALID_BASE64!!!",
+    )
+    assert len(data) > 1000, "DOCX must still be generated even with an invalid photo URL"
+
+
+def test_cv_photo_right_column_wider():
+    """When a photo is present, the right header column must be wider than the default 2.5 cm."""
+    data_url = _make_test_photo_data_url()
+    doc = Document(io.BytesIO(generate_cv_docx(
+        SAMPLE_CV,
+        candidate_name="Sara Mustermann",
+        candidate_photo_url=data_url,
+    )))
+    right_col_width_cm = doc.tables[0].columns[1].width.cm
+    assert right_col_width_cm > 2.5, (
+        f"Right column must be > 2.5 cm when photo present, got {right_col_width_cm:.1f} cm"
+    )
+
+
+def test_cv_entry_date_tab_stop_present():
+    """Entry title paragraph with a date must contain a right-aligned tab stop."""
+    from lxml import etree
+    doc = Document(io.BytesIO(generate_cv_docx(CV_WITH_GERMAN_DATES)))
+    for para in doc.paragraphs:
+        if "04.2024" in para.text or "03.2026" in para.text:
+            xml = para._p.xml
+            assert 'w:val="right"' in xml, (
+                f"Entry title paragraph must have a right-aligned tab stop; got: {xml[:300]}"
+            )
+            return
+    pytest.fail("No entry title paragraph with a date found")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # Additional fixtures for patch 5 root-cause regressions
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -943,9 +1134,9 @@ def test_cv_escaped_markdown_content_correct():
     full = "\n".join(_all_text(doc))
     assert "5. Semester" in full, "5. Semester must appear after unescaping 5\\."
     assert "04.2024 - heute" in full, "Date range must appear after unescaping \\-"
-    assert "Haiku + Sonnet" in full, "Tech stack must appear after unescaping \\+"
-    assert "file_hash" in full, "Metadata field must appear after unescaping \\_"
+    # Tech-Stack lines are intentionally omitted from DOCX output; \+ is verified via phone:
     assert "+49 157 12345678" in full, "Phone must appear after unescaping \\+"
+    assert "file_hash" in full, "Metadata field must appear after unescaping \\_"
 
 
 def test_cv_no_backslash_artifacts_across_fixtures():
@@ -962,3 +1153,50 @@ def test_cv_no_backslash_artifacts_across_fixtures():
         assert m is None, (
             f"Escaped Markdown artifact {m.group()!r} found in {label} DOCX output"
         )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CV — patch 9: portrait photo crop + borderless entry title tables
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _make_test_landscape_photo_data_url() -> str:
+    """Create a landscape 80×50 pixel JPEG data URL for portrait-crop tests."""
+    from PIL import Image
+    import base64
+    img = Image.new("RGB", (80, 50), color=(180, 120, 80))
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=50)
+    encoded = base64.b64encode(buf.getvalue()).decode()
+    return f"data:image/jpeg;base64,{encoded}"
+
+
+def test_cv_photo_portrait_ratio():
+    """Landscape source photo must be cropped to portrait orientation in the DOCX."""
+    data_url = _make_test_landscape_photo_data_url()
+    doc = Document(io.BytesIO(generate_cv_docx(
+        SAMPLE_CV, candidate_name="Sara Mustermann", candidate_photo_url=data_url,
+    )))
+    assert len(doc.inline_shapes) > 0, "Photo must be embedded in DOCX"
+    shape = doc.inline_shapes[0]
+    assert shape.height >= shape.width, (
+        f"Photo must be portrait (height >= width). "
+        f"Got width={shape.width.cm:.2f}cm, height={shape.height.cm:.2f}cm"
+    )
+
+
+def test_cv_landscape_photo_cropped_to_portrait():
+    """_crop_portrait must return a 3:4 portrait image from a landscape input."""
+    from backend.ui.docx_export import _crop_portrait
+    from PIL import Image
+    img = Image.new("RGB", (200, 100), color=(180, 120, 80))  # landscape 2:1
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG")
+    result = _crop_portrait(buf.getvalue())
+    assert result is not None, "_crop_portrait must not return None for a valid image"
+    cropped = Image.open(io.BytesIO(result))
+    w, h = cropped.size
+    assert h > w, f"Cropped image must be portrait (h > w). Got {w}×{h}"
+    ratio = w / h
+    assert abs(ratio - 0.75) < 0.05, (
+        f"Cropped image must have ~3:4 ratio. Got w/h={ratio:.3f}"
+    )
