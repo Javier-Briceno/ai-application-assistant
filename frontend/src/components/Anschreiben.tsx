@@ -11,31 +11,20 @@ interface Props {
   profileCity?: string
   profilePhone?: string
   profileEmail?: string
-  profileLinkedin?: string
-  profileGithub?: string
   companyName?: string
   companyAddress?: string
+  contactPerson?: string
   downloadHref?: string
 }
 
-function cleanUrl(url: string): string {
-  return url.replace(/^https?:\/\//i, '')
-}
-
-function buildSenderLines(name: string, street: string, postalCode: string, city: string, phone: string, email: string, linkedin: string, github: string): string[] {
+function buildSenderLines(name: string, street: string, postalCode: string, city: string, phone: string, email: string): string[] {
   const lines: string[] = []
   if (name) lines.push(name)
-  if (street || postalCode) {
-    const postalCity = [postalCode, city].filter(Boolean).join(' ')
-    const addressLine = [street, postalCity].filter(Boolean).join(', ')
-    if (addressLine) lines.push(addressLine)
-  } else if (city) {
-    lines.push(city)
-  }
-  if (phone) lines.push(phone)
-  if (email) lines.push(email)
-  if (linkedin) lines.push(cleanUrl(linkedin))
-  if (github) lines.push(cleanUrl(github))
+  if (street) lines.push(street)
+  const postalCity = [postalCode, city].filter(Boolean).join(' ')
+  if (postalCity) lines.push(postalCity)
+  if (phone) lines.push(`Telefon: ${phone}`)
+  if (email) lines.push(`E-Mail: ${email}`)
   return lines
 }
 
@@ -87,6 +76,13 @@ function parseCompanyFromText(text: string): { recipientLines: string[]; date: s
   return { recipientLines, date: dateFound, body: lines.slice(i).join('\n') }
 }
 
+// Split "Musterstraße 1, 12345 Stadt" → ["Musterstraße 1", "12345 Stadt"] at the PLZ boundary.
+function splitAddressAtPLZ(address: string): string[] {
+  const m = address.match(/^(.*?),?\s*(\d{5}\s+\S.*)$/)
+  if (m && m[1].trim()) return [m[1].trim(), m[2].trim()]
+  return [address]
+}
+
 // Read editor content as plain text without relying on innerText (which doubles newlines
 // under certain white-space CSS settings). Each direct child <div> = one line.
 function divToText(el: HTMLElement): string {
@@ -105,7 +101,7 @@ function divToText(el: HTMLElement): string {
   return lines.join('\n')
 }
 
-export function Anschreiben({ text: initialText, applicationId, profileName, profileStreet, profilePostalCode, profileCity, profilePhone, profileEmail, profileLinkedin, profileGithub, companyName, companyAddress, downloadHref }: Props) {
+export function Anschreiben({ text: initialText, applicationId, profileName, profileStreet, profilePostalCode, profileCity, profilePhone, profileEmail, companyName, companyAddress, contactPerson, downloadHref }: Props) {
   const editorRef = useRef<HTMLDivElement>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const prevHtml = useRef<string | null>(null)
@@ -119,19 +115,27 @@ export function Anschreiben({ text: initialText, applicationId, profileName, pro
   const senderLines = buildSenderLines(
     profileName ?? '', profileStreet ?? '', profilePostalCode ?? '',
     profileCity ?? '', profilePhone ?? '', profileEmail ?? '',
-    profileLinkedin ?? '', profileGithub ?? '',
   )
 
   // Determine what goes into the editable region.
   // If the saved text already has a company block at the top, use it directly.
   // Otherwise prepend the company block from props.
   const parsed = parseCompanyFromText(initialText)
-  const effectiveRecipientLines = parsed?.recipientLines ?? [
-    ...(companyName ? [companyName] : []),
-    ...(companyAddress ? [companyAddress] : []),
-  ]
   const effectiveDate = parsed?.date ?? today
   const effectiveBody = parsed?.body ?? initialText
+
+  const baseRecipientLines = parsed?.recipientLines ?? [
+    ...(companyName ? [companyName] : []),
+    ...(companyAddress
+      ? companyAddress.split('\n').filter(Boolean).flatMap(splitAddressAtPLZ)
+      : []),
+  ]
+  // Insert contact person (from DB) after company name if not already in the block.
+  const effectiveRecipientLines = (() => {
+    if (!contactPerson || baseRecipientLines.some(l => l === contactPerson)) return baseRecipientLines
+    const [first, ...rest] = baseRecipientLines
+    return first ? [first, contactPerson, ...rest] : baseRecipientLines
+  })()
   const html = buildHTML(effectiveRecipientLines, effectiveDate, effectiveBody)
 
   useEffect(() => {

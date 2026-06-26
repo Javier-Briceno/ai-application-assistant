@@ -20,7 +20,7 @@ async def api_list_applications(profile_id: int | None = Query(None)):
         if profile_id is not None:
             rows = await conn.fetch(
                 """
-                SELECT id, profile_id, company, company_address, role_title, score, threshold,
+                SELECT id, profile_id, company, company_address, contact_person, role_title, score, threshold,
                        date_applied, cv_diff, anschreiben, gaps, scoring_details,
                        (tailored_cv IS NOT NULL AND tailored_cv <> '') AS has_tailored_cv
                 FROM job_application_assistant.job_applications
@@ -32,7 +32,7 @@ async def api_list_applications(profile_id: int | None = Query(None)):
         else:
             rows = await conn.fetch(
                 """
-                SELECT id, profile_id, company, company_address, role_title, score, threshold,
+                SELECT id, profile_id, company, company_address, contact_person, role_title, score, threshold,
                        date_applied, cv_diff, anschreiben, gaps, scoring_details,
                        (tailored_cv IS NOT NULL AND tailored_cv <> '') AS has_tailored_cv
                 FROM job_application_assistant.job_applications
@@ -45,6 +45,7 @@ async def api_list_applications(profile_id: int | None = Query(None)):
             "profile_id": r["profile_id"],
             "company": r["company"],
             "company_address": r["company_address"] or "",
+            "contact_person": r["contact_person"] or "",
             "role_title": r["role_title"],
             "score": r["score"],
             "threshold": r["threshold"],
@@ -63,7 +64,7 @@ async def _fetch_application(application_id: int) -> dict:
     async with get_conn() as conn:
         row = await conn.fetchrow(
             """
-            SELECT ja.id, ja.profile_id, ja.company, ja.company_address, ja.role_title,
+            SELECT ja.id, ja.profile_id, ja.company, ja.company_address, ja.contact_person, ja.role_title,
                    ja.tailored_cv, ja.anschreiben,
                    p.first_name, p.last_name,
                    p.street_address, p.postal_code, p.city, p.email,
@@ -135,6 +136,15 @@ async def download_cv_docx(application_id: int):
 
 _DATE_RE = re.compile(r"^\d{1,2}\. \w+ \d{4}$")
 _BODY_STARTERS = ("sehr geehrte", "bewerbung", "mit freundlichen", "ich bewerbe", "hochachtungsvoll", "betreff")
+_PLZ_RE = re.compile(r"^(.*?),?\s*(\d{5}\s+\S.*)$")
+
+
+def _split_address_at_plz(address: str) -> str:
+    """Split 'Musterstraße 1, 12345 Stadt' into 'Musterstraße 1\n12345 Stadt'."""
+    m = _PLZ_RE.match(address)
+    if m and m.group(1).strip():
+        return f"{m.group(1).strip()}\n{m.group(2).strip()}"
+    return address
 
 
 def _parse_company_from_text(text: str) -> tuple[str, str, str]:
@@ -163,7 +173,7 @@ def _parse_company_from_text(text: str) -> tuple[str, str, str]:
         i += 1
 
     company_name = company_lines[0]
-    company_address = company_lines[1] if len(company_lines) > 1 else ""
+    company_address = "\n".join(company_lines[1:])
     body = "\n".join(lines[i:])
     return company_name, company_address, body
 
@@ -179,7 +189,16 @@ async def download_anschreiben_docx(application_id: int):
     # Falls back to the DB company fields when the text starts directly with letter body.
     parsed_company, parsed_address, body_text = _parse_company_from_text(text)
     company_name = parsed_company or (row.get("company") or "")
-    company_address = parsed_address if parsed_company else (row.get("company_address") or "")
+    db_contact = row.get("contact_person") or ""
+    if parsed_company:
+        # Already split by the user's editable block — apply PLZ split on each raw line
+        company_address = "\n".join(
+            _split_address_at_plz(l) for l in parsed_address.splitlines() if l.strip()
+        )
+    else:
+        # Fallback to DB fields; prepend contact person, then split address at PLZ
+        db_address = _split_address_at_plz(row.get("company_address") or "")
+        company_address = "\n".join(x for x in [db_contact, db_address] if x)
 
     candidate_name = f"{row.get('first_name', '') or ''} {row.get('last_name', '') or ''}".strip()
     data = generate_anschreiben_docx(
@@ -190,8 +209,6 @@ async def download_anschreiben_docx(application_id: int):
         candidate_city=row.get("city") or "",
         candidate_phone=_build_phone(row),
         candidate_email=row.get("email") or "",
-        candidate_linkedin=row.get("linkedin_url") or "",
-        candidate_github=row.get("github_url") or "",
         company_name=company_name,
         company_address=company_address,
     )

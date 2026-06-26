@@ -5,6 +5,7 @@ class CompanyExtractorOutput(BaseModel):
     company_name: str | None = None
     search_name: str | None = None
     job_city: str | None = None
+    contact_person: str | None = None
 
 
 class CompanyResearchResult(BaseModel):
@@ -13,3 +14,4 @@ class CompanyResearchResult(BaseModel):
     search_name: str = ""
     company_profile: str = ""
     company_address: str = ""
+    contact_person: str = ""

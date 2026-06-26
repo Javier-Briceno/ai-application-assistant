@@ -162,4 +162,5 @@ async def run_company_research(
         search_name=search_name,
         company_profile=company_profile,
         company_address=company_address,
+        contact_person=extractor.contact_person or "",
     )

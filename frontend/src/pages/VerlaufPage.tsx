@@ -266,10 +266,9 @@ export function VerlaufPage() {
                 profileCity={selectedProfile?.home_location ?? ''}
                 profilePhone={selectedProfile?.phone ?? undefined}
                 profileEmail={selectedProfile?.email ?? undefined}
-                profileLinkedin={selectedProfile?.linkedin_url ?? undefined}
-                profileGithub={selectedProfile?.github_url ?? undefined}
                 companyName={selectedApp.company}
                 companyAddress={selectedApp.company_address}
+                contactPerson={selectedApp.contact_person || undefined}
                 downloadHref={api.applications.anschreibenDocxUrl(selectedApp.id)}
               />
             )}

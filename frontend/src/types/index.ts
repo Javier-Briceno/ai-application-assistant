@@ -57,6 +57,7 @@ export interface CompanyResult {
   search_name: string
   research_text: string
   company_address: string
+  contact_person: string
 }
 
 export interface TailoringResult {
@@ -92,6 +93,7 @@ export interface Application {
   profile_id: number
   company: string
   company_address: string
+  contact_person: string
   role_title: string
   score: number
   threshold: 'pass' | 'caution' | 'fail'

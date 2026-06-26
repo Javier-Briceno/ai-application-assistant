@@ -596,8 +596,6 @@ def generate_anschreiben_docx(
     candidate_city: str = "",
     candidate_phone: str = "",
     candidate_email: str = "",
-    candidate_linkedin: str = "",
-    candidate_github: str = "",  # kept in signature but not shown in letter header
     company_name: str = "",
     company_address: str = "",
     candidate_address: str = "",  # legacy alias for candidate_city
@@ -613,40 +611,33 @@ def generate_anschreiben_docx(
     _setup_a4(doc, top_cm=2.0, bottom_cm=2.0, left_cm=2.5, right_cm=2.0)
     _set_doc_default_font(doc, "Calibri", 11.0)
 
-    # ── 1. Sender block (one field per line) ───────────────────────────────────
+    # ── 1. Sender block ────────────────────────────────────────────────────────
     if candidate_name:
         p = doc.add_paragraph()
         _set_para_spacing(p, before_pt=0, after_pt=4)
         _add_run(p, candidate_name, size_pt=11, bold=True)
 
-    # Address line: "Burgstraße 20, 57072 Siegen" — or just city if no street/postal
+    if candidate_street:
+        p = doc.add_paragraph()
+        _set_para_spacing(p, before_pt=0, after_pt=4)
+        _add_run(p, candidate_street, size_pt=11)
+
     city_short = _short_city(candidate_city)
     postal_city = " ".join(x for x in [candidate_postal_code, city_short] if x)
-    address_parts = [x for x in [candidate_street, postal_city] if x]
-    if address_parts:
+    if postal_city:
         p = doc.add_paragraph()
         _set_para_spacing(p, before_pt=0, after_pt=4)
-        _add_run(p, ", ".join(address_parts), size_pt=11)
-    elif city_short:
-        p = doc.add_paragraph()
-        _set_para_spacing(p, before_pt=0, after_pt=4)
-        _add_run(p, city_short, size_pt=11)
+        _add_run(p, postal_city, size_pt=11)
 
     if candidate_phone:
         p = doc.add_paragraph()
         _set_para_spacing(p, before_pt=0, after_pt=4)
-        _add_run(p, candidate_phone, size_pt=11)
+        _add_run(p, f"Telefon: {candidate_phone}", size_pt=11)
 
     if candidate_email:
         p = doc.add_paragraph()
         _set_para_spacing(p, before_pt=0, after_pt=4)
-        _add_run(p, candidate_email, size_pt=11)
-
-    if candidate_linkedin:
-        p = doc.add_paragraph()
-        _set_para_spacing(p, before_pt=0, after_pt=4)
-        _add_run(p, _clean_url(candidate_linkedin), size_pt=11)
-    # Note: GitHub omitted from letter header — relevant for CV, not cover letter
+        _add_run(p, f"E-Mail: {candidate_email}", size_pt=11)
 
     # ── 2. Blank line ──────────────────────────────────────────────────────────
     _add_blank_line(doc, size_pt=6)

@@ -358,10 +358,9 @@ export function AnalysePage() {
                 profileCity={activeProfile?.home_location ?? ''}
                 profilePhone={activeProfile?.phone ?? undefined}
                 profileEmail={activeProfile?.email ?? undefined}
-                profileLinkedin={activeProfile?.linkedin_url ?? undefined}
-                profileGithub={activeProfile?.github_url ?? undefined}
                 companyName={result.company.company_name}
                 companyAddress={result.company.company_address}
+                contactPerson={result.company.contact_person || undefined}
                 downloadHref={result.job_application_id ? api.applications.anschreibenDocxUrl(result.job_application_id) : undefined}
               />
             )}

@@ -66,6 +66,7 @@ async def _store_job_application(
     profile_id: int,
     company_name: str,
     company_address: str = "",
+    contact_person: str = "",
     role_title: str,
     job_posting: str,
     scoring: ScoringResult,
@@ -91,14 +92,15 @@ async def _store_job_application(
     return await conn.fetchval(
         """
         INSERT INTO job_application_assistant.job_applications
-            (profile_id, company, company_address, role_title, job_posting, score, threshold,
+            (profile_id, company, company_address, contact_person, role_title, job_posting, score, threshold,
              cv_diff, tailored_cv, anschreiben, gaps, scoring_details)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb)
         RETURNING id
         """,
         profile_id,
         company_name,
         company_address,
+        contact_person,
         role_title,
         job_posting,
         scoring.total_score,
@@ -205,6 +207,7 @@ async def run_main_pipeline(
             profile_id=profile_id,
             company_name=company_result.company_name,
             company_address=company_result.company_address,
+            contact_person=company_result.contact_person,
             role_title=_extract_role_title(job_posting),
             job_posting=job_posting,
             scoring=scoring,
@@ -311,6 +314,7 @@ async def run_main_pipeline(
         profile_id=profile_id,
         company_name=company_result.company_name,
         company_address=company_result.company_address,
+        contact_person=company_result.contact_person,
         role_title=_extract_role_title(job_posting),
         job_posting=job_posting,
         scoring=scoring,
