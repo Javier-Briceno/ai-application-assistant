@@ -1,9 +1,10 @@
 import { useRef, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
 import { useApp } from '@/context/AppContext'
 import { api, streamAnalyze } from '@/lib/api'
-import type { PipelineResult, RequirementsAnalysisData } from '@/types'
+import type { Application, PipelineResult, RequirementsAnalysisData } from '@/types'
 import { StepList } from '@/components/StepList'
 import { Bewertung } from '@/components/Bewertung'
 import { CvDiff } from '@/components/CvDiff'
@@ -93,6 +94,12 @@ export function AnalysePage() {
 
   const resolvedProfileId = activeProfileId ?? profiles[0]?.id ?? null
   const activeProfile = profiles.find((p) => p.id === resolvedProfileId) ?? null
+
+  const { data: recentApps = [] } = useQuery({
+    queryKey: ['applications', resolvedProfileId],
+    queryFn: () => api.applications.list(resolvedProfileId),
+    enabled: !result && !analyzing && resolvedProfileId != null,
+  })
 
   // Auto-select first profile if none selected
   useEffect(() => {
@@ -277,17 +284,9 @@ export function AnalysePage() {
 
         {/* Empty state */}
         {!analyzing && !error && !result && (
-          <div style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            height: '100%', gap: 10, color: '#2a2a2e', userSelect: 'none',
-          }}>
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" opacity=".4">
-              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-            </svg>
-            <p style={{ fontSize: 13, color: '#444', textAlign: 'center', maxWidth: 240 }}>
-              Füge eine Stellenausschreibung ein und klicke Analysieren
-            </p>
-          </div>
+          recentApps.length > 0
+            ? <RecentAnalyses apps={recentApps.slice(0, 3)} />
+            : <FirstTimeEmptyState />
         )}
 
         {/* Results */}
@@ -375,6 +374,131 @@ export function AnalysePage() {
           />
         )}
       </main>
+    </div>
+  )
+}
+
+function formatDate(iso: string | null): string {
+  if (!iso) return ''
+  return new Date(iso).toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+function thresholdColors(t: string) {
+  if (t === 'pass') return { color: '#6ee7b7', border: '#059669', bg: '#041510' }
+  if (t === 'caution') return { color: '#fbbf24', border: '#f59e0b', bg: '#1a1000' }
+  return { color: '#fca5a5', border: '#b91c1c', bg: '#1a0505' }
+}
+
+function thresholdLabel(t: string): string {
+  return t === 'pass' ? 'Empfohlen' : t === 'caution' ? 'Grenzfall' : 'Nicht empfohlen'
+}
+
+function RecentAnalyses({ apps }: { apps: Application[] }) {
+  const navigate = useNavigate()
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      height: '100%', gap: 20, padding: 36,
+    }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: '#444', textTransform: 'uppercase', letterSpacing: '.1em' }}>
+        Letzte Analysen
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', maxWidth: 420 }}>
+        {apps.map((app) => {
+          const tc = thresholdColors(app.threshold)
+          return (
+            <button
+              key={app.id}
+              onClick={() => navigate('/verlauf', { state: { selectedAppId: app.id } })}
+              style={{
+                background: '#0a0f0a',
+                border: '1px solid #1e2a1e',
+                borderRadius: 10,
+                padding: '14px 16px',
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'border-color .15s, background .15s',
+                width: '100%',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = '#2a4a2a'
+                e.currentTarget.style.background = '#0c150c'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = '#1e2a1e'
+                e.currentTarget.style.background = '#0a0f0a'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#d4e8d4', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {app.company}
+                  </div>
+                  {app.role_title && (
+                    <div style={{ fontSize: 12, color: '#555', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {app.role_title}
+                    </div>
+                  )}
+                </div>
+                <span style={{
+                  fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 99, flexShrink: 0,
+                  color: tc.color, border: `1px solid ${tc.border}55`, background: tc.bg,
+                }}>
+                  {thresholdLabel(app.threshold)}
+                </span>
+              </div>
+              <div style={{ fontSize: 11, color: '#444', marginTop: 8 }}>
+                {formatDate(app.date_applied)}
+              </div>
+            </button>
+          )
+        })}
+      </div>
+      <button
+        onClick={() => navigate('/verlauf')}
+        style={{
+          background: 'none', border: 'none', color: '#2a4a2a', fontSize: 12,
+          cursor: 'pointer', padding: '2px 0',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.color = '#059669' }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = '#2a4a2a' }}
+      >
+        Alle im Verlauf →
+      </button>
+    </div>
+  )
+}
+
+function FirstTimeEmptyState() {
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      height: '100%', gap: 24, padding: 36, userSelect: 'none',
+    }}>
+      <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#1e3a1e" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+      <div style={{ textAlign: 'center', maxWidth: 280 }}>
+        <p style={{ fontSize: 14, color: '#3a3a3e', margin: '0 0 8px', fontWeight: 500 }}>
+          Noch keine Analyse
+        </p>
+        <p style={{ fontSize: 12, color: '#2a2a2e', margin: 0, lineHeight: 1.6 }}>
+          Füge eine Stellenausschreibung links ein und klicke Analysieren — Bewertung, angepasster Lebenslauf und Anschreiben erscheinen hier.
+        </p>
+      </div>
+      {/* Ghost preview of output sections */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%', maxWidth: 340, opacity: 0.25 }}>
+        {[80, 55, 100, 40, 70].map((w, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 80, height: 8, background: '#1e2a1e', borderRadius: 4, flexShrink: 0 }} />
+            <div style={{ width: `${w}%`, height: 8, background: '#1a3a1a', borderRadius: 4 }} />
+          </div>
+        ))}
+        <div style={{ height: 12 }} />
+        {[100, 85, 92].map((w, i) => (
+          <div key={i} style={{ height: 8, width: `${w}%`, background: '#141e14', borderRadius: 4 }} />
+        ))}
+      </div>
     </div>
   )
 }

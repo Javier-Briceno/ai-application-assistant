@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { profileColor } from '@/lib/profileColor'
 import { api } from '@/lib/api'
@@ -39,10 +39,14 @@ function appToScoring(app: Application): ScoringResult {
 
 export function VerlaufPage() {
   const navigate = useNavigate()
+  const location = useLocation()
 
   const { data: profiles = [] } = useQuery({ queryKey: ['profiles'], queryFn: api.profiles.list })
   const [filterProfileId, setFilterProfileId] = useState<number | null>(null)
-  const [selectedAppId, setSelectedAppId] = useState<number | null>(null)
+  const [selectedAppId, setSelectedAppId] = useState<number | null>(
+    (location.state as { selectedAppId?: number } | null)?.selectedAppId ?? null
+  )
+  const isMounted = useRef(false)
 
   // null = "Alle Profile" (no fallback — explicitly show all)
   const profileId = filterProfileId
@@ -60,8 +64,9 @@ export function VerlaufPage() {
     }
   }, [apps])
 
-  // Reset selection on profile change
+  // Reset selection on profile change (skip on first mount to preserve navigation state)
   useEffect(() => {
+    if (!isMounted.current) { isMounted.current = true; return }
     setSelectedAppId(null)
   }, [profileId])
 
