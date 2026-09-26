@@ -118,8 +118,6 @@ Required fields in create mode:
 
 - `full_name`
 - `cv_text`
-- `guide_text_de`
-- `guide_text_en`
 - `market_research`
 - `career_target`
 
@@ -142,8 +140,6 @@ curl -X POST "http://YOUR_N8N_HOST/webhook/profile-setup" \
   -d '{
     "full_name": "Candidate Name",
     "cv_text": "Plain-text CV",
-    "guide_text_de": "German guide",
-    "guide_text_en": "English guide",
     "market_research": "Structured market research",
     "career_target": "Target role strategy"
   }'
@@ -178,8 +174,6 @@ After profile setup finishes, verify that `candidate_context` contains at least 
 - `cv_hash`
 - `cv_language`
 - `cv_text`
-- `guide_text_de`
-- `guide_text_en`
 - `market_research`
 - `role_type_scores`
 
@@ -370,10 +364,6 @@ Most often this means one or more `Execute Workflow` nodes still point to missin
 Update CV:
 
 - call `POST /profile-setup` with `profile_id` and new `cv_text`
-
-Update guides:
-
-- call `POST /profile-setup` with `profile_id` and updated `guide_text_de` and/or `guide_text_en`
 
 Update market assumptions:
 

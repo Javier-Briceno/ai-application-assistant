@@ -14,8 +14,6 @@ The `candidate_context` table is now profile-scoped and serves three roles:
 Written through `POST /profile-setup` in `utility-extract-profile.json`.
 
 - `cv_text`
-- `guide_text_de`
-- `guide_text_en`
 - `market_research`
 - `career_target`
 
@@ -45,12 +43,6 @@ Used by:
 - translation workflow
 
 Update it when the real source CV changes.
-
-### `guide_text_de`
-German-language cover-letter guide used when the posting language is not English.
-
-### `guide_text_en`
-English-language cover-letter guide used when the posting language is English.
 
 ### `market_research`
 Market context used by the utility workflow to derive:
@@ -143,8 +135,6 @@ After running `POST /profile-setup`, `candidate_context` should contain at least
 - `cv_hash`
 - `cv_language`
 - `cv_text`
-- `guide_text_de`
-- `guide_text_en`
 - `market_research`
 - `role_type_scores`
 
@@ -172,8 +162,6 @@ WHERE profile_id = 1
     'cv_hash',
     'cv_language',
     'cv_text',
-    'guide_text_de',
-    'guide_text_en',
     'market_research',
     'role_type_scores'
   )
@@ -196,10 +184,6 @@ After changing `cv_text`:
 
 - call `POST /profile-setup` with `profile_id`
 - old translations for `de` and `en` are deleted if the hash changed
-
-After changing `guide_text_de` or `guide_text_en`:
-
-- call `POST /profile-setup` with `profile_id`
 
 After changing `market_research`:
 

@@ -87,8 +87,6 @@ The guardrails rejection branch returns plain text:
 - `role_type_scores`
 - `cv_text`
 - `cv_language`
-- `guide_text_de`
-- `guide_text_en`
 
 It also unions in the profile row's `avatar_url` from `job_application_assistant.profiles`.
 
@@ -142,7 +140,6 @@ That sub-workflow:
   - `translated_cv_text_<language>_source_hash`
 - resolves:
   - `cv_text_final`
-  - `guide_text_final`
 
 ### Analysis scoring sub-workflow
 
@@ -200,7 +197,7 @@ Back in `main-workflow.json`:
 - `Anschreiben` generates the cover letter using:
   - score context
   - company context
-  - resolved guide text
+  - the cover-letter guide written into the `Anschreiben` prompt
   - CV-tailoring context
 
 ### Fail branch
@@ -253,14 +250,12 @@ This is the profile provisioning and refresh workflow exposed at `POST /profile-
 
 It supports two modes:
 
-- create mode: requires profile metadata plus the five core context fields
+- create mode: requires `full_name`, `cv_text`, `market_research` and `career_target`
 - update mode: requires `profile_id`, then updates only provided fields
 
 Stored source keys:
 
 - `cv_text`
-- `guide_text_de`
-- `guide_text_en`
 - `market_research`
 - `career_target`
 
@@ -276,7 +271,7 @@ Important behavior reflected in the current workflow:
 - `profiles` rows are created or updated before context writes
 - all `candidate_context` writes are scoped by `profile_id`
 - when `cv_text` changes, cached translations for `en` and `de` are deleted
-- LLM extraction reruns on create, `cv_text` updates, or `market_research` updates; simple profile metadata, guide text, and `career_target`-only updates can return success without recomputing derived keys
+- LLM extraction reruns on create, `cv_text` updates, or `market_research` updates; simple profile metadata and `career_target`-only updates can return success without recomputing derived keys
 - `role_type_scores` is stored as a JSON string and must contain exactly one role with score `12`
 - `cv_language` is stored as a simple language code such as `de`, `en`, or `unknown`
 
