@@ -5,6 +5,8 @@ An n8n-based job-application pipeline that evaluates a pasted job posting agains
 - an application package for `pass` and `caution` matches
 - a gap analysis for `fail` matches
 
+This is a prototype meant for a local n8n instance. The webhooks have no authentication, so do not expose them to the internet.
+
 The current exported setup is built from seven workflows:
 
 1. `utility-extract-profile.json`
@@ -53,8 +55,6 @@ Profile create/update workflow exposed at `POST /profile-setup`. It:
 Stored source keys:
 
 - `cv_text`
-- `guide_text_de`
-- `guide_text_en`
 - `market_research`
 - `career_target`
 
@@ -79,7 +79,7 @@ Extracts the company name from the posting, builds a deterministic search query,
 - `search_results_found`
 
 ### `cv-translation-cache.json`
-Resolves `cv_text_final` and `guide_text_final`.
+Resolves `cv_text_final`, the CV in the language of the posting.
 
 Important behavior:
 
@@ -174,8 +174,6 @@ Create profile:
 {
   "full_name": "Candidate Name",
   "cv_text": "Plain-text CV",
-  "guide_text_de": "German guide",
-  "guide_text_en": "English guide",
   "market_research": "Structured market research",
   "career_target": "Target role strategy"
 }
@@ -253,6 +251,6 @@ Validation / guardrails rejection responses:
 
 ## Docs
 
-- [docs/setup-guide.md](/d:/Yo/github/job-application-assistant/docs/setup-guide.md)
-- [docs/architecture.md](/d:/Yo/github/job-application-assistant/docs/architecture.md)
-- [config/candidate_context_template.md](/d:/Yo/github/job-application-assistant/config/candidate_context_template.md)
+- [docs/setup-guide.md](docs/setup-guide.md)
+- [docs/architecture.md](docs/architecture.md)
+- [config/candidate_context_template.md](config/candidate_context_template.md)
